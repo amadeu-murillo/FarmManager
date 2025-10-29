@@ -12,7 +12,7 @@ public class EstoqueDAO {
 
     /**
      * Adiciona ou atualiza um item no estoque (lógica de UPSERT).
-     * Se o item já existir, soma a quantidade.
+     * Se o item já existir (pelo nome), soma a quantidade.
      * Se for um novo item, insere.
      */
     public boolean addEstoque(String itemNome, double quantidade, String unidade) throws SQLException {
@@ -46,6 +46,19 @@ public class EstoqueDAO {
                 conn.rollback(); // Desfaz em caso de erro
                 throw e; // Repassa a exceção
             }
+        }
+    }
+
+    /**
+     * NOVO: Remove um item do estoque pelo ID.
+     */
+    public boolean removerItemEstoque(int id) throws SQLException {
+        String sql = "DELETE FROM estoque WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            return pstmt.executeUpdate() > 0;
         }
     }
 
@@ -88,4 +101,3 @@ public class EstoqueDAO {
         return 0;
     }
 }
-

@@ -23,6 +23,19 @@ public class FuncionarioDAO {
         }
     }
 
+    /**
+     * NOVO: Remove um funcionário pelo ID.
+     */
+    public boolean removerFuncionario(int id) throws SQLException {
+        String sql = "DELETE FROM funcionarios WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
     public List<Funcionario> listFuncionarios() throws SQLException {
         List<Funcionario> funcionarios = new ArrayList<>();
         String sql = "SELECT id, nome, cargo, salario FROM funcionarios";
@@ -62,4 +75,3 @@ public class FuncionarioDAO {
         return 0;
     }
 }
-

@@ -13,8 +13,9 @@
       <Label styleClass="content-title" text="Gestão de Estoque" />
       <HBox styleClass="module-toolbar">
          <children>
-            <Button mnemonicParsing="false" styleClass="module-button" text="+ Adicionar Item" />
-            <Button mnemonicParsing="false" styleClass="module-button, danger" text="- Remover Item" />
+            <!-- ATUALIZADO: Adicionado onAction -->
+            <Button mnemonicParsing="false" onAction="#handleAdicionarItem" styleClass="module-button" text="+ Adicionar Item" />
+            <Button mnemonicParsing="false" onAction="#handleRemoverItem" styleClass="module-button, danger" text="- Remover Item" />
          </children>
       </HBox>
       <TableView fx:id="tabelaEstoque" VBox.vgrow="ALWAYS">

@@ -13,8 +13,9 @@
       <Label styleClass="content-title" text="Gestão Financeira" />
       <HBox styleClass="module-toolbar">
          <children>
-            <Button mnemonicParsing="false" styleClass="module-button" text="+ Nova Receita" />
-            <Button mnemonicParsing="false" styleClass="module-button, danger" text="- Nova Despesa" />
+            <!-- ATUALIZADO: Adicionado onAction -->
+            <Button mnemonicParsing="false" onAction="#handleNovaReceita" styleClass="module-button" text="+ Nova Receita" />
+            <Button mnemonicParsing="false" onAction="#handleNovaDespesa" styleClass="module-button, danger" text="- Nova Despesa" />
          </children>
       </HBox>
       <TableView fx:id="tabelaFinanceiro" VBox.vgrow="ALWAYS">

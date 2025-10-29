@@ -6,16 +6,20 @@ import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextInputDialog;
+import javafx.geometry.Insets;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.layout.GridPane;
+import javafx.util.Pair;
+
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Controller para o FuncionariosView.fxml.
+ * ATUALIZADO: Substituído o fluxo de múltiplos TextInputDialogs por um único Dialog customizado
+ * e implementada a remoção real.
  */
 public class FuncionariosController {
 
@@ -68,43 +72,73 @@ public class FuncionariosController {
 
     @FXML
     private void handleAdicionar() {
-        // Este é um exemplo simples. O ideal seria um DialogPane customizado.
-        TextInputDialog dialogNome = new TextInputDialog();
-        dialogNome.setTitle("Adicionar Funcionário");
-        dialogNome.setHeaderText("Passo 1 de 3: Nome");
-        dialogNome.setContentText("Nome:");
-        Optional<String> nome = dialogNome.showAndWait();
+        // 1. Criar o diálogo customizado
+        Dialog<Funcionario> dialog = new Dialog<>();
+        dialog.setTitle("Adicionar Novo Funcionário");
+        dialog.setHeaderText("Preencha os dados do novo funcionário.");
 
-        if (nome.isPresent() && !nome.get().isEmpty()) {
-            TextInputDialog dialogCargo = new TextInputDialog();
-            dialogCargo.setTitle("Adicionar Funcionário");
-            dialogCargo.setHeaderText("Passo 2 de 3: Cargo");
-            dialogCargo.setContentText("Cargo:");
-            Optional<String> cargo = dialogCargo.showAndWait();
+        // 2. Definir os botões
+        ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
 
-            if (cargo.isPresent() && !cargo.get().isEmpty()) {
-                TextInputDialog dialogSalario = new TextInputDialog();
-                dialogSalario.setTitle("Adicionar Funcionário");
-                dialogSalario.setHeaderText("Passo 3 de 3: Salário");
-                dialogSalario.setContentText("Salário (ex: 2500.50):");
-                Optional<String> salarioStr = dialogSalario.showAndWait();
+        // 3. Criar o layout (GridPane)
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
 
+        TextField nomeField = new TextField();
+        nomeField.setPromptText("Nome");
+        TextField cargoField = new TextField();
+        cargoField.setPromptText("Cargo");
+        TextField salarioField = new TextField();
+        salarioField.setPromptText("Salário (ex: 2500.50)");
+
+        grid.add(new Label("Nome:"), 0, 0);
+        grid.add(nomeField, 1, 0);
+        grid.add(new Label("Cargo:"), 0, 1);
+        grid.add(cargoField, 1, 1);
+        grid.add(new Label("Salário (R$):"), 0, 2);
+        grid.add(salarioField, 1, 2);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // 4. Converter o resultado para um objeto Funcionario
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == adicionarButtonType) {
                 try {
-                    double salario = Double.parseDouble(salarioStr.get());
-                    Funcionario f = new Funcionario(nome.get(), cargo.get(), salario);
-                    funcionarioDAO.addFuncionario(f);
+                    String nome = nomeField.getText();
+                    String cargo = cargoField.getText();
+                    double salario = Double.parseDouble(salarioField.getText());
                     
-                    carregarDadosDaTabela(); // Atualiza a tabela
-                    AlertUtil.showInfo("Sucesso", "Funcionário adicionado com sucesso.");
-
+                    if (nome.isEmpty() || cargo.isEmpty()) {
+                        AlertUtil.showError("Erro de Validação", "Nome e Cargo são obrigatórios.");
+                        return null; // Retorna nulo para não fechar o diálogo
+                    }
+                    
+                    return new Funcionario(nome, cargo, salario);
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valor do salário inválido.");
-                } catch (SQLException e) {
-                    AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar o funcionário.");
+                    return null; // Retorna nulo para não fechar o diálogo
                 }
             }
-        }
+            return null;
+        });
+
+        // 5. Exibir o diálogo e processar o resultado
+        Optional<Funcionario> result = dialog.showAndWait();
+
+        result.ifPresent(funcionario -> {
+            try {
+                funcionarioDAO.addFuncionario(funcionario);
+                carregarDadosDaTabela(); // Atualiza a tabela
+                AlertUtil.showInfo("Sucesso", "Funcionário adicionado com sucesso.");
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar o funcionário: " + e.getMessage());
+            }
+        });
     }
+
 
     @FXML
     private void handleRemover() {
@@ -120,14 +154,15 @@ public class FuncionariosController {
 
         if (confirmado) {
             try {
-                // (O DAO não tinha um método de remoção, vamos assumir que ele exista)
-                // funcionarioDAO.removerFuncionario(selecionado.getId());
-                
-                // Vamos apenas simular a remoção da lista por enquanto
-                dadosTabela.remove(selecionado);
-                AlertUtil.showInfo("Removido", "Funcionário removido com sucesso.");
-                // carregarDadosDaTabela(); // Recarregaria do banco
-                
+                // ATUALIZADO: Chama o DAO real para remover
+                if (funcionarioDAO.removerFuncionario(selecionado.getId())) {
+                    AlertUtil.showInfo("Removido", "Funcionário removido com sucesso.");
+                    carregarDadosDaTabela(); // Recarrega os dados do banco
+                } else {
+                    AlertUtil.showError("Erro ao Remover", "O funcionário não pôde ser removido.");
+                }
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover o funcionário: " + e.getMessage());
             } catch (Exception e) {
                 AlertUtil.showError("Erro ao Remover", "Não foi possível remover o funcionário.");
             }
