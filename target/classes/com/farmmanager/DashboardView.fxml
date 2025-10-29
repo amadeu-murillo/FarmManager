@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.RowConstraints?>
+
+<!-- Tela do Dashboard -->
+<VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.DashboardController">
+   <children>
+      <Label styleClass="content-title" text="Dashboard - Resumo da Fazenda" />
+      
+      <!-- Grid de "Cards" com o resumo -->
+      <GridPane styleClass="dashboard-grid" VBox.vgrow="ALWAYS">
+         <columnConstraints>
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+            <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+         </columnConstraints>
+         <rowConstraints>
+            <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
+         </rowConstraints>
+         <children>
+            <!-- Card 1: Balanço Financeiro -->
+            <VBox styleClass="card" GridPane.columnIndex="0">
+               <children>
+                  <Label styleClass="card-title" text="Balanço Financeiro (R$)" />
+                  <Label fx:id="lblBalanco" styleClass="card-content-valor" text="Carregando..." />
+               </children>
+            </VBox>
+            <!-- Card 2: Funcionários -->
+            <VBox styleClass="card" GridPane.columnIndex="1">
+               <children>
+                  <Label styleClass="card-title" text="Funcionários Ativos" />
+                  <Label fx:id="lblFuncionarios" styleClass="card-content-texto" text="Carregando..." />
+               </children>
+            </VBox>
+            <!-- Card 3: Itens em Estoque -->
+            <VBox styleClass="card" GridPane.columnIndex="2">
+               <children>
+                  <Label styleClass="card-title" text="Itens em Estoque" />
+                  <Label fx:id="lblEstoque" styleClass="card-content-texto" text="Carregando..." />
+               </children>
+            </VBox>
+         </children>
+      </GridPane>
+   </children>
+</VBox>

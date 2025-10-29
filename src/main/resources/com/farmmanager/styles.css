@@ -1,0 +1,157 @@
+/* ---- Estilo Profissional "Confiança" (Tons de Azul e Verde) ---- */
+
+/* Fundo principal */
+.root {
+    -fx-font-family: 'Segoe UI', Arial, sans-serif;
+    -fx-background-color: #F4F7F6;
+}
+
+/* --- Menu Lateral (Sidebar) --- */
+.sidebar {
+    -fx-background-color: #0D47A1; /* Azul Escuro (Confiança) */
+    -fx-padding: 10px;
+    -fx-spacing: 8px;
+}
+
+.sidebar-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-padding: 10px 0 20px 10px;
+}
+
+/* Ícone do menu lateral */
+.sidebar-icon {
+    -fx-fill: #E0E0E0;
+}
+
+.sidebar .button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #E0E0E0; /* Texto dos botões (cinza claro) */
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10px 20px;
+    -fx-background-radius: 6px;
+    -fx-graphic-text-gap: 10px; /* Espaço entre o ícone e o texto */
+}
+
+.sidebar .button:hover {
+    -fx-background-color: #1565C0; /* Azul mais claro no hover */
+    -fx-text-fill: white;
+}
+.sidebar .button:hover .sidebar-icon {
+    -fx-fill: white;
+}
+
+
+/* --- Área de Conteúdo --- */
+.content-area {
+    -fx-padding: 20px;
+    -fx-spacing: 15px;
+    -fx-background-color: #FFFFFF; /* Fundo branco para conteúdo */
+}
+
+.content-title {
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #222222;
+    -fx-border-color: #EEEEEE;
+    -fx-border-width: 0 0 2px 0; /* Linha sutil abaixo do título */
+    -fx-padding-bottom: 10px;
+}
+
+/* --- NOVO: Estilos do Dashboard --- */
+.dashboard-grid {
+    -fx-hgap: 20px;
+    -fx-vgap: 20px;
+}
+
+.card {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.05), 10, 0.1, 0, 2);
+}
+
+.card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #555555;
+}
+
+.card-content-valor {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1E88E5; /* Azul */
+    -fx-padding-top: 10px;
+}
+
+/* Cores específicas para os cards */
+.card-content-valor.positivo {
+    -fx-text-fill: #43A047; /* Verde */
+}
+.card-content-valor.negativo {
+    -fx-text-fill: #E53935; /* Vermelho */
+}
+
+.card-content-texto {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+    -fx-padding-top: 10px;
+}
+
+/* --- NOVO: Estilos dos Módulos (Geral) --- */
+.module-toolbar {
+    -fx-spacing: 10px;
+    -fx-padding-bottom: 15px;
+}
+
+.module-button {
+    -fx-background-color: #1E88E5; /* Azul */
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 8px 15px;
+    -fx-background-radius: 6px;
+    -fx-cursor: hand;
+}
+.module-button.danger {
+    -fx-background-color: #D32F2F; /* Vermelho */
+}
+
+.module-button:hover {
+    -fx-background-color: #1565C0;
+}
+.module-button.danger:hover {
+    -fx-background-color: #C62828;
+}
+
+/* --- Estilo da Tabela --- */
+.table-view {
+    -fx-border-color: #E0E0E0;
+    -fx-border-radius: 4px;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #F5F5F5; /* Fundo do cabeçalho da tabela */
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 10px;
+}
+
+.table-view .table-cell {
+    -fx-padding: 10px;
+    -fx-font-size: 13px;
+}
+

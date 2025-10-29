@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+
+<!-- 
+  MainView.fxml (O "Shell" da Aplicação)
+  Modificado para ter um StackPane no centro, onde as outras
+  telas (DashboardView, FuncionariosView, etc.) serão carregadas.
+-->
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
+   <left>
+      <!-- Menu Lateral de Navegação (com ícones) -->
+      <VBox prefWidth="200.0" styleClass="sidebar" BorderPane.alignment="CENTER">
+         <children>
+            <Label styleClass="sidebar-title" text="FarmManager" />
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowDashboard" prefHeight="40.0" prefWidth="200.0" text="Dashboard">
+               <graphic>
+                  <FontAwesomeIconView glyphName="HOME" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowFinanceiro" prefHeight="40.0" prefWidth="200.0" text="Financeiro">
+               <graphic>
+                  <FontAwesomeIconView glyphName="DOLLAR" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowEstoque" prefHeight="40.0" prefWidth="200.0" text="Estoque">
+               <graphic>
+                  <FontAwesomeIconView glyphName="ARCHIVE" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowFuncionarios" prefHeight="40.0" prefWidth="200.0" text="Funcionários">
+               <graphic>
+                  <FontAwesomeIconView glyphName="USERS" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowSafras" prefHeight="40.0" prefWidth="200.0" text="Safras e Talhões">
+               <graphic>
+                  <FontAwesomeIconView glyphName="LEAF" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+         </children>
+      </VBox>
+   </left>
+   <center>
+      <!-- Área de Conteúdo Principal -->
+      <!-- Este StackPane é o container onde as outras telas serão injetadas -->
+      <StackPane fx:id="contentArea" styleClass="content-area" BorderPane.alignment="CENTER" />
+   </center>
+</BorderPane>
+
