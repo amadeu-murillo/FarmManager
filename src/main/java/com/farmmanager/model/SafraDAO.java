@@ -50,5 +50,21 @@ public class SafraDAO {
         }
         return safras;
     }
-}
 
+    /**
+     * NOVO: Retorna a contagem de safras "ativas" (sem produção registrada).
+     * Usado pelo Dashboard.
+     */
+    public int getContagemSafrasAtivas() throws SQLException {
+        // Considera safras "ativas" as que ainda não tiveram produção registrada (produção = 0)
+        String sql = "SELECT COUNT(*) AS total FROM safras WHERE producao_total_kg = 0 OR producao_total_kg IS NULL";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+        }
+        return 0;
+    }
+}

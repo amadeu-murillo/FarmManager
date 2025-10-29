@@ -5,14 +5,20 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.RowConstraints?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.chart.PieChart?>
+<?import javafx.scene.chart.LineChart?>
+<?import javafx.scene.chart.CategoryAxis?>
+<?import javafx.scene.chart.NumberAxis?>
 
 <!-- Tela do Dashboard -->
+<!-- ATUALIZADO: Adicionada uma HBox com gráficos -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.DashboardController">
    <children>
       <Label styleClass="content-title" text="Dashboard - Resumo da Fazenda" />
       
       <!-- Grid de "Cards" com o resumo -->
-      <GridPane styleClass="dashboard-grid" VBox.vgrow="ALWAYS">
+      <GridPane styleClass="dashboard-grid">
          <columnConstraints>
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
             <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
@@ -20,30 +26,84 @@
          </columnConstraints>
          <rowConstraints>
             <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
+            <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
          </rowConstraints>
          <children>
             <!-- Card 1: Balanço Financeiro -->
-            <VBox styleClass="card" GridPane.columnIndex="0">
+            <VBox styleClass="card" GridPane.columnIndex="0" GridPane.rowIndex="0">
                <children>
                   <Label styleClass="card-title" text="Balanço Financeiro (R$)" />
                   <Label fx:id="lblBalanco" styleClass="card-content-valor" text="Carregando..." />
                </children>
             </VBox>
             <!-- Card 2: Funcionários -->
-            <VBox styleClass="card" GridPane.columnIndex="1">
+            <VBox styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="0">
                <children>
                   <Label styleClass="card-title" text="Funcionários Ativos" />
                   <Label fx:id="lblFuncionarios" styleClass="card-content-texto" text="Carregando..." />
                </children>
             </VBox>
             <!-- Card 3: Itens em Estoque -->
-            <VBox styleClass="card" GridPane.columnIndex="2">
+            <VBox styleClass="card" GridPane.columnIndex="2" GridPane.rowIndex="0">
                <children>
                   <Label styleClass="card-title" text="Itens em Estoque" />
                   <Label fx:id="lblEstoque" styleClass="card-content-texto" text="Carregando..." />
                </children>
             </VBox>
+
+            <!-- Card 4: Total de Talhões -->
+            <VBox styleClass="card" GridPane.columnIndex="0" GridPane.rowIndex="1">
+               <children>
+                  <Label styleClass="card-title" text="Total de Talhões" />
+                  <Label fx:id="lblTalhoes" styleClass="card-content-texto" text="Carregando..." />
+               </children>
+            </VBox>
+            <!-- Card 5: Safras Ativas -->
+            <VBox styleClass="card" GridPane.columnIndex="1" GridPane.rowIndex="1">
+               <children>
+                  <Label styleClass="card-title" text="Safras Ativas" />
+                  <Label fx:id="lblSafras" styleClass="card-content-texto" text="Carregando..." />
+               </children>
+            </VBox>
+            <!-- Card 6: Área Total -->
+            <VBox styleClass="card" GridPane.columnIndex="2" GridPane.rowIndex="1">
+               <children>
+                  <Label styleClass="card-title" text="Área Total (ha)" />
+                  <Label fx:id="lblAreaTotal" styleClass="card-content-texto" text="Carregando..." />
+               </children>
+            </VBox>
+
          </children>
       </GridPane>
+      
+      <!-- NOVO: Seção de Gráficos -->
+      <HBox spacing="20.0" VBox.vgrow="ALWAYS">
+         <children>
+            <!-- Gráfico de Pizza: Receita vs Despesa -->
+            <VBox styleClass="card" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label styleClass="card-title" text="Visão Financeira" />
+                  <PieChart fx:id="chartDespesas" title="Receitas vs. Despesas" VBox.vgrow="ALWAYS" />
+               </children>
+            </VBox>
+            
+            <!-- Gráfico de Linha: Histórico do Balanço -->
+            <VBox styleClass="card" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label styleClass="card-title" text="Histórico Financeiro" />
+                  <LineChart fx:id="chartBalanco" title="Balanço por Mês" VBox.vgrow="ALWAYS">
+                     <xAxis>
+                        <CategoryAxis label="Mês" />
+                     </xAxis>
+                     <yAxis>
+                        <NumberAxis label="Valor (R$)" />
+                     </yAxis>
+                  </LineChart>
+               </children>
+            </VBox>
+         </children>
+      </HBox>
+      
    </children>
 </VBox>
+

@@ -40,4 +40,36 @@ public class TalhaoDAO {
         }
         return talhoes;
     }
+
+    /**
+     * NOVO: Retorna a contagem total de talhões.
+     * Usado pelo Dashboard.
+     */
+    public int getContagemTalhoes() throws SQLException {
+        String sql = "SELECT COUNT(*) AS total FROM talhoes";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getInt("total");
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * NOVO: Retorna a soma da área de todos os talhões.
+     * Usado pelo Dashboard.
+     */
+    public double getTotalAreaHectares() throws SQLException {
+        String sql = "SELECT SUM(area_hectares) AS total_area FROM talhoes";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getDouble("total_area");
+            }
+        }
+        return 0.0;
+    }
 }
