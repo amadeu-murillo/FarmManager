@@ -6,9 +6,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.LinkedHashMap; // NOVO
+import java.util.LinkedHashMap; 
 import java.util.List;
-import java.util.Map; // NOVO
+import java.util.Map; 
 
 public class FinanceiroDAO {
 
@@ -46,6 +46,63 @@ public class FinanceiroDAO {
         }
         return transacoes;
     }
+
+    /**
+     * NOVO: Retorna uma transação específica pela descrição.
+     * Usado pelo SafrasController para encontrar a data da transação da colheita.
+     */
+    public Transacao getTransacaoPorDescricao(String descricao) throws SQLException {
+        String sql = "SELECT * FROM financeiro WHERE descricao = ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, descricao);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new Transacao(
+                        rs.getInt("id"),
+                        rs.getString("descricao"),
+                        rs.getDouble("valor"),
+                        rs.getString("data"),
+                        rs.getString("tipo")
+                    );
+                }
+            }
+        }
+        return null; // Não encontrado
+    }
+
+    /**
+     * NOVO: Retorna uma lista de transações onde a descrição começa com o texto fornecido.
+     * Usado pelo SafrasController para encontrar todas as vendas de uma colheita.
+     */
+    public List<Transacao> listTransacoesPorDescricaoLike(String partialDesc) throws SQLException {
+        List<Transacao> transacoes = new ArrayList<>();
+        String sql = "SELECT * FROM financeiro WHERE descricao LIKE ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            // O '%' é o curinga do SQL para "qualquer coisa"
+            pstmt.setString(1, partialDesc + "%"); 
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    transacoes.add(new Transacao(
+                        rs.getInt("id"),
+                        rs.getString("descricao"),
+                        rs.getDouble("valor"),
+                        rs.getString("data"),
+                        rs.getString("tipo")
+                    ));
+                }
+            }
+        }
+        return transacoes;
+    }
+
 
     public double getBalançoFinanceiro() throws SQLException {
         String sql = "SELECT SUM(valor) AS balanco FROM financeiro";

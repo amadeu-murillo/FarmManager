@@ -137,6 +137,60 @@ public class EstoqueDAO {
         }
     }
 
+    /**
+     * NOVO: Busca um item de estoque específico pelo seu ID.
+     */
+    public EstoqueItem getItemById(int id) throws SQLException {
+        String sql = "SELECT * FROM estoque WHERE id = ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new EstoqueItem(
+                        rs.getInt("id"),
+                        rs.getString("item_nome"),
+                        rs.getDouble("quantidade"),
+                        rs.getString("unidade"),
+                        rs.getDouble("valor_unitario"),
+                        rs.getDouble("valor_total")
+                    );
+                }
+            }
+        }
+        return null; // Não encontrado
+    }
+
+    /**
+     * NOVO: Busca um item de estoque específico pelo seu NOME.
+     */
+    public EstoqueItem getEstoqueItemPorNome(String nome) throws SQLException {
+        String sql = "SELECT * FROM estoque WHERE item_nome = ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, nome);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return new EstoqueItem(
+                        rs.getInt("id"),
+                        rs.getString("item_nome"),
+                        rs.getDouble("quantidade"),
+                        rs.getString("unidade"),
+                        rs.getDouble("valor_unitario"),
+                        rs.getDouble("valor_total")
+                    );
+                }
+            }
+        }
+        return null; // Não encontrado
+    }
+
     public List<EstoqueItem> listEstoque() throws SQLException {
         List<EstoqueItem> items = new ArrayList<>();
         // ATUALIZADO: Seleciona novos campos
@@ -177,6 +231,27 @@ public class EstoqueDAO {
             }
         }
         return 0;
+    }
+
+    /**
+     * Retorna o nome de um item baseado no ID.
+     * Usado pelo SafrasController para preencher a tabela de detalhes.
+     */
+    public String getItemNomeById(int id) throws SQLException {
+        String sql = "SELECT item_nome FROM estoque WHERE id = ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("item_nome");
+                }
+            }
+        }
+        return "ID: " + id + " (Não encontrado)";
     }
 }
 
