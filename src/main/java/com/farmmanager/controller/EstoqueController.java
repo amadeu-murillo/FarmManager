@@ -13,10 +13,11 @@ import javafx.scene.layout.GridPane;
 
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.Locale; 
 
 /**
  * Controller para o EstoqueView.fxml.
- * ATUALIZADO: Implementados handlers para adicionar e remover itens.
+ * ATUALIZADO: Implementado cálculo automático de valor unitário/total.
  */
 public class EstoqueController {
 
@@ -30,9 +31,16 @@ public class EstoqueController {
     private TableColumn<EstoqueItem, Double> colItemQtd;
     @FXML
     private TableColumn<EstoqueItem, String> colItemUnidade;
+    @FXML
+    private TableColumn<EstoqueItem, Double> colItemValorUnit; // NOVO
+    @FXML
+    private TableColumn<EstoqueItem, Double> colItemValorTotal; // NOVO
 
     private final EstoqueDAO estoqueDAO;
     private final ObservableList<EstoqueItem> dadosTabela;
+
+    // Flag para evitar loops nos listeners
+    private boolean isUpdating = false;
 
     public EstoqueController() {
         estoqueDAO = new EstoqueDAO();
@@ -45,6 +53,8 @@ public class EstoqueController {
         colItemNome.setCellValueFactory(new PropertyValueFactory<>("itemNome"));
         colItemQtd.setCellValueFactory(new PropertyValueFactory<>("quantidade"));
         colItemUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
+        colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); // NOVO
+        colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); // NOVO
 
         tabelaEstoque.setItems(dadosTabela);
         carregarDadosDaTabela();
@@ -60,14 +70,14 @@ public class EstoqueController {
     }
 
     /**
-     * NOVO: Manipulador para o botão "+ Adicionar Item".
-     * Usa a lógica UPSERT do EstoqueDAO.
+     * Manipulador para o botão "+ Adicionar Item".
+     * ATUALIZADO: Com cálculo automático de valor.
      */
     @FXML
     private void handleAdicionarItem() {
         Dialog<EstoqueItem> dialog = new Dialog<>();
         dialog.setTitle("Adicionar Item ao Estoque");
-        dialog.setHeaderText("Preencha os dados do item.\nSe o item já existir, a quantidade será somada.");
+        dialog.setHeaderText("Preencha os dados do item.\nSe o item já existir, os valores serão somados (custo médio).");
 
         ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
@@ -83,6 +93,12 @@ public class EstoqueController {
         qtdField.setPromptText("Ex: 50.0");
         TextField unidadeField = new TextField();
         unidadeField.setPromptText("Ex: Sacos ou Kg");
+        
+        TextField valorUnitarioField = new TextField();
+        valorUnitarioField.setPromptText("Ex: 150.00");
+        TextField valorTotalField = new TextField();
+        valorTotalField.setPromptText("Ex: 7500.00");
+
 
         grid.add(new Label("Nome:"), 0, 0);
         grid.add(nomeField, 1, 0);
@@ -90,6 +106,21 @@ public class EstoqueController {
         grid.add(qtdField, 1, 1);
         grid.add(new Label("Unidade:"), 0, 2);
         grid.add(unidadeField, 1, 2);
+        grid.add(new Label("Valor Unitário (R$):"), 0, 3);
+        grid.add(valorUnitarioField, 1, 3);
+        grid.add(new Label("Valor Total (R$):"), 0, 4);
+        grid.add(valorTotalField, 1, 4);
+
+        // --- Lógica de Cálculo Automático ---
+
+        // Se Qtd ou Vlr. Unitário mudam, calcula o Vlr. Total
+        qtdField.textProperty().addListener((obs, oldV, newV) -> calcularTotal(qtdField, valorUnitarioField, valorTotalField));
+        valorUnitarioField.textProperty().addListener((obs, oldV, newV) -> calcularTotal(qtdField, valorUnitarioField, valorTotalField));
+
+        // Se Vlr. Total muda, calcula o Vlr. Unitário
+        valorTotalField.textProperty().addListener((obs, oldV, newV) -> calcularUnitario(qtdField, valorUnitarioField, valorTotalField));
+        
+        // --- Fim da Lógica ---
 
         dialog.getDialogPane().setContent(grid);
 
@@ -97,21 +128,23 @@ public class EstoqueController {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String nome = nomeField.getText();
-                    double qtd = Double.parseDouble(qtdField.getText());
                     String unidade = unidadeField.getText();
+                    double qtd = parseDouble(qtdField.getText());
+                    double valorUnitario = parseDouble(valorUnitarioField.getText());
+                    double valorTotal = parseDouble(valorTotalField.getText());
 
                     if (nome.isEmpty() || unidade.isEmpty()) {
-                        AlertUtil.showError("Erro de Validação", "Todos os campos são obrigatórios.");
+                        AlertUtil.showError("Erro de Validação", "Nome e Unidade são obrigatórios.");
                         return null;
                     }
-                    if (qtd <= 0) {
-                         AlertUtil.showError("Erro de Validação", "A quantidade deve ser positiva.");
+                    if (qtd <= 0 || valorUnitario <= 0 || valorTotal <= 0) {
+                         AlertUtil.showError("Erro de Validação", "Quantidade e valores devem ser positivos.");
                          return null;
                     }
-                    // Usamos o construtor sem ID, pois o DAO cuida disso
-                    return new EstoqueItem(nome, qtd, unidade);
+                    
+                    return new EstoqueItem(nome, qtd, unidade, valorUnitario, valorTotal);
                 } catch (NumberFormatException e) {
-                    AlertUtil.showError("Erro de Formato", "Valor de quantidade inválido.");
+                    AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
                     return null;
                 }
             }
@@ -122,7 +155,8 @@ public class EstoqueController {
 
         result.ifPresent(item -> {
             try {
-                estoqueDAO.addEstoque(item.getItemNome(), item.getQuantidade(), item.getUnidade());
+                // O DAO agora espera o objeto Item
+                estoqueDAO.addEstoque(item);
                 carregarDadosDaTabela();
                 AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
             } catch (SQLException e) {
@@ -131,8 +165,105 @@ public class EstoqueController {
         });
     }
 
+    // Helper para converter texto em double (aceita , e .)
+    private double parseDouble(String text) throws NumberFormatException {
+        if (text == null || text.isEmpty()) {
+            return 0.0;
+        }
+        return Double.parseDouble(text.replace(",", "."));
+    }
+
+    // Helper para formatar double para o campo de texto
+    private String formatDouble(double value) {
+        // Usa Locale.US para garantir o ponto como separador decimal
+        return String.format(Locale.US, "%.2f", value);
+    }
+
+    // Calcula Vlr. Total
+    private void calcularTotal(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
+        if (isUpdating) return; // Evita loop
+        isUpdating = true;
+        try {
+            double qtd = parseDouble(qtdField.getText());
+            double valorUnitario = parseDouble(valorUnitarioField.getText());
+            if (qtd > 0 && valorUnitario > 0) {
+                valorTotalField.setText(formatDouble(qtd * valorUnitario));
+            }
+        } catch (NumberFormatException e) {
+            // ignora
+        }
+        isUpdating = false;
+    }
+
+    // Calcula Vlr. Unitário
+    private void calcularUnitario(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
+        if (isUpdating) return; // Evita loop
+        isUpdating = true;
+        try {
+            double qtd = parseDouble(qtdField.getText());
+            double valorTotal = parseDouble(valorTotalField.getText());
+            if (qtd > 0 && valorTotal > 0) {
+                valorUnitarioField.setText(formatDouble(valorTotal / qtd));
+            }
+        } catch (NumberFormatException e) {
+            // ignora
+        }
+        isUpdating = false;
+    }
+
+
     /**
-     * NOVO: Manipulador para o botão "- Remover Item".
+     * Manipulador para o botão "Consumir Item".
+     */
+    @FXML
+    private void handleConsumirItem() {
+        EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
+        
+        if (selecionado == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione um item na tabela para consumir.");
+            return;
+        }
+
+        // Formata a quantidade atual para exibir no diálogo
+        String qtdAtualStr = String.format(Locale.US, "%.2f", selecionado.getQuantidade());
+
+        TextInputDialog dialog = new TextInputDialog("1.0");
+        dialog.setTitle("Consumir Item do Estoque");
+        dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + qtdAtualStr + " " + selecionado.getUnidade() + ")");
+        dialog.setContentText("Digite a quantidade a consumir:");
+
+        Optional<String> result = dialog.showAndWait();
+
+        result.ifPresent(qtdConsumirStr -> {
+            try {
+                // Aceita vírgula ou ponto
+                double qtdAConsumir = Double.parseDouble(qtdConsumirStr.replace(",", "."));
+
+                if (qtdAConsumir <= 0) {
+                    AlertUtil.showError("Valor Inválido", "A quantidade a consumir deve ser positiva.");
+                    return;
+                }
+
+                // Chama o novo método do DAO
+                estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
+                
+                AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
+                carregarDadosDaTabela(); // Recarrega a tabela
+
+            } catch (NumberFormatException e) {
+                AlertUtil.showError("Erro de Formato", "Valor de quantidade inválido. Use apenas números (ex: 10.5).");
+            } catch (IllegalStateException e) {
+                // Captura a exceção de estoque insuficiente lançada pelo DAO
+                AlertUtil.showError("Erro de Estoque", e.getMessage());
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível consumir o item: " + e.getMessage());
+            }
+        });
+    }
+
+
+    /**
+     * Manipulador para o botão "- Remover Item".
      */
     @FXML
     private void handleRemoverItem() {
@@ -160,3 +291,4 @@ public class EstoqueController {
         }
     }
 }
+

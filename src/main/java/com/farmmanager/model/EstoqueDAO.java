@@ -11,36 +11,56 @@ import java.util.List;
 public class EstoqueDAO {
 
     /**
-     * Adiciona ou atualiza um item no estoque (lógica de UPSERT).
-     * Se o item já existir (pelo nome), soma a quantidade.
+     * Adiciona um item ao estoque.
+     * Se o item (pelo nome) já existir, atualiza a quantidade,
+     * o valor total e recalcula o valor unitário (custo médio ponderado).
      * Se for um novo item, insere.
      */
-    public boolean addEstoque(String itemNome, double quantidade, String unidade) throws SQLException {
-        // Tenta atualizar primeiro
-        String sqlUpdate = "UPDATE estoque SET quantidade = quantidade + ? WHERE item_nome = ?";
-        // Se não atualizar (0 linhas afetadas), insere
-        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade) VALUES (?, ?, ?)";
+    public boolean addEstoque(EstoqueItem item) throws SQLException {
+        String sqlSelect = "SELECT id, quantidade, valor_total FROM estoque WHERE item_nome = ?";
+        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, valor_unitario = ? WHERE id = ?";
+        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade, valor_unitario, valor_total) VALUES (?, ?, ?, ?, ?)";
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false); // Inicia transação
 
-            try (PreparedStatement pstmtUpdate = conn.prepareStatement(sqlUpdate)) {
-                pstmtUpdate.setDouble(1, quantidade);
-                pstmtUpdate.setString(2, itemNome);
-                int rowsAffected = pstmtUpdate.executeUpdate();
+            try (PreparedStatement pstmtSelect = conn.prepareStatement(sqlSelect)) {
+                pstmtSelect.setString(1, item.getItemNome());
+                
+                try (ResultSet rs = pstmtSelect.executeQuery()) {
+                    if (rs.next()) {
+                        // --- ITEM EXISTE (UPDATE) ---
+                        int id = rs.getInt("id");
+                        double oldQty = rs.getDouble("quantidade");
+                        double oldTotalVal = rs.getDouble("valor_total");
 
-                if (rowsAffected == 0) {
-                    // Item não existe, vamos inserir
-                    try (PreparedStatement pstmtInsert = conn.prepareStatement(sqlInsert)) {
-                        pstmtInsert.setString(1, itemNome);
-                        pstmtInsert.setDouble(2, quantidade);
-                        pstmtInsert.setString(3, unidade);
-                        rowsAffected = pstmtInsert.executeUpdate();
+                        double newQty = oldQty + item.getQuantidade();
+                        double newTotalVal = oldTotalVal + item.getValorTotal();
+                        // Custo médio ponderado
+                        double newUnitVal = (newQty > 0) ? (newTotalVal / newQty) : 0; 
+
+                        try (PreparedStatement pstmtUpdate = conn.prepareStatement(sqlUpdate)) {
+                            pstmtUpdate.setDouble(1, newQty);
+                            pstmtUpdate.setDouble(2, newTotalVal);
+                            pstmtUpdate.setDouble(3, newUnitVal);
+                            pstmtUpdate.setInt(4, id);
+                            pstmtUpdate.executeUpdate();
+                        }
+                    } else {
+                        // --- ITEM NÃO EXISTE (INSERT) ---
+                        try (PreparedStatement pstmtInsert = conn.prepareStatement(sqlInsert)) {
+                            pstmtInsert.setString(1, item.getItemNome());
+                            pstmtInsert.setDouble(2, item.getQuantidade());
+                            pstmtInsert.setString(3, item.getUnidade());
+                            pstmtInsert.setDouble(4, item.getValorUnitario());
+                            pstmtInsert.setDouble(5, item.getValorTotal());
+                            pstmtInsert.executeUpdate();
+                        }
                     }
                 }
                 
                 conn.commit(); // Efetiva a transação
-                return rowsAffected > 0;
+                return true;
 
             } catch (SQLException e) {
                 conn.rollback(); // Desfaz em caso de erro
@@ -50,7 +70,62 @@ public class EstoqueDAO {
     }
 
     /**
-     * NOVO: Remove um item do estoque pelo ID.
+     * Consome (dá baixa) em uma quantidade específica de um item.
+     * Recalcula o valor_total com base no valor_unitário (custo médio).
+     * @throws IllegalStateException Se não houver estoque suficiente.
+     */
+    public boolean consumirEstoque(int id, double quantidadeAConsumir) throws SQLException, IllegalStateException {
+        String sqlSelect = "SELECT quantidade, valor_unitario FROM estoque WHERE id = ?";
+        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ? WHERE id = ?";
+
+        try (Connection conn = Database.getConnection()) {
+            conn.setAutoCommit(false); 
+            
+            double quantidadeAtual = 0;
+            double valorUnitario = 0;
+
+            // 1. Verifica o estoque atual e o valor unitário
+            try (PreparedStatement pstmtSelect = conn.prepareStatement(sqlSelect)) {
+                pstmtSelect.setInt(1, id);
+                try (ResultSet rs = pstmtSelect.executeQuery()) {
+                    if (rs.next()) {
+                        quantidadeAtual = rs.getDouble("quantidade");
+                        valorUnitario = rs.getDouble("valor_unitario");
+                    } else {
+                        throw new SQLException("Item não encontrado no estoque, ID: " + id);
+                    }
+                }
+            }
+
+            // 2. Valida se há estoque suficiente
+            if (quantidadeAtual < quantidadeAConsumir) {
+                conn.rollback(); 
+                throw new IllegalStateException("Estoque insuficiente. Disponível: " + quantidadeAtual + ", Tentativa de consumo: " + quantidadeAConsumir);
+            }
+
+            // 3. Calcula novos valores
+            double novaQuantidade = quantidadeAtual - quantidadeAConsumir;
+            double novoValorTotal = novaQuantidade * valorUnitario; // Atualiza o valor total baseado no custo médio
+
+            // 4. Atualiza o estoque
+            try (PreparedStatement pstmtUpdate = conn.prepareStatement(sqlUpdate)) {
+                pstmtUpdate.setDouble(1, novaQuantidade);
+                pstmtUpdate.setDouble(2, novoValorTotal);
+                pstmtUpdate.setInt(3, id);
+                int rowsAffected = pstmtUpdate.executeUpdate();
+                
+                conn.commit(); // Efetiva a transação
+                return rowsAffected > 0;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
+
+    /**
+     * Remove um item do estoque pelo ID.
      */
     public boolean removerItemEstoque(int id) throws SQLException {
         String sql = "DELETE FROM estoque WHERE id = ?";
@@ -64,7 +139,8 @@ public class EstoqueDAO {
 
     public List<EstoqueItem> listEstoque() throws SQLException {
         List<EstoqueItem> items = new ArrayList<>();
-        String sql = "SELECT id, item_nome, quantidade, unidade FROM estoque";
+        // ATUALIZADO: Seleciona novos campos
+        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total FROM estoque";
         
         try (Connection conn = Database.getConnection();
              Statement stmt = conn.createStatement();
@@ -75,7 +151,9 @@ public class EstoqueDAO {
                     rs.getInt("id"),
                     rs.getString("item_nome"),
                     rs.getDouble("quantidade"),
-                    rs.getString("unidade")
+                    rs.getString("unidade"),
+                    rs.getDouble("valor_unitario"), // NOVO
+                    rs.getDouble("valor_total") // NOVO
                 );
                 items.add(item);
             }
@@ -84,7 +162,7 @@ public class EstoqueDAO {
     }
     
     /**
-     * NOVO: Retorna a contagem de itens distintos no estoque.
+     * Retorna a contagem de itens distintos no estoque.
      * Usado pelo Dashboard.
      */
     public int getContagemItensDistintos() throws SQLException {
@@ -101,3 +179,4 @@ public class EstoqueDAO {
         return 0;
     }
 }
+
