@@ -23,13 +23,41 @@ public class SafraDAO {
     }
 
     /**
+     * NOVO: Atualiza a produção total de uma safra existente.
+     * Usado para registrar a colheita.
+     */
+    public boolean updateProducaoSafra(int safraId, double producaoKg) throws SQLException {
+        String sql = "UPDATE safras SET producao_total_kg = ? WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setDouble(1, producaoKg);
+            pstmt.setInt(2, safraId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * NOVO: Remove uma safra pelo ID.
+     */
+    public boolean removerSafra(int safraId) throws SQLException {
+        String sql = "DELETE FROM safras WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, safraId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * Lista safras com informações do talhão (JOIN).
      * Retorna um DTO (SafraInfo) ao invés da entidade Safra pura.
      */
     public List<SafraInfo> listSafrasComInfo() throws SQLException {
         List<SafraInfo> safras = new ArrayList<>();
-        // CORREÇÃO: Removido Text Block (aspas triplas) para compatibilidade com Java 11
-        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome "
+        // ATUALIZAÇÃO: Adicionado t.area_hectares à consulta
+        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome, t.area_hectares "
             + "FROM safras s "
             + "JOIN talhoes t ON s.talhao_id = t.id";
         
@@ -43,7 +71,8 @@ public class SafraDAO {
                     rs.getString("cultura"),
                     rs.getInt("ano_inicio"),
                     rs.getString("talhao_nome"),
-                    rs.getDouble("producao_total_kg")
+                    rs.getDouble("producao_total_kg"),
+                    rs.getDouble("area_hectares") // ATUALIZAÇÃO: Passando a área para o construtor
                 );
                 safras.add(si);
             }
@@ -68,3 +97,4 @@ public class SafraDAO {
         return 0;
     }
 }
+

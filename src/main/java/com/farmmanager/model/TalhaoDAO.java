@@ -21,6 +21,19 @@ public class TalhaoDAO {
         }
     }
 
+    /**
+     * NOVO: Remove um talhão pelo ID.
+     */
+    public boolean removerTalhao(int talhaoId) throws SQLException {
+        String sql = "DELETE FROM talhoes WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, talhaoId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
     public List<Talhao> listTalhoes() throws SQLException {
         List<Talhao> talhoes = new ArrayList<>();
         String sql = "SELECT id, nome, area_hectares FROM talhoes";

@@ -17,10 +17,12 @@ import javafx.scene.layout.GridPane;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Locale; // NOVO: Para formatação de número
 
 /**
  * Controller para o SafrasView.fxml.
  * ATUALIZADO: Implementados handlers de adição e carregamento da tabela de Talhões.
+ * ATUALIZAÇÃO 2: Adicionados handlers para registrar colheita e remover itens.
  */
 public class SafrasController {
 
@@ -38,7 +40,7 @@ public class SafrasController {
     @FXML
     private TableColumn<SafraInfo, Double> colSafraProd;
 
-    // NOVO: Tabela Talhões
+    // Tabela Talhões
     @FXML
     private TableView<Talhao> tabelaTalhoes;
     @FXML
@@ -49,16 +51,16 @@ public class SafrasController {
     private TableColumn<Talhao, Double> colTalhaoArea;
 
     private final SafraDAO safraDAO;
-    private final TalhaoDAO talhaoDAO; // NOVO
+    private final TalhaoDAO talhaoDAO;
     
     private final ObservableList<SafraInfo> dadosTabelaSafras;
-    private final ObservableList<Talhao> dadosTabelaTalhoes; // NOVO
+    private final ObservableList<Talhao> dadosTabelaTalhoes;
 
     public SafrasController() {
         safraDAO = new SafraDAO();
-        talhaoDAO = new TalhaoDAO(); // NOVO
+        talhaoDAO = new TalhaoDAO();
         dadosTabelaSafras = FXCollections.observableArrayList();
-        dadosTabelaTalhoes = FXCollections.observableArrayList(); // NOVO
+        dadosTabelaTalhoes = FXCollections.observableArrayList();
     }
 
     @FXML
@@ -68,10 +70,10 @@ public class SafrasController {
         colSafraCultura.setCellValueFactory(new PropertyValueFactory<>("cultura"));
         colSafraAno.setCellValueFactory(new PropertyValueFactory<>("anoInicio"));
         colSafraTalhao.setCellValueFactory(new PropertyValueFactory<>("talhaoNome"));
-        colSafraProd.setCellValueFactory(new PropertyValueFactory<>("producaoTotalKg"));
+        colSafraProd.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
         tabelaSafras.setItems(dadosTabelaSafras);
         
-        // NOVO: Configura Tabela Talhões
+        // Configura Tabela Talhões
         colTalhaoId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colTalhaoNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
         colTalhaoArea.setCellValueFactory(new PropertyValueFactory<>("areaHectares"));
@@ -91,7 +93,6 @@ public class SafrasController {
         }
     }
 
-    // NOVO
     private void carregarDadosTalhoes() {
          try {
             dadosTabelaTalhoes.clear();
@@ -102,7 +103,7 @@ public class SafrasController {
     }
 
     /**
-     * NOVO: Manipulador para o botão "+ Novo Talhão".
+     * Manipulador para o botão "+ Novo Talhão".
      */
     @FXML
     private void handleNovoTalhao() {
@@ -134,7 +135,7 @@ public class SafrasController {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String nome = nomeField.getText();
-                    double area = Double.parseDouble(areaField.getText());
+                    double area = Double.parseDouble(areaField.getText().replace(",", ".")); // Aceita vírgula ou ponto
                     if (nome.isEmpty() || area <= 0) {
                         AlertUtil.showError("Erro de Validação", "Nome ou área inválidos.");
                         return null;
@@ -162,7 +163,7 @@ public class SafrasController {
     }
 
     /**
-     * NOVO: Manipulador para o botão "+ Nova Safra".
+     * Manipulador para o botão "+ Nova Safra".
      */
     @FXML
     private void handleNovaSafra() {
@@ -255,4 +256,119 @@ public class SafrasController {
             }
         });
     }
+
+    /**
+     * NOVO: Manipulador para o botão "Registrar Colheita".
+     * ATUALIZAÇÃO 3: Agora pede sc/ha e calcula o total em kg.
+     */
+    @FXML
+    private void handleRegistrarColheita() {
+        SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
+
+        if (safraSelecionada == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra na tabela para registrar a colheita.");
+            return;
+        }
+
+        // Calcula a produtividade atual em sc/ha para exibir como valor padrão
+        double prodAtualScHa = safraSelecionada.getProducaoSacosPorHectare();
+
+        // Usa Locale.US para garantir que o formato do número seja com "."
+        TextInputDialog dialog = new TextInputDialog(String.format(Locale.US, "%.2f", prodAtualScHa));
+        dialog.setTitle("Registrar Colheita");
+        dialog.setHeaderText("Registrando colheita para: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getTalhaoNome() + ")");
+        dialog.setContentText("Digite a produção (sacos por hectare):"); // Texto do pop-up atualizado
+
+        Optional<String> result = dialog.showAndWait();
+
+        result.ifPresent(producaoScHaStr -> {
+            try {
+                // 1. Lê a produtividade em sc/ha (aceita vírgula ou ponto)
+                double producaoScHa = Double.parseDouble(producaoScHaStr.replace(",", "."));
+                if (producaoScHa < 0) {
+                    AlertUtil.showError("Valor Inválido", "A produção não pode ser negativa.");
+                    return;
+                }
+
+                // 2. Obtém a área (já disponível no SafraInfo)
+                double area = safraSelecionada.getAreaHectares();
+                if (area <= 0) {
+                    AlertUtil.showError("Erro de Cálculo", "A área do talhão é inválida (0 ou negativa). Não é possível calcular a produção total.");
+                    return;
+                }
+                
+                // 3. Calcula o total em KG (Padrão de 60kg/saco, como definido em SafraInfo)
+                double totalSacos = producaoScHa * area;
+                double producaoKg = totalSacos * 60.0; // Assumindo 60kg/saco
+
+                // 4. Salva o total em KG no banco
+                safraDAO.updateProducaoSafra(safraSelecionada.getId(), producaoKg);
+                carregarDadosSafras(); // Atualiza a tabela para refletir a nova produtividade
+                AlertUtil.showInfo("Sucesso", "Colheita registrada com sucesso.");
+
+            } catch (NumberFormatException e) {
+                AlertUtil.showError("Erro de Formato", "Valor de produção inválido. Use apenas números (ex: 65.5).");
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar a produção: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * NOVO: Manipulador para o botão "- Remover Safra".
+     */
+    @FXML
+    private void handleRemoverSafra() {
+        SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
+
+        if (safraSelecionada == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra na tabela para remover.");
+            return;
+        }
+
+        boolean confirmado = AlertUtil.showConfirmation("Confirmar Remoção",
+                "Tem certeza que deseja remover a safra: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getAnoInicio() + ")?\n\nEsta ação é permanente.");
+
+        if (confirmado) {
+            try {
+                safraDAO.removerSafra(safraSelecionada.getId());
+                carregarDadosSafras();
+                AlertUtil.showInfo("Sucesso", "Safra removida com sucesso.");
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover a safra: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * NOVO: Manipulador para o botão "- Remover Talhão".
+     */
+    @FXML
+    private void handleRemoverTalhao() {
+        Talhao talhaoSelecionado = tabelaTalhoes.getSelectionModel().getSelectedItem();
+
+        if (talhaoSelecionado == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione um talhão na tabela para remover.");
+            return;
+        }
+
+        boolean confirmado = AlertUtil.showConfirmation("Confirmar Remoção",
+                "Tem certeza que deseja remover o talhão: " + talhaoSelecionado.getNome() + "?\n\nEsta ação é permanente.");
+
+        if (confirmado) {
+            try {
+                talhaoDAO.removerTalhao(talhaoSelecionado.getId());
+                carregarDadosTalhoes(); // Atualiza a tabela de talhões
+                AlertUtil.showInfo("Sucesso", "Talhão removido com sucesso.");
+            } catch (SQLException e) {
+                // Captura erro de chave estrangeira (SQLite)
+                if (e.getMessage().contains("FOREIGN KEY constraint failed")) {
+                    AlertUtil.showError("Erro de Remoção", "Não é possível remover este talhão, pois ele está associado a uma ou mais safras.");
+                } else {
+                    AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover o talhão: " + e.getMessage());
+                }
+            }
+        }
+    }
 }
+

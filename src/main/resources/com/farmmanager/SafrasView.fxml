@@ -9,17 +9,10 @@
 <?import javafx.scene.layout.VBox?>
 
 <!-- Tela de Gestão de Safras e Talhões -->
-<!-- ATUALIZADO: Adicionado SplitPane e segunda tabela para Talhões -->
+<!-- ATUALIZADO: Layout refeito com toolbars separadas para cada tabela -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
       <Label styleClass="content-title" text="Gestão de Safras e Talhões" />
-      <HBox styleClass="module-toolbar">
-         <children>
-            <!-- ATUALIZADO: Adicionado onAction -->
-            <Button mnemonicParsing="false" onAction="#handleNovaSafra" styleClass="module-button" text="+ Nova Safra" />
-            <Button mnemonicParsing="false" onAction="#handleNovoTalhao" styleClass="module-button" text="+ Novo Talhão" />
-         </children>
-      </HBox>
 
       <!-- Divisão da tela entre Safras e Talhões -->
       <SplitPane dividerPositions="0.6" VBox.vgrow="ALWAYS">
@@ -27,6 +20,14 @@
             <!-- Tabela de Safras (Esquerda) -->
             <VBox spacing="10.0">
                <children>
+                  <!-- NOVO: Toolbar específica para Safras -->
+                  <HBox styleClass="module-toolbar">
+                     <children>
+                        <Button mnemonicParsing="false" onAction="#handleNovaSafra" styleClass="module-button" text="+ Nova Safra" />
+                        <Button mnemonicParsing="false" onAction="#handleRegistrarColheita" styleClass="module-button" text="Registrar Colheita" />
+                        <Button mnemonicParsing="false" onAction="#handleRemoverSafra" styleClass="module-button, danger" text="- Remover Safra" />
+                     </children>
+                  </HBox>
                   <Label styleClass="card-title" text="Safras Registradas" />
                   <TableView fx:id="tabelaSafras" VBox.vgrow="ALWAYS">
                      <columns>
@@ -34,7 +35,7 @@
                         <TableColumn fx:id="colSafraCultura" prefWidth="150.0" text="Cultura" />
                         <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Ano" />
                         <TableColumn fx:id="colSafraTalhao" prefWidth="150.0" text="Talhão" />
-                        <TableColumn fx:id="colSafraProd" prefWidth="120.0" text="Produção (kg)" />
+                        <TableColumn fx:id="colSafraProd" prefWidth="120.0" text="Produção (sc/ha)" />
                      </columns>
                   </TableView>
                </children>
@@ -43,6 +44,13 @@
             <!-- Tabela de Talhões (Direita) -->
             <VBox spacing="10.0">
                <children>
+                  <!-- NOVO: Toolbar específica para Talhões -->
+                  <HBox styleClass="module-toolbar">
+                     <children>
+                        <Button mnemonicParsing="false" onAction="#handleNovoTalhao" styleClass="module-button" text="+ Novo Talhão" />
+                        <Button mnemonicParsing="false" onAction="#handleRemoverTalhao" styleClass="module-button, danger" text="- Remover Talhão" />
+                     </children>
+                  </HBox>
                   <Label styleClass="card-title" text="Talhões da Fazenda" />
                   <TableView fx:id="tabelaTalhoes" VBox.vgrow="ALWAYS">
                      <columns>
@@ -57,3 +65,4 @@
       </SplitPane>
    </children>
 </VBox>
+
