@@ -1,11 +1,12 @@
 package com.farmmanager.model;
 
+import com.farmmanager.util.DateTimeUtil; // NOVO
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.format.DateTimeFormatter; // NOVO
+import java.time.format.DateTimeFormatter; 
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,6 +17,7 @@ import java.util.List;
  * - listSafrasComInfo: Carrega o 'status' e o 'ano_inicio' (TEXT).
  * - getContagemSafrasAtivas: Conta safras onde status != 'Colhida'.
  * - Adicionado updateStatusSafra.
+ * - NOVO: Adicionado data_criacao e data_modificacao.
  */
 public class SafraDAO {
 
@@ -28,43 +30,52 @@ public class SafraDAO {
 
     public boolean addSafra(Safra safra) throws SQLException {
         // SQL atualizado com 'status' e 4 parâmetros
-        String sql = "INSERT INTO safras(cultura, ano_inicio, talhao_id, status) VALUES(?, ?, ?, ?)";
+        // NOVO: Adicionado data_criacao e data_modificacao
+        String sql = "INSERT INTO safras(cultura, ano_inicio, talhao_id, status, data_criacao, data_modificacao) VALUES(?, ?, ?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            String now = DateTimeUtil.getCurrentTimestamp(); // NOVO
             
             pstmt.setString(1, safra.getCultura());
             pstmt.setString(2, safra.getAnoInicio()); // Alterado para setString
             pstmt.setInt(3, safra.getTalhaoId());
             pstmt.setString(4, safra.getStatus()); // NOVO
+            pstmt.setString(5, now); // NOVO
+            pstmt.setString(6, now); // NOVO
             return pstmt.executeUpdate() > 0;
         }
     }
 
     /**
      * Atualiza a produção total de uma safra existente e define o status para 'Colhida'.
+     * NOVO: Atualiza data_modificacao.
      */
     public boolean updateProducaoSafra(int safraId, double producaoKg) throws SQLException {
-        // SQL atualizado para incluir a mudança de status
-        String sql = "UPDATE safras SET producao_total_kg = ?, status = 'Colhida' WHERE id = ?";
+        // SQL atualizado para incluir a mudança de status e data_modificacao
+        String sql = "UPDATE safras SET producao_total_kg = ?, status = 'Colhida', data_modificacao = ? WHERE id = ?";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setDouble(1, producaoKg);
-            pstmt.setInt(2, safraId);
+            pstmt.setString(2, DateTimeUtil.getCurrentTimestamp()); // NOVO
+            pstmt.setInt(3, safraId); // NOVO (índice mudou)
             return pstmt.executeUpdate() > 0;
         }
     }
 
     /**
      * NOVO: Atualiza apenas o status de uma safra.
+     * NOVO: Atualiza data_modificacao.
      */
     public boolean updateStatusSafra(int safraId, String novoStatus) throws SQLException {
-        String sql = "UPDATE safras SET status = ? WHERE id = ?";
+        String sql = "UPDATE safras SET status = ?, data_modificacao = ? WHERE id = ?";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, novoStatus);
-            pstmt.setInt(2, safraId);
+            pstmt.setString(2, DateTimeUtil.getCurrentTimestamp()); // NOVO
+            pstmt.setInt(3, safraId); // NOVO (índice mudou)
             return pstmt.executeUpdate() > 0;
         }
     }
@@ -130,4 +141,3 @@ public class SafraDAO {
         return 0;
     }
 }
-

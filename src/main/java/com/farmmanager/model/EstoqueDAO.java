@@ -1,5 +1,6 @@
 package com.farmmanager.model;
 
+import com.farmmanager.util.DateTimeUtil; // NOVO
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,14 +16,18 @@ public class EstoqueDAO {
      * Se o item (pelo nome) já existir, atualiza a quantidade,
      * o valor total e recalcula o valor unitário (custo médio ponderado).
      * Se for um novo item, insere.
+     * NOVO: Atualiza data_modificacao ou insere data_criacao/data_modificacao.
      */
     public boolean addEstoque(EstoqueItem item) throws SQLException {
         String sqlSelect = "SELECT id, quantidade, valor_total FROM estoque WHERE item_nome = ?";
-        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, valor_unitario = ? WHERE id = ?";
-        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade, valor_unitario, valor_total) VALUES (?, ?, ?, ?, ?)";
+        // NOVO: SQLs atualizados
+        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, valor_unitario = ?, data_modificacao = ? WHERE id = ?";
+        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false); // Inicia transação
+            
+            String now = DateTimeUtil.getCurrentTimestamp(); // NOVO
 
             try (PreparedStatement pstmtSelect = conn.prepareStatement(sqlSelect)) {
                 pstmtSelect.setString(1, item.getItemNome());
@@ -43,7 +48,8 @@ public class EstoqueDAO {
                             pstmtUpdate.setDouble(1, newQty);
                             pstmtUpdate.setDouble(2, newTotalVal);
                             pstmtUpdate.setDouble(3, newUnitVal);
-                            pstmtUpdate.setInt(4, id);
+                            pstmtUpdate.setString(4, now); // NOVO
+                            pstmtUpdate.setInt(5, id); // NOVO (índice mudou)
                             pstmtUpdate.executeUpdate();
                         }
                     } else {
@@ -54,6 +60,8 @@ public class EstoqueDAO {
                             pstmtInsert.setString(3, item.getUnidade());
                             pstmtInsert.setDouble(4, item.getValorUnitario());
                             pstmtInsert.setDouble(5, item.getValorTotal());
+                            pstmtInsert.setString(6, now); // NOVO
+                            pstmtInsert.setString(7, now); // NOVO
                             pstmtInsert.executeUpdate();
                         }
                     }
@@ -72,15 +80,18 @@ public class EstoqueDAO {
     /**
      * Consome (dá baixa) em uma quantidade específica de um item.
      * Recalcula o valor_total com base no valor_unitário (custo médio).
+     * NOVO: Atualiza data_modificacao.
      * @throws IllegalStateException Se não houver estoque suficiente.
      */
     public boolean consumirEstoque(int id, double quantidadeAConsumir) throws SQLException, IllegalStateException {
         String sqlSelect = "SELECT quantidade, valor_unitario FROM estoque WHERE id = ?";
-        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ? WHERE id = ?";
+        // NOVO: SQL atualizado
+        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, data_modificacao = ? WHERE id = ?";
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false); 
             
+            String now = DateTimeUtil.getCurrentTimestamp(); // NOVO
             double quantidadeAtual = 0;
             double valorUnitario = 0;
 
@@ -111,7 +122,8 @@ public class EstoqueDAO {
             try (PreparedStatement pstmtUpdate = conn.prepareStatement(sqlUpdate)) {
                 pstmtUpdate.setDouble(1, novaQuantidade);
                 pstmtUpdate.setDouble(2, novoValorTotal);
-                pstmtUpdate.setInt(3, id);
+                pstmtUpdate.setString(3, now); // NOVO
+                pstmtUpdate.setInt(4, id); // NOVO (índice mudou)
                 int rowsAffected = pstmtUpdate.executeUpdate();
                 
                 conn.commit(); // Efetiva a transação
@@ -139,6 +151,7 @@ public class EstoqueDAO {
 
     /**
      * NOVO: Busca um item de estoque específico pelo seu ID.
+     * ATUALIZADO: Inclui datas.
      */
     public EstoqueItem getItemById(int id) throws SQLException {
         String sql = "SELECT * FROM estoque WHERE id = ?";
@@ -156,7 +169,9 @@ public class EstoqueDAO {
                         rs.getDouble("quantidade"),
                         rs.getString("unidade"),
                         rs.getDouble("valor_unitario"),
-                        rs.getDouble("valor_total")
+                        rs.getDouble("valor_total"),
+                        rs.getString("data_criacao"), // NOVO
+                        rs.getString("data_modificacao") // NOVO
                     );
                 }
             }
@@ -166,6 +181,7 @@ public class EstoqueDAO {
 
     /**
      * NOVO: Busca um item de estoque específico pelo seu NOME.
+     * ATUALIZADO: Inclui datas.
      */
     public EstoqueItem getEstoqueItemPorNome(String nome) throws SQLException {
         String sql = "SELECT * FROM estoque WHERE item_nome = ?";
@@ -183,7 +199,9 @@ public class EstoqueDAO {
                         rs.getDouble("quantidade"),
                         rs.getString("unidade"),
                         rs.getDouble("valor_unitario"),
-                        rs.getDouble("valor_total")
+                        rs.getDouble("valor_total"),
+                        rs.getString("data_criacao"), // NOVO
+                        rs.getString("data_modificacao") // NOVO
                     );
                 }
             }
@@ -191,10 +209,13 @@ public class EstoqueDAO {
         return null; // Não encontrado
     }
 
+    /**
+     * ATUALIZADO: Seleciona e popula os novos campos de data.
+     */
     public List<EstoqueItem> listEstoque() throws SQLException {
         List<EstoqueItem> items = new ArrayList<>();
         // ATUALIZADO: Seleciona novos campos
-        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total FROM estoque";
+        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao FROM estoque";
         
         try (Connection conn = Database.getConnection();
              Statement stmt = conn.createStatement();
@@ -207,7 +228,9 @@ public class EstoqueDAO {
                     rs.getDouble("quantidade"),
                     rs.getString("unidade"),
                     rs.getDouble("valor_unitario"), // NOVO
-                    rs.getDouble("valor_total") // NOVO
+                    rs.getDouble("valor_total"), // NOVO
+                    rs.getString("data_criacao"), // NOVO
+                    rs.getString("data_modificacao") // NOVO
                 );
                 items.add(item);
             }

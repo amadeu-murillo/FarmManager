@@ -13,6 +13,7 @@
   - Renomeado "+ Adicionar Item" para "+ Comprar Item" (agora lança despesa).
   - Adicionado botão "Vender Item" (lança receita).
   - Botão "Consumir Item" agora tem estilo 'warning' e lança despesa.
+  - NOVO: Adicionadas colunas de data.
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
    <children>
@@ -28,13 +29,15 @@
       <TableView fx:id="tabelaEstoque" VBox.vgrow="ALWAYS">
          <columns>
             <TableColumn fx:id="colItemId" prefWidth="50.0" text="ID" />
-            <TableColumn fx:id="colItemNome" prefWidth="300.0" text="Nome do Item" />
-            <TableColumn fx:id="colItemQtd" prefWidth="120.0" text="Quantidade" />
-            <TableColumn fx:id="colItemUnidade" prefWidth="100.0" text="Unidade" />
-            <TableColumn fx:id="colItemValorUnit" prefWidth="150.0" text="Valor Unitário (R$)" />
-            <TableColumn fx:id="colItemValorTotal" prefWidth="150.0" text="Valor Total (R$)" />
+            <TableColumn fx:id="colItemNome" prefWidth="250.0" text="Nome do Item" />
+            <TableColumn fx:id="colItemQtd" prefWidth="100.0" text="Quantidade" />
+            <TableColumn fx:id="colItemUnidade" prefWidth="80.0" text="Unidade" />
+            <TableColumn fx:id="colItemValorUnit" prefWidth="130.0" text="Valor Unitário (R$)" />
+            <TableColumn fx:id="colItemValorTotal" prefWidth="130.0" text="Valor Total (R$)" />
+            <!-- NOVO: Colunas de Data -->
+            <TableColumn fx:id="colDataCriacao" prefWidth="160.0" text="Data Criação" />
+            <TableColumn fx:id="colDataModificacao" prefWidth="160.0" text="Última Modificação" />
          </columns>
       </TableView>
    </children>
 </VBox>
-

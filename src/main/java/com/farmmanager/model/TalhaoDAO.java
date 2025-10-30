@@ -1,5 +1,6 @@
 package com.farmmanager.model;
 
+import com.farmmanager.util.DateTimeUtil; // NOVO
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,12 +12,17 @@ import java.util.List;
 public class TalhaoDAO {
 
     public boolean addTalhao(Talhao talhao) throws SQLException {
-        String sql = "INSERT INTO talhoes(nome, area_hectares) VALUES(?, ?)";
+        // NOVO: SQL atualizado com colunas de data/hora
+        String sql = "INSERT INTO talhoes(nome, area_hectares, data_criacao, data_modificacao) VALUES(?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
+            String now = DateTimeUtil.getCurrentTimestamp(); // NOVO
+            
             pstmt.setString(1, talhao.getNome());
             pstmt.setDouble(2, talhao.getAreaHectares());
+            pstmt.setString(3, now); // NOVO
+            pstmt.setString(4, now); // NOVO
             return pstmt.executeUpdate() > 0;
         }
     }
