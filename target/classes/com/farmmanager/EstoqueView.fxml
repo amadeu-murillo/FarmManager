@@ -8,15 +8,21 @@
 <?import javafx.scene.layout.VBox?>
 
 <!-- Tela de Gestão de Estoque -->
-<!-- ATUALIZADO: Adicionado botão "Registrar Uso" e novas colunas de valor -->
+<!-- 
+  ATUALIZADO: 
+  - Renomeado "+ Adicionar Item" para "+ Comprar Item" (agora lança despesa).
+  - Adicionado botão "Vender Item" (lança receita).
+  - Botão "Consumir Item" agora tem estilo 'warning' e lança despesa.
+-->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
    <children>
       <Label styleClass="content-title" text="Gestão de Estoque" />
       <HBox styleClass="module-toolbar">
          <children>
-            <Button mnemonicParsing="false" onAction="#handleAdicionarItem" styleClass="module-button" text="+ Adicionar Item" />
-            <Button mnemonicParsing="false" onAction="#handleConsumirItem" styleClass="module-button" text="Consumir Item" />
-            <Button mnemonicParsing="false" onAction="#handleRemoverItem" styleClass="module-button, danger" text="- Remover Item" />
+            <Button mnemonicParsing="false" onAction="#handleComprarItem" styleClass="module-button" text="+ Comprar Item" />
+            <Button mnemonicParsing="false" onAction="#handleVenderItem" styleClass="module-button, success" text="Vender Item" />
+            <Button mnemonicParsing="false" onAction="#handleConsumirItem" styleClass="module-button, warning" text="Consumir Item (Uso Interno)" />
+            <Button mnemonicParsing="false" onAction="#handleRemoverItem" styleClass="module-button, danger" text="- Remover Item (Ajuste)" />
          </children>
       </HBox>
       <TableView fx:id="tabelaEstoque" VBox.vgrow="ALWAYS">
@@ -25,7 +31,6 @@
             <TableColumn fx:id="colItemNome" prefWidth="300.0" text="Nome do Item" />
             <TableColumn fx:id="colItemQtd" prefWidth="120.0" text="Quantidade" />
             <TableColumn fx:id="colItemUnidade" prefWidth="100.0" text="Unidade" />
-            <!-- NOVAS COLUNAS -->
             <TableColumn fx:id="colItemValorUnit" prefWidth="150.0" text="Valor Unitário (R$)" />
             <TableColumn fx:id="colItemValorTotal" prefWidth="150.0" text="Valor Total (R$)" />
          </columns>

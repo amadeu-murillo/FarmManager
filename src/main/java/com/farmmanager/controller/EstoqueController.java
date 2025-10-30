@@ -2,22 +2,31 @@ package com.farmmanager.controller;
 
 import com.farmmanager.model.EstoqueItem;
 import com.farmmanager.model.EstoqueDAO;
+import com.farmmanager.model.FinanceiroDAO; // NOVO
+import com.farmmanager.model.Transacao; // NOVO
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.beans.value.ChangeListener;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.util.Pair; // NOVO
 
 import java.sql.SQLException;
+import java.time.LocalDate; // NOVO
+import java.time.format.DateTimeFormatter; // NOVO
 import java.util.Optional;
 import java.util.Locale; 
 
 /**
  * Controller para o EstoqueView.fxml.
- * ATUALIZADO: Implementado cálculo automático de valor unitário/total.
+ * ATUALIZADO:
+ * - 'handleAdicionarItem' renomeado para 'handleComprarItem' e agora lança despesa.
+ * - 'handleConsumirItem' agora lança uma despesa baseada no custo médio.
+ * - NOVO: 'handleVenderItem' para remover estoque e lançar receita.
  */
 public class EstoqueController {
 
@@ -37,13 +46,16 @@ public class EstoqueController {
     private TableColumn<EstoqueItem, Double> colItemValorTotal; // NOVO
 
     private final EstoqueDAO estoqueDAO;
+    private final FinanceiroDAO financeiroDAO; // NOVO
     private final ObservableList<EstoqueItem> dadosTabela;
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); // NOVO
 
     // Flag para evitar loops nos listeners
     private boolean isUpdating = false;
 
     public EstoqueController() {
         estoqueDAO = new EstoqueDAO();
+        financeiroDAO = new FinanceiroDAO(); // NOVO
         dadosTabela = FXCollections.observableArrayList();
     }
 
@@ -70,16 +82,16 @@ public class EstoqueController {
     }
 
     /**
-     * Manipulador para o botão "+ Adicionar Item".
-     * ATUALIZADO: Com cálculo automático de valor.
+     * Manipulador para o botão "+ Comprar Item" (antigo Adicionar Item).
+     * ATUALIZADO: Agora também lança uma despesa no financeiro.
      */
     @FXML
-    private void handleAdicionarItem() {
+    private void handleComprarItem() {
         Dialog<EstoqueItem> dialog = new Dialog<>();
-        dialog.setTitle("Adicionar Item ao Estoque");
-        dialog.setHeaderText("Preencha os dados do item.\nSe o item já existir, os valores serão somados (custo médio).");
+        dialog.setTitle("Comprar Item para Estoque");
+        dialog.setHeaderText("Preencha os dados da compra.\nSe o item já existir, os valores serão somados (custo médio).");
 
-        ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE);
+        ButtonType adicionarButtonType = new ButtonType("Comprar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
 
         GridPane grid = new GridPane();
@@ -155,12 +167,20 @@ public class EstoqueController {
 
         result.ifPresent(item -> {
             try {
-                // O DAO agora espera o objeto Item
+                // 1. Adiciona ao estoque
                 estoqueDAO.addEstoque(item);
+                
+                // 2. NOVO: Lança a despesa no financeiro
+                String data = LocalDate.now().format(dateFormatter);
+                String desc = "Compra de " + item.getItemNome();
+                double valor = -item.getValorTotal(); // Despesa é negativa
+                Transacao transacao = new Transacao(desc, valor, data, "despesa");
+                financeiroDAO.addTransacao(transacao);
+
                 carregarDadosDaTabela();
-                AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
+                AlertUtil.showInfo("Sucesso", "Item comprado com sucesso e despesa registrada.");
             } catch (SQLException e) {
-                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar o estoque: " + e.getMessage());
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a compra: " + e.getMessage());
             }
         });
     }
@@ -213,7 +233,113 @@ public class EstoqueController {
 
 
     /**
-     * Manipulador para o botão "Consumir Item".
+     * NOVO: Manipulador para o botão "Vender Item".
+     * Lança uma receita no financeiro e dá baixa no estoque.
+     */
+    @FXML
+    private void handleVenderItem() {
+        EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
+        
+        if (selecionado == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione um item na tabela para vender.");
+            return;
+        }
+
+        Dialog<Pair<Double, Double>> dialog = new Dialog<>();
+        dialog.setTitle("Vender Item do Estoque");
+        dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + selecionado.getQuantidade() + " " + selecionado.getUnidade() + ")");
+
+        ButtonType venderButtonType = new ButtonType("Vender", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(venderButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField qtdField = new TextField("1.0");
+        // Sugere o preço de venda baseado no custo unitário (valor de estoque)
+        TextField precoVendaField = new TextField(String.format(Locale.US, "%.2f", selecionado.getValorUnitario()));
+        Label valorTotalVendaLabel = new Label("Total da Venda: R$ 0,00");
+
+        grid.add(new Label("Quantidade a Vender:"), 0, 0);
+        grid.add(qtdField, 1, 0);
+        grid.add(new Label("Preço de Venda (unitário):"), 0, 1);
+        grid.add(precoVendaField, 1, 1);
+        grid.add(valorTotalVendaLabel, 1, 2);
+
+        // Listener para atualizar o total da venda
+        ChangeListener<String> listener = (obs, oldV, newV) -> {
+            try {
+                double qtd = parseDouble(qtdField.getText());
+                double preco = parseDouble(precoVendaField.getText());
+                valorTotalVendaLabel.setText(String.format(Locale.US, "Total da Venda: R$ %.2f", qtd * preco));
+            } catch (NumberFormatException e) {
+                valorTotalVendaLabel.setText("Total da Venda: R$ ---");
+            }
+        };
+
+        qtdField.textProperty().addListener(listener);
+        precoVendaField.textProperty().addListener(listener);
+        listener.changed(null, null, null); // Calcula o valor inicial
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Converte o resultado para um Par (Qtd, PrecoUnit)
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == venderButtonType) {
+                try {
+                    double qtd = parseDouble(qtdField.getText());
+                    double preco = parseDouble(precoVendaField.getText());
+
+                    if (qtd <= 0 || preco < 0) {
+                        AlertUtil.showError("Valor Inválido", "Quantidade deve ser positiva e preço não pode ser negativo.");
+                        return null;
+                    }
+                    if (qtd > selecionado.getQuantidade()) {
+                         AlertUtil.showError("Estoque Insuficiente", "Disponível: " + selecionado.getQuantidade() + ". Solicitado: " + qtd);
+                         return null;
+                    }
+                    return new Pair<>(qtd, preco);
+                } catch (NumberFormatException e) {
+                    AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        Optional<Pair<Double, Double>> result = dialog.showAndWait();
+
+        result.ifPresent(par -> {
+            double qtdAVender = par.getKey();
+            double precoVendaUnitario = par.getValue();
+            
+            try {
+                // 1. Dá baixa no estoque
+                estoqueDAO.consumirEstoque(selecionado.getId(), qtdAVender);
+
+                // 2. Lança a receita
+                double valorReceita = qtdAVender * precoVendaUnitario;
+                String data = LocalDate.now().format(dateFormatter);
+                String desc = "Venda de " + selecionado.getItemNome();
+                Transacao transacao = new Transacao(desc, valorReceita, data, "receita"); // Receita é positiva
+                financeiroDAO.addTransacao(transacao);
+
+                AlertUtil.showInfo("Sucesso", "Venda registrada com sucesso. Estoque atualizado e receita lançada.");
+                carregarDadosDaTabela(); // Recarrega a tabela
+
+            } catch (IllegalStateException e) {
+                AlertUtil.showError("Erro de Estoque", e.getMessage());
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a venda: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Manipulador para o botão "Consumir Item" (Uso Interno).
+     * ATUALIZADO: Agora também lança uma despesa no financeiro.
      */
     @FXML
     private void handleConsumirItem() {
@@ -228,7 +354,7 @@ public class EstoqueController {
         String qtdAtualStr = String.format(Locale.US, "%.2f", selecionado.getQuantidade());
 
         TextInputDialog dialog = new TextInputDialog("1.0");
-        dialog.setTitle("Consumir Item do Estoque");
+        dialog.setTitle("Consumir Item do Estoque (Uso Interno)");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + qtdAtualStr + " " + selecionado.getUnidade() + ")");
         dialog.setContentText("Digite a quantidade a consumir:");
 
@@ -244,10 +370,22 @@ public class EstoqueController {
                     return;
                 }
 
-                // Chama o novo método do DAO
+                // 1. Dá baixa no estoque
                 estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
                 
-                AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
+                // 2. NOVO: Lança a despesa
+                double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
+                if (custoConsumo > 0) {
+                    String data = LocalDate.now().format(dateFormatter);
+                    String desc = "Consumo (Uso Interno) de " + selecionado.getItemNome();
+                    Transacao transacao = new Transacao(desc, -custoConsumo, data, "despesa");
+                    financeiroDAO.addTransacao(transacao);
+                    
+                    AlertUtil.showInfo("Sucesso", "Estoque atualizado e despesa de consumo registrada.");
+                } else {
+                     AlertUtil.showInfo("Sucesso", "Estoque atualizado (item sem valor de custo).");
+                }
+                
                 carregarDadosDaTabela(); // Recarrega a tabela
 
             } catch (NumberFormatException e) {
@@ -263,7 +401,8 @@ public class EstoqueController {
 
 
     /**
-     * Manipulador para o botão "- Remover Item".
+     * Manipulador para o botão "- Remover Item" (Ajuste).
+     * Este botão NÃO gera transação financeira.
      */
     @FXML
     private void handleRemoverItem() {
@@ -274,8 +413,9 @@ public class EstoqueController {
             return;
         }
 
-        boolean confirmado = AlertUtil.showConfirmation("Confirmar Remoção", 
-            "Tem certeza que deseja remover o item '" + selecionado.getItemNome() + "' do estoque?\nEsta ação é permanente.");
+        boolean confirmado = AlertUtil.showConfirmation("Confirmar Remoção (Ajuste)", 
+            "Tem certeza que deseja remover o item '" + selecionado.getItemNome() + "' do estoque?\n" +
+            "Esta ação é um AJUSTE e NÃO lançará transações financeiras.");
 
         if (confirmado) {
             try {

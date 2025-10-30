@@ -5,10 +5,12 @@ import com.farmmanager.model.SafraInfo;
 import com.farmmanager.model.SafraDAO;
 import com.farmmanager.model.Talhao;
 import com.farmmanager.model.TalhaoDAO;
-import com.farmmanager.model.EstoqueDAO; // NOVO
-import com.farmmanager.model.EstoqueItem; // NOVO
-import com.farmmanager.model.AtividadeSafra; // NOVO
-import com.farmmanager.model.AtividadeSafraDAO; // NOVO
+import com.farmmanager.model.EstoqueDAO; 
+import com.farmmanager.model.EstoqueItem; 
+import com.farmmanager.model.AtividadeSafra; 
+import com.farmmanager.model.AtividadeSafraDAO; 
+import com.farmmanager.model.FinanceiroDAO; 
+import com.farmmanager.model.Transacao; 
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -17,26 +19,32 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
-import javafx.beans.value.ChangeListener;
+import javafx.scene.layout.HBox; 
+import javafx.beans.value.ChangeListener; // <-- IMPORTAÇÃO ADICIONADA
 import javafx.beans.value.ObservableValue;
+import javafx.stage.FileChooser; 
+import java.io.File; 
+import java.io.IOException; 
+import java.io.PrintWriter; 
 import java.sql.SQLException;
-import java.time.LocalDate; // NOVO
+import java.text.NumberFormat; 
+import java.time.LocalDate; 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors; // NOVO
+import java.util.stream.Collectors; 
 import java.util.Optional;
 import java.util.Locale;
 
 /**
  * Controller para o SafrasView.fxml.
  * ATUALIZAÇÃO:
- * - Adicionada coluna e lógica para 'status'.
- * - Alterada lógica de 'anoInicio' para 'String' (ex: "2025/1").
- * - Adicionado handler 'handleAtualizarStatus'.
- * - AO REGISTRAR COLHEITA: Adiciona a produção ao estoque (EstoqueDAO) em SACOS.
- * - Adicionado filtro de status para a tabela de safras.
- * - NOVO: Adicionada funcionalidade para lançar atividades/custos (Etapa 2).
+ * - Adicionada visualização de detalhes (atividades/custos) ao selecionar safra.
+ * - Adicionada funcionalidade de exportação de CSV para safras colhidas.
+ * - NOVO: Lançamento de atividade agora também gera "despesa" no financeiro.
+ * - ATUALIZADO: Exportação CSV agora busca vendas reais e calcula o lucro.
+ * - ATUALIZADO: Registro de colheita agora apenas adiciona ao estoque (ativo), não lança receita.
+ * - ATUALIZADO: Painel de detalhes agora inclui resumo financeiro (Receita, Estoque, Lucro).
  */
 public class SafrasController {
 
@@ -74,23 +82,61 @@ public class SafrasController {
     @FXML
     private ComboBox<String> filtroStatusSafra;
 
+    // NOVO: Painel de Detalhes
+    @FXML
+    private Label lblDetalhesTitulo;
+    @FXML
+    private TableView<AtividadeSafraInfo> tabelaAtividades; // DTO Customizado
+    @FXML
+    private TableColumn<AtividadeSafraInfo, String> colAtvData;
+    @FXML
+    private TableColumn<AtividadeSafraInfo, String> colAtvDesc;
+    @FXML
+    private TableColumn<AtividadeSafraInfo, String> colAtvInsumo;
+    @FXML
+    private TableColumn<AtividadeSafraInfo, Double> colAtvQtd;
+    @FXML
+    private TableColumn<AtividadeSafraInfo, Double> colAtvCusto;
+    
+    // ATUALIZADO: Labels de resumo (alguns novos)
+    @FXML
+    private Label lblCustoTotalSafra;
+    @FXML
+    private Label lblReceitaTotalSafra;
+    @FXML
+    private Label lblEstoqueTotalSafra;
+    @FXML
+    private Label lblBalancoSafra;
+    
+    @FXML
+    private Button btnExportarCsv; // NOVO
+
     private final SafraDAO safraDAO;
     private final TalhaoDAO talhaoDAO;
     private final EstoqueDAO estoqueDAO; // NOVO
     private final AtividadeSafraDAO atividadeSafraDAO; // NOVO
+    private final FinanceiroDAO financeiroDAO; // NOVO
     
     private final ObservableList<SafraInfo> dadosTabelaSafras; // Lista visível na tabela
     private List<SafraInfo> listaMestraSafras; // Lista com todos os dados do banco
     private final ObservableList<Talhao> dadosTabelaTalhoes;
+    private final ObservableList<AtividadeSafraInfo> dadosTabelaAtividades; // NOVO
+
+    private final NumberFormat currencyFormatter; // NOVO
 
     public SafrasController() {
         safraDAO = new SafraDAO();
         talhaoDAO = new TalhaoDAO();
         estoqueDAO = new EstoqueDAO(); // NOVO
         atividadeSafraDAO = new AtividadeSafraDAO(); // NOVO
+        financeiroDAO = new FinanceiroDAO(); // NOVO
         dadosTabelaSafras = FXCollections.observableArrayList();
         listaMestraSafras = new ArrayList<>(); // NOVO
         dadosTabelaTalhoes = FXCollections.observableArrayList();
+        dadosTabelaAtividades = FXCollections.observableArrayList(); // NOVO
+        
+        // NOVO: Configura o formatador de moeda
+        currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
     }
 
     @FXML
@@ -112,7 +158,15 @@ public class SafrasController {
         colTalhaoArea.setCellValueFactory(new PropertyValueFactory<>("areaHectares"));
         tabelaTalhoes.setItems(dadosTabelaTalhoes);
 
-        // NOVO: Configura Filtro de Status
+        // NOVO: Configura Tabela Atividades
+        colAtvData.setCellValueFactory(new PropertyValueFactory<>("data"));
+        colAtvDesc.setCellValueFactory(new PropertyValueFactory<>("descricao"));
+        colAtvInsumo.setCellValueFactory(new PropertyValueFactory<>("insumoNome"));
+        colAtvQtd.setCellValueFactory(new PropertyValueFactory<>("quantidade"));
+        colAtvCusto.setCellValueFactory(new PropertyValueFactory<>("custo"));
+        tabelaAtividades.setItems(dadosTabelaAtividades);
+
+        // Configura Filtro de Status
         filtroStatusSafra.setItems(FXCollections.observableArrayList(
             "Em Andamento", "Colhidas", "Todas"
         ));
@@ -121,6 +175,15 @@ public class SafrasController {
         filtroStatusSafra.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldV, newV) -> aplicarFiltroSafras()
         );
+
+        // NOVO: Listener de seleção da Tabela Safras
+        tabelaSafras.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldSelection, newSelection) -> handleSafraSelectionChanged(newSelection)
+        );
+
+        // NOVO: Desabilita botão de exportar e limpa labels de resumo
+        btnExportarCsv.setDisable(true);
+        limparResumoFinanceiro(); // Limpa os novos labels
 
         // Carrega dados das duas tabelas
         carregarDadosSafras();
@@ -180,6 +243,118 @@ public class SafrasController {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar os talhões.");
         }
     }
+
+    /**
+     * NOVO: Chamado quando o usuário seleciona uma safra na tabela principal.
+     * Atualiza o painel de detalhes (atividades e custos).
+     * ATUALIZADO: Agora calcula e exibe o resumo financeiro (lucro).
+     */
+    private void handleSafraSelectionChanged(SafraInfo safra) {
+        if (safra == null) {
+            lblDetalhesTitulo.setText("Detalhes da Safra: (Selecione uma safra acima)");
+            btnExportarCsv.setDisable(true);
+            dadosTabelaAtividades.clear();
+            limparResumoFinanceiro(); // Limpa os labels de custo, receita, etc.
+            return;
+        }
+
+        // 1. Atualiza botão de exportar
+        btnExportarCsv.setDisable(!safra.getStatus().equalsIgnoreCase("Colhida"));
+
+        // 2. Atualiza título
+        lblDetalhesTitulo.setText("Detalhes da Safra: " + safra.getCultura() + " (" + safra.getAnoInicio() + ")");
+
+        // 3. Carrega atividades e custos
+        try {
+            // Carrega atividades
+            List<AtividadeSafra> atividades = atividadeSafraDAO.listAtividadesPorSafra(safra.getId());
+            
+            // Mapeia AtividadeSafra para AtividadeSafraInfo (para incluir nome do insumo)
+            List<AtividadeSafraInfo> atividadesInfo = new ArrayList<>();
+            for (AtividadeSafra atv : atividades) {
+                String nomeInsumo = "N/A (Custo Manual)";
+                if (atv.getItemConsumidoId() != null && atv.getItemConsumidoId() > 0) {
+                    // USA O NOVO MÉTODO getItemById
+                    EstoqueItem item = estoqueDAO.getItemById(atv.getItemConsumidoId());
+                    if (item != null) {
+                        nomeInsumo = item.getItemNome();
+                    } else {
+                        nomeInsumo = "Insumo Removido (ID: " + atv.getItemConsumidoId() + ")";
+                    }
+                }
+                atividadesInfo.add(new AtividadeSafraInfo(atv, nomeInsumo));
+            }
+            
+            dadosTabelaAtividades.clear();
+            dadosTabelaAtividades.addAll(atividadesInfo);
+
+            // Carrega custo total
+            double custoTotal = atividadeSafraDAO.getCustoTotalPorSafra(safra.getId());
+            lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
+
+            // --- NOVO: Lógica do Resumo Financeiro ---
+            if (safra.getStatus().equalsIgnoreCase("Colhida")) {
+                // 1. Calcular Receita (Vendas)
+                double receitaTotalVendas = 0;
+                String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
+                String descVendaQuery = "Venda de " + nomeItemColheita;
+                
+                List<Transacao> vendas = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
+                for (Transacao venda : vendas) {
+                    receitaTotalVendas += venda.getValor();
+                }
+                lblReceitaTotalSafra.setText(currencyFormatter.format(receitaTotalVendas));
+
+                // 2. Calcular Valor em Estoque
+                double valorEmEstoque = 0;
+                EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
+                if (itemColheitaEstoque != null) {
+                    valorEmEstoque = itemColheitaEstoque.getValorTotal();
+                }
+                lblEstoqueTotalSafra.setText(currencyFormatter.format(valorEmEstoque));
+
+                // 3. Calcular Balanço
+                double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
+                lblBalancoSafra.setText(currencyFormatter.format(balancoFinal));
+                
+                // Aplicar estilo de cor ao balanço
+                lblBalancoSafra.getStyleClass().removeAll("positivo", "negativo");
+                if (balancoFinal >= 0) {
+                    lblBalancoSafra.getStyleClass().add("positivo");
+                } else {
+                    lblBalancoSafra.getStyleClass().add("negativo");
+                }
+
+            } else {
+                // Se a safra não foi colhida, limpa os campos do resumo
+                limparResumoFinanceiro(custoTotal); // Limpa mantendo o custo
+            }
+
+
+        } catch (SQLException e) {
+            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar os detalhes da safra.");
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * NOVO: Limpa os labels do resumo financeiro (para safras não colhidas).
+     */
+    private void limparResumoFinanceiro() {
+        limparResumoFinanceiro(0.0);
+    }
+    
+    /**
+     * NOVO: Sobrecarga para limpar labels mantendo o custo (se já calculado).
+     */
+    private void limparResumoFinanceiro(double custoTotal) {
+        lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
+        lblReceitaTotalSafra.setText("N/A");
+        lblEstoqueTotalSafra.setText("N/A");
+        lblBalancoSafra.setText("N/A");
+        lblBalancoSafra.getStyleClass().removeAll("positivo", "negativo");
+    }
+
 
     /**
      * Manipulador para o botão "+ Novo Talhão".
@@ -351,6 +526,7 @@ public class SafrasController {
     /**
      * NOVO: Manipulador para o botão "Lançar Atividade/Custo".
      * Implementa a Etapa 2 do plano.
+     * ATUALIZADO: Agora também lança despesa no financeiro.
      */
     @FXML
     private void handleLancarAtividade() {
@@ -494,9 +670,20 @@ public class SafrasController {
                 // 2. Consome o item do estoque
                 estoqueDAO.consumirEstoque(atividade.getItemConsumidoId(), atividade.getQuantidadeConsumida());
 
-                AlertUtil.showInfo("Sucesso", "Atividade lançada e item consumido do estoque com sucesso.");
-                // Não é necessário recarregar a tabela de safras,
-                // mas se tivéssemos a Etapa 3, recarregaríamos os detalhes.
+                // 3. NOVO: Lança a despesa no financeiro
+                if (atividade.getCustoTotalAtividade() > 0) {
+                    String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
+                    double valorFin = -atividade.getCustoTotalAtividade(); // Despesa é negativa
+                    Transacao transacao = new Transacao(descFin, valorFin, atividade.getData(), "despesa");
+                    financeiroDAO.addTransacao(transacao);
+                }
+
+                AlertUtil.showInfo("Sucesso", "Atividade lançada, estoque consumido e despesa registrada.");
+                
+                // 4. Atualiza a tabela de detalhes se a safra ainda estiver selecionada
+                if (safraSelecionada.equals(tabelaSafras.getSelectionModel().getSelectedItem())) {
+                    handleSafraSelectionChanged(safraSelecionada);
+                }
 
             } catch (IllegalStateException e) {
                 // Exceção do consumirEstoque (caso a validação do dialog falhe por concorrência)
@@ -534,6 +721,7 @@ public class SafrasController {
      * ATUALIZADO:
      * - Pergunta o Valor de Venda (R$/saco).
      * - Adiciona o item colhido (em SACOS) ao Estoque.
+     * - ATUALIZADO: Não lança mais receita aqui.
      */
     @FXML
     private void handleRegistrarColheita() {
@@ -667,7 +855,11 @@ public class SafrasController {
                 // 3. NOVO: Adicionar ao estoque
                 estoqueDAO.addEstoque(itemColheita);
 
-                // 4. Recarregar dados e notificar
+                // 4. ATUALIZADO: Transação financeira de "Receita de Produção" foi REMOVIDA.
+                // A receita agora é registrada somente na VENDA do item.
+                // O valor da colheita agora é um ATIVO em estoque.
+
+                // 5. Recarregar dados e notificar
                 carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
                 
                 // Mensagem de sucesso atualizada
@@ -675,13 +867,134 @@ public class SafrasController {
                     "Colheita registrada com sucesso.\n" +
                     "Status da safra atualizado para 'Colhida'.\n" +
                     String.format(Locale.US, "%.2f sacos de %s", colheitaData.producaoSacos, nomeItem) + // ATUALIZADO
-                    " foram adicionados ao estoque."
+                    " foram adicionados ao estoque com seu valor de custo/venda registrado." // Mensagem atualizada
                 );
 
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a colheita ou atualizar o estoque: " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * NOVO: Manipulador para o botão "Exportar Relatório (CSV)".
+     * ATUALIZADO: Agora busca vendas reais e calcula o lucro.
+     */
+    @FXML
+    private void handleExportarCsv() {
+        SafraInfo safra = tabelaSafras.getSelectionModel().getSelectedItem();
+        if (safra == null || !safra.getStatus().equalsIgnoreCase("Colhida")) {
+            AlertUtil.showError("Ação Inválida", "Selecione uma safra 'Colhida' para exportar.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Relatório CSV");
+        fileChooser.setInitialFileName("Relatorio_Safra_" + safra.getId() + "_" + safra.getCultura().replace(" ", "_") + ".csv");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+
+        // Mostra o diálogo de salvar
+        File file = fileChooser.showSaveDialog(tabelaSafras.getScene().getWindow());
+
+        if (file == null) {
+            return; // Usuário cancelou
+        }
+
+        // Tenta escrever o arquivo
+        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) { // Especifica UTF-8 para acentuação
+            
+            StringBuilder sb = new StringBuilder();
+            
+            // --- Cabeçalho do Relatório ---
+            sb.append("Relatório da Safra: " + safra.getCultura() + " (" + safra.getAnoInicio() + ")\n");
+            sb.append("Talhão: " + safra.getTalhaoNome() + " (" + safra.getAreaHectares() + " ha)\n");
+            sb.append("Status: " + safra.getStatus() + "\n\n");
+            
+            // --- Cabeçalho CSV ---
+            sb.append("Tipo;Data;Descricao;Insumo/Produto;Quantidade;Unidade;Valor Total (R$)\n");
+
+            // --- 1. Custos (Atividades) ---
+            double custoTotal = 0;
+            List<AtividadeSafra> atividades = atividadeSafraDAO.listAtividadesPorSafra(safra.getId());
+            
+            for (AtividadeSafra atv : atividades) {
+                String nomeInsumo = "N/A (Custo Manual)";
+                String unidade = "";
+                if (atv.getItemConsumidoId() != null && atv.getItemConsumidoId() > 0) {
+                    // Busca o item de estoque para pegar nome e unidade
+                    EstoqueItem item = estoqueDAO.getItemById(atv.getItemConsumidoId());
+                    if (item != null) {
+                        nomeInsumo = item.getItemNome();
+                        unidade = item.getUnidade();
+                    }
+                }
+                
+                // Formata usando Locale.US (ponto decimal) para consistência no CSV
+                sb.append(String.format(Locale.US, "Custo;%s;\"%s\";\"%s\";%.2f;%s;%.2f\n",
+                    atv.getData(),
+                    atv.getDescricao().replace("\"", "\"\""), // Escapa aspas
+                    nomeInsumo.replace("\"", "\"\""),
+                    atv.getQuantidadeConsumida(),
+                    unidade,
+                    -atv.getCustoTotalAtividade() // Custo é negativo
+                ));
+                custoTotal += atv.getCustoTotalAtividade(); // Soma o custo (positivo)
+            }
+
+            // --- 2. Receitas (Vendas Reais) ---
+            double receitaTotalVendas = 0;
+            String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
+            // Busca por transações de "Venda de..."
+            String descVendaQuery = "Venda de " + nomeItemColheita;
+            
+            // Usa o novo método do DAO para buscar TODAS as vendas
+            List<Transacao> vendas = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
+
+            for (Transacao venda : vendas) {
+                sb.append(String.format(Locale.US, "Receita (Venda);%s;\"%s\";\"%s\";N/A;N/A;%.2f\n",
+                    venda.getData(),
+                    venda.getDescricao().replace("\"", "\"\""),
+                    nomeItemColheita.replace("\"", "\"\""),
+                    venda.getValor() // Valor da receita (positivo)
+                ));
+                receitaTotalVendas += venda.getValor();
+            }
+
+            // --- 3. Valor em Estoque (Produto não vendido) ---
+            double valorEmEstoque = 0;
+            EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
+            
+            if (itemColheitaEstoque != null) {
+                // O valor total do item em estoque (qtd restante * custo médio)
+                valorEmEstoque = itemColheitaEstoque.getValorTotal(); 
+                if (valorEmEstoque > 0) {
+                    sb.append(String.format(Locale.US, "Valor em Estoque;%s;\"%s\";\"%s\";%.2f;%s;%.2f\n",
+                        LocalDate.now().toString(), // Data de hoje para o valor em estoque
+                        "Produto em Estoque (Não Vendido)",
+                        itemColheitaEstoque.getItemNome().replace("\"", "\"\""),
+                        itemColheitaEstoque.getQuantidade(),
+                        itemColheitaEstoque.getUnidade(),
+                        valorEmEstoque // Valor do ativo restante
+                    ));
+                }
+            }
+
+            // --- 4. Sumário ---
+            double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
+            sb.append("\n\n--- Resumo Financeiro ---\n");
+            sb.append(String.format(Locale.US, "Total Receitas (Vendas);%.2f\n", receitaTotalVendas));
+            sb.append(String.format(Locale.US, "Valor em Estoque (Custo Médio);%.2f\n", valorEmEstoque));
+            sb.append(String.format(Locale.US, "Receita Bruta Total (Vendas + Estoque);%.2f\n", (receitaTotalVendas + valorEmEstoque)));
+            sb.append(String.format(Locale.US, "Total Custos (Insumos);%.2f\n", -custoTotal)); // Mostra custo como negativo
+            sb.append(String.format(Locale.US, "Balanço/Lucro Final;%.2f\n", balancoFinal));
+
+            writer.write(sb.toString());
+            AlertUtil.showInfo("Sucesso", "Relatório CSV exportado com sucesso para:\n" + file.getAbsolutePath());
+
+        } catch (IOException | SQLException e) {
+            AlertUtil.showError("Erro ao Exportar", "Não foi possível gerar o arquivo CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -810,7 +1123,7 @@ public class SafrasController {
             
             totalSacosLabel.setText(String.format(Locale.US, "%.2f sacos", totalSacos));
             totalKgLabel.setText(String.format(Locale.US, "%.2f kg", producaoKg));
-            totalValorLabel.setText(String.format(Locale.US, "R$ %.2f", valorTotal)); // Formata como moeda
+            totalValorLabel.setText(currencyFormatter.format(valorTotal)); // Formata como moeda
             
         } catch (NumberFormatException e) {
             totalSacosLabel.setText("---");
@@ -838,10 +1151,36 @@ public class SafrasController {
         try {
             double qtd = parseDouble(qtdStr);
             double custo = qtd * item.getValorUnitario();
-            custoLabel.setText(String.format(Locale.US, "Custo (R$): %.2f", custo));
+            custoLabel.setText(currencyFormatter.format(custo));
         } catch (NumberFormatException e) {
             custoLabel.setText("Custo (R$): Inválido");
         }
+    }
+
+    /**
+     * NOVO: DTO (Data Transfer Object) interno para popular a tabela de atividades.
+     * Inclui o nome do insumo (String) ao invés do ID.
+     */
+    public static class AtividadeSafraInfo {
+        private final String data;
+        private final String descricao;
+        private final String insumoNome;
+        private final double quantidade;
+        private final double custo;
+
+        public AtividadeSafraInfo(AtividadeSafra atv, String insumoNome) {
+            this.data = atv.getData();
+            this.descricao = atv.getDescricao();
+            this.insumoNome = insumoNome;
+            this.quantidade = atv.getQuantidadeConsumida();
+            this.custo = atv.getCustoTotalAtividade();
+        }
+
+        public String getData() { return data; }
+        public String getDescricao() { return descricao; }
+        public String getInsumoNome() { return insumoNome; }
+        public double getQuantidade() { return quantidade; }
+        public double getCusto() { return custo; }
     }
 }
 

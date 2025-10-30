@@ -9,14 +9,15 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.RowConstraints?>
+
 
 <!-- 
   Tela de Gestão de Safras e Talhões
   ATUALIZADO: 
-  - Adicionada coluna "Status" na tabela de Safras.
-  - Adicionado botão "Atualizar Status".
-  - Adicionado ComboBox para filtrar safras por status.
-  - NOVO: Adicionado botão "Lançar Atividade/Custo".
+  - Adicionado painel de detalhes (Etapa 3) com custos e resumo financeiro.
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
@@ -25,21 +26,21 @@
       <!-- Divisão da tela entre Safras e Talhões -->
       <SplitPane dividerPositions="0.6" VBox.vgrow="ALWAYS">
          <items>
-            <!-- Tabela de Safras (Esquerda) -->
+            <!-- Painel Esquerdo (Safras + Detalhes) -->
             <VBox spacing="10.0">
                <children>
+                  <!-- Toolbar Safras -->
                   <HBox styleClass="module-toolbar">
                      <children>
                         <Button mnemonicParsing="false" onAction="#handleNovaSafra" styleClass="module-button" text="+ Nova Safra" />
                         <Button mnemonicParsing="false" onAction="#handleRegistrarColheita" styleClass="module-button" text="Registrar Colheita" />
-                        <!-- BOTÃO ADICIONADO -->
                         <Button mnemonicParsing="false" onAction="#handleLancarAtividade" styleClass="module-button" text="Lançar Atividade/Custo" />
                         <Button mnemonicParsing="false" onAction="#handleAtualizarStatus" styleClass="module-button" text="Atualizar Status" />
                         <Button mnemonicParsing="false" onAction="#handleRemoverSafra" styleClass="module-button, danger" text="- Remover Safra" />
                      </children>
                   </HBox>
                   
-                  <!-- NOVO: Filtro de Status -->
+                  <!-- Filtro de Status -->
                   <HBox alignment="CENTER_LEFT" spacing="10.0">
                      <children>
                         <Label text="Filtrar status:" style="-fx-font-weight: bold;" />
@@ -50,20 +51,75 @@
                      </VBox.margin>
                   </HBox>
                   
+                  <!-- Tabela Safras -->
                   <Label styleClass="card-title" text="Safras Registradas" />
-                  <TableView fx:id="tabelaSafras" VBox.vgrow="ALWAYS">
+                  <TableView fx:id="tabelaSafras" VBox.vgrow="NEVER">
                      <columns>
                         <TableColumn fx:id="colSafraId" prefWidth="50.0" text="ID" />
                         <TableColumn fx:id="colSafraCultura" prefWidth="120.0" text="Cultura" />
                         <TableColumn fx:id="colSafraAno" prefWidth="80.0" text="Safra" />
                         <TableColumn fx:id="colSafraTalhao" prefWidth="120.0" text="Talhão" />
-                        <!-- NOVA COLUNA -->
                         <TableColumn fx:id="colSafraStatus" prefWidth="110.0" text="Status" />
                         <TableColumn fx:id="colSafraProd" prefWidth="120.0" text="Produção (sc/ha)" />
                         <TableColumn fx:id="colSafraProdTotalSacos" prefWidth="120.0" text="Total (sacos)" />
                         <TableColumn fx:id="colSafraProdTotalKg" prefWidth="120.0" text="Total (kg)" />
                      </columns>
                   </TableView>
+                  
+                  <!-- NOVO: Detalhes da Safra (Atividades e Custos) -->
+                  <VBox styleClass="card" VBox.vgrow="ALWAYS">
+                     <children>
+                        <Label fx:id="lblDetalhesTitulo" styleClass="card-title" text="Detalhes da Safra: (Selecione uma safra acima)" />
+                        <TableView fx:id="tabelaAtividades" VBox.vgrow="ALWAYS">
+                           <columns>
+                              <TableColumn fx:id="colAtvData" prefWidth="100.0" text="Data" />
+                              <TableColumn fx:id="colAtvDesc" prefWidth="200.0" text="Descrição" />
+                              <TableColumn fx:id="colAtvInsumo" prefWidth="200.0" text="Insumo Consumido" />
+                              <TableColumn fx:id="colAtvQtd" prefWidth="100.0" text="Quantidade" />
+                              <TableColumn fx:id="colAtvCusto" prefWidth="120.0" text="Custo (R$)" />
+                           </columns>
+                           <VBox.margin>
+                              <Insets top="10.0" />
+                           </VBox.margin>
+                        </TableView>
+                        
+                        <!-- Resumo Financeiro da Safra -->
+                        <GridPane hgap="10.0" vgap="5.0">
+                           <columnConstraints>
+                              <ColumnConstraints halignment="RIGHT" hgrow="NEVER" />
+                              <ColumnConstraints hgrow="ALWAYS" />
+                           </columnConstraints>
+                           <children>
+                              <!-- Custo Total (Já existia, mas movido para o grid) -->
+                              <Label text="Custo Total (Insumos):" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                              <Label fx:id="lblCustoTotalSafra" style="-fx-font-weight: bold; -fx-text-fill: #D32F2F;" text="R$ 0,00" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                           
+                              <!-- NOVO: Receita Total -->
+                              <Label text="Receita Total (Vendas):" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                              <Label fx:id="lblReceitaTotalSafra" style="-fx-font-weight: bold; -fx-text-fill: #43A047;" text="R$ 0,00" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+                              <!-- NOVO: Valor em Estoque -->
+                              <Label text="Valor em Estoque:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+                              <Label fx:id="lblEstoqueTotalSafra" style="-fx-font-weight: bold; -fx-text-fill: #1E88E5;" text="R$ 0,00" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                              
+                              <!-- NOVO: Balanço/Lucro -->
+                              <Label text="Balanço (Lucro/Prejuízo):" style="-fx-font-size: 14px; -fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+                              <Label fx:id="lblBalancoSafra" style="-fx-font-size: 14px; -fx-font-weight: bold;" text="R$ 0,00" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                           </children>
+                           <VBox.margin>
+                              <Insets top="15.0" />
+                           </VBox.margin>
+                        </GridPane>
+
+                     </children>
+                  </VBox>
+
+                  <!-- Botão de Exportar (movido para baixo) -->
+                  <HBox alignment="CENTER_RIGHT" styleClass="module-toolbar">
+                     <children>
+                        <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar Relatório (CSV)" />
+                     </children>
+                  </HBox>
                </children>
             </VBox>
             

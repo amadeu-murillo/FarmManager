@@ -91,10 +91,10 @@
 }
 
 /* Cores específicas para os cards */
-.card-content-valor.positivo {
+.card-content-valor.positivo, .label.positivo { /* ATUALIZADO: Aplica a Label também */
     -fx-text-fill: #43A047; /* Verde */
 }
-.card-content-valor.negativo {
+.card-content-valor.negativo, .label.negativo { /* ATUALIZADO: Aplica a Label também */
     -fx-text-fill: #E53935; /* Vermelho */
 }
 
@@ -120,6 +120,14 @@
     -fx-background-radius: 6px;
     -fx-cursor: hand;
 }
+/* NOVO: Botão de Sucesso (Verde) */
+.module-button.success {
+    -fx-background-color: #43A047;
+}
+.module-button.success:hover {
+    -fx-background-color: #388E3C;
+}
+
 .module-button.danger {
     -fx-background-color: #D32F2F; /* Vermelho */
 }

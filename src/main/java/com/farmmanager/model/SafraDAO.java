@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.format.DateTimeFormatter; // NOVO
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,13 @@ import java.util.List;
  * - Adicionado updateStatusSafra.
  */
 public class SafraDAO {
+
+    // NOVO: Exposto para ser usado por outros controllers
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    public DateTimeFormatter getDateFormatter() {
+        return dateFormatter;
+    }
 
     public boolean addSafra(Safra safra) throws SQLException {
         // SQL atualizado com 'status' e 4 parâmetros
@@ -122,3 +130,4 @@ public class SafraDAO {
         return 0;
     }
 }
+
