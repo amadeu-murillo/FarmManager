@@ -11,12 +11,7 @@ import java.sql.Statement;
  * e a inicialização das tabelas.
  *
  * ATUALIZADO:
- * - Adicionada lógica de migração para
- * 1. Adicionar colunas de valor ao estoque.
- * 2. Adicionar coluna 'status' à tabela 'safras'.
- * 3. Alterar tipo da coluna 'ano_inicio' da tabela 'safras' para TEXT.
- * - Adicionada nova tabela 'atividades_safra' para rastreamento de custos.
- * - NOVO: Adicionadas colunas de data/hora de criação e modificação em todas as tabelas.
+ * - Adicionada nova tabela 'manutencao_patrimonio' para histórico de custos.
  */
 public class Database {
 
@@ -99,6 +94,29 @@ public class Database {
             + "FOREIGN KEY (item_consumido_id) REFERENCES estoque(id) ON DELETE SET NULL" // Adicionado ON DELETE SET NULL
             + ");";
 
+        // NOVO: Tabela para Patrimônio (Máquinas, Ativos)
+        String sqlPatrimonio = "CREATE TABLE IF NOT EXISTS patrimonio ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + "nome TEXT NOT NULL,"
+            + "tipo TEXT,"
+            + "data_aquisicao TEXT,"
+            + "valor_aquisicao REAL,"
+            + "status TEXT,"
+            + "data_criacao TEXT,"
+            + "data_modificacao TEXT"
+            + ");";
+
+        // NOVO: Tabela para histórico de manutenção do patrimônio
+        String sqlManutencaoPatrimonio = "CREATE TABLE IF NOT EXISTS manutencao_patrimonio ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + "patrimonio_id INTEGER NOT NULL,"
+            + "data TEXT NOT NULL,"
+            + "descricao TEXT NOT NULL,"
+            + "custo REAL NOT NULL,"
+            + "data_hora_criacao TEXT,"
+            + "FOREIGN KEY (patrimonio_id) REFERENCES patrimonio(id) ON DELETE CASCADE"
+            + ");";
+
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             // 1. Cria tabelas se não existirem (para instalação inicial)
             stmt.execute(sqlFuncionarios);
@@ -107,6 +125,8 @@ public class Database {
             stmt.execute(sqlEstoque);
             stmt.execute(sqlFinanceiro);
             stmt.execute(sqlAtividadesSafra); // NOVO: Executa a criação da nova tabela
+            stmt.execute(sqlPatrimonio); // NOVO: Cria tabela de patrimônio
+            stmt.execute(sqlManutencaoPatrimonio); // NOVO: Cria tabela de manutenção
 
             // 2. NOVO: Executa migrações para bancos de dados antigos
             runMigrations(conn);
@@ -173,6 +193,13 @@ public class Database {
         runTimestampMigration(conn, "financeiro", "data_hora_criacao");
         
         runTimestampMigration(conn, "atividades_safra", "data_hora_criacao");
+
+        // NOVO: Migrações para 'patrimonio'
+        runTimestampMigration(conn, "patrimonio", "data_criacao");
+        runTimestampMigration(conn, "patrimonio", "data_modificacao");
+
+        // NOVO: Migrações para 'manutencao_patrimonio'
+        runTimestampMigration(conn, "manutencao_patrimonio", "data_hora_criacao");
     }
 
     /**
@@ -224,3 +251,4 @@ public class Database {
         return false;
     }
 }
+

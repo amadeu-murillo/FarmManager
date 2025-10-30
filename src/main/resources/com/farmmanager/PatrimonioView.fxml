@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
+
+<!-- 
+  NOVO: Tela de Gestão de Patrimônio (Máquinas e Ativos)
+  ATUALIZADO: Convertido para SplitPane com painel de detalhes.
+-->
+<VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.PatrimonioController">
+   <children>
+      <Label styleClass="content-title" text="Gestão de Patrimônio (Máquinas e Ativos)" />
+      
+      <!-- Divisão da tela entre Lista e Detalhes -->
+      <SplitPane fx:id="splitPane" dividerPositions="0.6" VBox.vgrow="ALWAYS">
+         <items>
+            <!-- Painel Esquerdo (Lista de Patrimônio) -->
+            <VBox spacing="10.0">
+               <children>
+                  <!-- ATUALIZADO: Toolbar com mais botões -->
+                  <HBox styleClass="module-toolbar">
+                     <children>
+                        <Button mnemonicParsing="false" onAction="#handleAdicionar" styleClass="module-button" text="+ Adicionar Ativo" />
+                        <Button fx:id="btnRegistrarManutencao" mnemonicParsing="false" onAction="#handleRegistrarManutencao" styleClass="module-button, warning" text="Registrar Manutenção" />
+                        <Button fx:id="btnAtualizarStatus" mnemonicParsing="false" onAction="#handleAtualizarStatus" styleClass="module-button" text="Atualizar Status" />
+                        <Button fx:id="btnVenderAtivo" mnemonicParsing="false" onAction="#handleVenderAtivo" styleClass="module-button, success" text="Vender Ativo" />
+                        <Button fx:id="btnRemover" mnemonicParsing="false" onAction="#handleRemover" styleClass="module-button, danger" text="- Remover (Ajuste)" />
+                     </children>
+                  </HBox>
+                  
+                  <!-- Tabela de Patrimônio -->
+                  <TableView fx:id="tabelaPatrimonio" VBox.vgrow="ALWAYS">
+                     <columns>
+                        <TableColumn fx:id="colPatId" prefWidth="50.0" text="ID" />
+                        <TableColumn fx:id="colPatNome" prefWidth="250.0" text="Nome / Descrição" />
+                        <TableColumn fx:id="colPatTipo" prefWidth="120.0" text="Tipo" />
+                        <TableColumn fx:id="colPatDataAquisicao" prefWidth="120.0" text="Data Aquisição" />
+                        <TableColumn fx:id="colPatValorAquisicao" prefWidth="130.0" text="Valor (R$)" />
+                        <TableColumn fx:id="colPatStatus" prefWidth="120.0" text="Status" />
+                     </columns>
+                  </TableView>
+               </children>
+            </VBox>
+            
+            <!-- Painel Direito (Detalhes e Manutenção) -->
+            <VBox styleClass="card" spacing="10.0">
+               <children>
+                  <Label fx:id="lblDetalhesTitulo" styleClass="card-title" text="Detalhes: (Selecione um ativo)" />
+                  <Label text="Histórico de Manutenção" />
+                  <TableView fx:id="tabelaManutencao" VBox.vgrow="ALWAYS">
+                     <columns>
+                        <TableColumn fx:id="colManData" prefWidth="100.0" text="Data" />
+                        <TableColumn fx:id="colManDesc" prefWidth="200.0" text="Descrição" />
+                        <TableColumn fx:id="colManCusto" prefWidth="120.0" text="Custo (R$)" />
+                     </columns>
+                  </TableView>
+                  <Label fx:id="lblCustoTotalManutencao" style="-fx-font-weight: bold; -fx-text-fill: #D32F2F;" text="Custo Total de Manutenção: R$ 0,00" />
+               </children>
+            </VBox>
+         </items>
+      </SplitPane>
+   </children>
+</VBox>
+

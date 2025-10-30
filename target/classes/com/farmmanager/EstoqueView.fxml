@@ -10,14 +10,11 @@
 <!-- Tela de Gestão de Estoque -->
 <!-- 
   ATUALIZADO: 
-  - Renomeado "+ Adicionar Item" para "+ Comprar Item" (agora lança despesa).
-  - Adicionado botão "Vender Item" (lança receita).
-  - Botão "Consumir Item" agora tem estilo 'warning' e lança despesa.
-  - NOVO: Adicionadas colunas de data.
+  - Título alterado para "Insumos e Produtos".
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
    <children>
-      <Label styleClass="content-title" text="Gestão de Estoque" />
+      <Label styleClass="content-title" text="Gestão de Insumos e Produtos" />
       <HBox styleClass="module-toolbar">
          <children>
             <Button mnemonicParsing="false" onAction="#handleComprarItem" styleClass="module-button" text="+ Comprar Item" />

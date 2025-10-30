@@ -9,8 +9,9 @@
 
 <!-- 
   MainView.fxml (O "Shell" da Aplicação)
-  Modificado para ter um StackPane no centro, onde as outras
-  telas (DashboardView, FuncionariosView, etc.) serão carregadas.
+  ATUALIZADO:
+  - Botão "Estoque" renomeado para "Insumos/Produtos".
+  - Adicionado novo botão "Patrimônio".
 -->
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
    <left>
@@ -28,9 +29,16 @@
                   <FontAwesomeIconView glyphName="DOLLAR" size="1.2em" styleClass="sidebar-icon" />
                </graphic>
             </Button>
-            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowEstoque" prefHeight="40.0" prefWidth="200.0" text="Estoque">
+            <!-- Botão de Estoque RENOMEADO -->
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowEstoque" prefHeight="40.0" prefWidth="200.0" text="Insumos/Produtos">
                <graphic>
                   <FontAwesomeIconView glyphName="ARCHIVE" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <!-- NOVO Botão de Patrimônio -->
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowPatrimonio" prefHeight="40.0" prefWidth="200.0" text="Patrimônio">
+               <graphic>
+                  <FontAwesomeIconView glyphName="TRUCK" size="1.2em" styleClass="sidebar-icon" />
                </graphic>
             </Button>
             <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowFuncionarios" prefHeight="40.0" prefWidth="200.0" text="Funcionários">
@@ -52,4 +60,3 @@
       <StackPane fx:id="contentArea" styleClass="content-area" BorderPane.alignment="CENTER" />
    </center>
 </BorderPane>
-

@@ -11,8 +11,8 @@ import java.net.URL;
 
 /**
  * Controller (Cérebro) para o "Shell" principal (MainView.fxml).
- * Sua principal função agora é atuar como um "roteador",
- * carregando as telas corretas no StackPane central.
+ * ATUALIZADO:
+ * - Adicionado handler para a nova tela de Patrimônio.
  */
 public class MainViewController {
 
@@ -46,6 +46,14 @@ public class MainViewController {
     @FXML
     private void handleShowEstoque() {
         loadView("EstoqueView.fxml");
+    }
+
+    /**
+     * NOVO: Handler para a tela de Patrimônio.
+     */
+    @FXML
+    private void handleShowPatrimonio() {
+        loadView("PatrimonioView.fxml");
     }
 
     @FXML
@@ -84,4 +92,3 @@ public class MainViewController {
         }
     }
 }
-
