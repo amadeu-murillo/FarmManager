@@ -10,10 +10,12 @@ import java.sql.Statement;
  * Classe utilitária para gerenciar a conexão com o banco de dados
  * e a inicialização das tabelas.
  *
- * ATUALIZADO: Adicionada lógica de migração para
+ * ATUALIZADO:
+ * - Adicionada lógica de migração para
  * 1. Adicionar colunas de valor ao estoque.
  * 2. Adicionar coluna 'status' à tabela 'safras'.
  * 3. Alterar tipo da coluna 'ano_inicio' da tabela 'safras' para TEXT.
+ * - Adicionada nova tabela 'atividades_safra' para rastreamento de custos.
  */
 public class Database {
 
@@ -73,6 +75,19 @@ public class Database {
             + "tipo TEXT NOT NULL"
             + ");";
 
+        // NOVO: Definição da tabela de atividades da safra
+        String sqlAtividadesSafra = "CREATE TABLE IF NOT EXISTS atividades_safra ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + "safra_id INTEGER NOT NULL,"
+            + "descricao TEXT NOT NULL,"
+            + "data TEXT NOT NULL,"
+            + "item_consumido_id INTEGER,"
+            + "quantidade_consumida REAL,"
+            + "custo_total_atividade REAL NOT NULL,"
+            + "FOREIGN KEY (safra_id) REFERENCES safras(id) ON DELETE CASCADE," // Adicionado ON DELETE CASCADE
+            + "FOREIGN KEY (item_consumido_id) REFERENCES estoque(id) ON DELETE SET NULL" // Adicionado ON DELETE SET NULL
+            + ");";
+
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             // 1. Cria tabelas se não existirem (para instalação inicial)
             stmt.execute(sqlFuncionarios);
@@ -80,6 +95,7 @@ public class Database {
             stmt.execute(sqlSafras); // Cria a tabela com as colunas novas
             stmt.execute(sqlEstoque);
             stmt.execute(sqlFinanceiro);
+            stmt.execute(sqlAtividadesSafra); // NOVO: Executa a criação da nova tabela
 
             // 2. NOVO: Executa migrações para bancos de dados antigos
             runMigrations(conn);
@@ -209,3 +225,4 @@ public class Database {
         return false;
     }
 }
+
