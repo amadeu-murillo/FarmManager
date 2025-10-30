@@ -5,15 +5,21 @@ public class EstoqueItem {
     private String itemNome;
     private double quantidade;
     private String unidade;
+    private double valorUnitario; // NOVO
+    private double valorTotal; // NOVO
 
-    public EstoqueItem(String itemNome, double quantidade, String unidade) {
+    // Construtor para Adicionar (sem ID)
+    public EstoqueItem(String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal) {
         this.itemNome = itemNome;
         this.quantidade = quantidade;
         this.unidade = unidade;
+        this.valorUnitario = valorUnitario;
+        this.valorTotal = valorTotal;
     }
     
-    public EstoqueItem(int id, String itemNome, double quantidade, String unidade) {
-        this(itemNome, quantidade, unidade);
+    // Construtor para Ler do Banco (com ID)
+    public EstoqueItem(int id, String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal) {
+        this(itemNome, quantidade, unidade, valorUnitario, valorTotal);
         this.id = id;
     }
 
@@ -22,4 +28,6 @@ public class EstoqueItem {
     public String getItemNome() { return itemNome; }
     public double getQuantidade() { return quantidade; }
     public String getUnidade() { return unidade; }
+    public double getValorUnitario() { return valorUnitario; }
+    public double getValorTotal() { return valorTotal; }
 }
