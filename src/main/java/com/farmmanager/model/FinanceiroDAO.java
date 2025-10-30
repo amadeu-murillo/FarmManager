@@ -1,5 +1,6 @@
 package com.farmmanager.model;
 
+import com.farmmanager.util.DateTimeUtil; // NOVO
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,7 +14,8 @@ import java.util.Map;
 public class FinanceiroDAO {
 
     public boolean addTransacao(Transacao transacao) throws SQLException {
-        String sql = "INSERT INTO financeiro(descricao, valor, data, tipo) VALUES(?, ?, ?, ?)";
+        // NOVO: SQL atualizado com data_hora_criacao
+        String sql = "INSERT INTO financeiro(descricao, valor, data, tipo, data_hora_criacao) VALUES(?, ?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
@@ -21,6 +23,7 @@ public class FinanceiroDAO {
             pstmt.setDouble(2, transacao.getValor());
             pstmt.setString(3, transacao.getData());
             pstmt.setString(4, transacao.getTipo());
+            pstmt.setString(5, DateTimeUtil.getCurrentTimestamp()); // NOVO
             return pstmt.executeUpdate() > 0;
         }
     }
@@ -171,4 +174,3 @@ public class FinanceiroDAO {
         return balancoMensal;
     }
 }
-

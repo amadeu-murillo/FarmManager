@@ -1,5 +1,6 @@
 package com.farmmanager.model;
 
+import com.farmmanager.util.DateTimeUtil; // NOVO
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -11,6 +12,7 @@ import java.util.List;
 
 /**
  * NOVO: DAO para gerenciar a tabela 'atividades_safra'.
+ * NOVO: Adicionado data_hora_criacao.
  */
 public class AtividadeSafraDAO {
 
@@ -18,8 +20,9 @@ public class AtividadeSafraDAO {
      * Adiciona uma nova atividade/custo ao banco de dados.
      */
     public boolean addAtividade(AtividadeSafra atividade) throws SQLException {
-        String sql = "INSERT INTO atividades_safra (safra_id, descricao, data, item_consumido_id, quantidade_consumida, custo_total_atividade) "
-                   + "VALUES (?, ?, ?, ?, ?, ?)";
+        // NOVO: SQL atualizado
+        String sql = "INSERT INTO atividades_safra (safra_id, descricao, data, item_consumido_id, quantidade_consumida, custo_total_atividade, data_hora_criacao) "
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -37,6 +40,7 @@ public class AtividadeSafraDAO {
             }
             
             pstmt.setDouble(6, atividade.getCustoTotalAtividade());
+            pstmt.setString(7, DateTimeUtil.getCurrentTimestamp()); // NOVO
             
             return pstmt.executeUpdate() > 0;
         }
@@ -97,4 +101,3 @@ public class AtividadeSafraDAO {
         return 0.0;
     }
 }
-

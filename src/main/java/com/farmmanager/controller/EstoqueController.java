@@ -27,6 +27,8 @@ import java.util.Locale;
  * - 'handleAdicionarItem' renomeado para 'handleComprarItem' e agora lança despesa.
  * - 'handleConsumirItem' agora lança uma despesa baseada no custo médio.
  * - NOVO: 'handleVenderItem' para remover estoque e lançar receita.
+ * - NOVO: 'handleConsumirItem' agora pede uma descrição de uso.
+ * - NOVO: Adicionadas colunas de data na tabela.
  */
 public class EstoqueController {
 
@@ -44,6 +46,10 @@ public class EstoqueController {
     private TableColumn<EstoqueItem, Double> colItemValorUnit; // NOVO
     @FXML
     private TableColumn<EstoqueItem, Double> colItemValorTotal; // NOVO
+    @FXML
+    private TableColumn<EstoqueItem, String> colDataCriacao; // NOVO
+    @FXML
+    private TableColumn<EstoqueItem, String> colDataModificacao; // NOVO
 
     private final EstoqueDAO estoqueDAO;
     private final FinanceiroDAO financeiroDAO; // NOVO
@@ -67,6 +73,8 @@ public class EstoqueController {
         colItemUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
         colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); // NOVO
         colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); // NOVO
+        colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); // NOVO
+        colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); // NOVO
 
         tabelaEstoque.setItems(dadosTabela);
         carregarDadosDaTabela();
@@ -340,6 +348,7 @@ public class EstoqueController {
     /**
      * Manipulador para o botão "Consumir Item" (Uso Interno).
      * ATUALIZADO: Agora também lança uma despesa no financeiro.
+     * NOVO: Pede uma descrição de uso.
      */
     @FXML
     private void handleConsumirItem() {
@@ -353,22 +362,64 @@ public class EstoqueController {
         // Formata a quantidade atual para exibir no diálogo
         String qtdAtualStr = String.format(Locale.US, "%.2f", selecionado.getQuantidade());
 
-        TextInputDialog dialog = new TextInputDialog("1.0");
+        // NOVO: Diálogo customizado para quantidade e descrição
+        Dialog<Pair<Double, String>> dialog = new Dialog<>();
         dialog.setTitle("Consumir Item do Estoque (Uso Interno)");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + qtdAtualStr + " " + selecionado.getUnidade() + ")");
-        dialog.setContentText("Digite a quantidade a consumir:");
 
-        Optional<String> result = dialog.showAndWait();
+        ButtonType consumirButtonType = new ButtonType("Consumir", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(consumirButtonType, ButtonType.CANCEL);
 
-        result.ifPresent(qtdConsumirStr -> {
-            try {
-                // Aceita vírgula ou ponto
-                double qtdAConsumir = Double.parseDouble(qtdConsumirStr.replace(",", "."));
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
 
-                if (qtdAConsumir <= 0) {
-                    AlertUtil.showError("Valor Inválido", "A quantidade a consumir deve ser positiva.");
-                    return;
+        TextField qtdField = new TextField("1.0");
+        TextField descField = new TextField();
+        descField.setPromptText("Ex: Manutenção do trator");
+
+        grid.add(new Label("Quantidade a consumir:"), 0, 0);
+        grid.add(qtdField, 1, 0);
+        grid.add(new Label("Descrição de uso:"), 0, 1);
+        grid.add(descField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Converte o resultado para um Par (Qtd, Descricao)
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == consumirButtonType) {
+                try {
+                    double qtd = parseDouble(qtdField.getText());
+                    String desc = descField.getText();
+
+                    if (qtd <= 0) {
+                        AlertUtil.showError("Valor Inválido", "A quantidade a consumir deve ser positiva.");
+                        return null;
+                    }
+                    if (desc.isEmpty()) {
+                        AlertUtil.showError("Descrição Obrigatória", "Por favor, insira uma descrição de uso.");
+                        return null;
+                    }
+                     if (qtd > selecionado.getQuantidade()) {
+                         AlertUtil.showError("Estoque Insuficiente", "Disponível: " + selecionado.getQuantidade() + ". Solicitado: " + qtd);
+                         return null;
+                    }
+                    return new Pair<>(qtd, desc);
+                } catch (NumberFormatException e) {
+                    AlertUtil.showError("Erro de Formato", "Valor de quantidade inválido. Use apenas números (ex: 10.5).");
+                    return null;
                 }
+            }
+            return null;
+        });
+
+        Optional<Pair<Double, String>> result = dialog.showAndWait();
+
+        result.ifPresent(pair -> {
+            try {
+                double qtdAConsumir = pair.getKey();
+                String descricaoUso = pair.getValue();
 
                 // 1. Dá baixa no estoque
                 estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
@@ -377,7 +428,8 @@ public class EstoqueController {
                 double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
                 if (custoConsumo > 0) {
                     String data = LocalDate.now().format(dateFormatter);
-                    String desc = "Consumo (Uso Interno) de " + selecionado.getItemNome();
+                    // NOVO: Usa a descrição do diálogo
+                    String desc = "Consumo (" + descricaoUso + "): " + selecionado.getItemNome();
                     Transacao transacao = new Transacao(desc, -custoConsumo, data, "despesa");
                     financeiroDAO.addTransacao(transacao);
                     
@@ -388,8 +440,6 @@ public class EstoqueController {
                 
                 carregarDadosDaTabela(); // Recarrega a tabela
 
-            } catch (NumberFormatException e) {
-                AlertUtil.showError("Erro de Formato", "Valor de quantidade inválido. Use apenas números (ex: 10.5).");
             } catch (IllegalStateException e) {
                 // Captura a exceção de estoque insuficiente lançada pelo DAO
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
