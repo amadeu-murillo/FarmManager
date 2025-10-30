@@ -16,6 +16,7 @@
   - Adicionada coluna "Status" na tabela de Safras.
   - Adicionado botão "Atualizar Status".
   - Adicionado ComboBox para filtrar safras por status.
+  - NOVO: Adicionado botão "Lançar Atividade/Custo".
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
@@ -31,6 +32,8 @@
                      <children>
                         <Button mnemonicParsing="false" onAction="#handleNovaSafra" styleClass="module-button" text="+ Nova Safra" />
                         <Button mnemonicParsing="false" onAction="#handleRegistrarColheita" styleClass="module-button" text="Registrar Colheita" />
+                        <!-- BOTÃO ADICIONADO -->
+                        <Button mnemonicParsing="false" onAction="#handleLancarAtividade" styleClass="module-button" text="Lançar Atividade/Custo" />
                         <Button mnemonicParsing="false" onAction="#handleAtualizarStatus" styleClass="module-button" text="Atualizar Status" />
                         <Button mnemonicParsing="false" onAction="#handleRemoverSafra" styleClass="module-button, danger" text="- Remover Safra" />
                      </children>
