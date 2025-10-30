@@ -3,6 +3,7 @@ package com.farmmanager.model;
 /**
  * DTO (Data Transfer Object) para carregar a lista de safras
  * com o nome do talhão (resultado do JOIN).
+ * ATUALIZAÇÃO: Adicionado getter para Produção Total em Sacos.
  */
 public class SafraInfo {
     // Constante para cálculo de produtividade
@@ -43,5 +44,17 @@ public class SafraInfo {
         }
         double totalSacos = producaoTotalKg / KG_POR_SACO;
         return totalSacos / areaHectares;
+    }
+
+    /**
+     * NOVO: Calcula a produção total em sacos.
+     * Usado pela nova coluna da tabela.
+     * @return Produção total em sacos.
+     */
+    public double getProducaoTotalSacos() {
+        if (producaoTotalKg == 0) {
+            return 0.0;
+        }
+        return producaoTotalKg / KG_POR_SACO;
     }
 }

@@ -14,15 +14,18 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 
+// Imports adicionados para o cálculo automático
+import javafx.beans.value.ChangeListener;
+import javafx.beans.value.ObservableValue;
+
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Locale; // NOVO: Para formatação de número
+import java.util.Locale;
 
 /**
  * Controller para o SafrasView.fxml.
- * ATUALIZADO: Implementados handlers de adição e carregamento da tabela de Talhões.
- * ATUALIZAÇÃO 2: Adicionados handlers para registrar colheita e remover itens.
+ * ATUALIZAÇÃO 6: Adicionada coluna de Produção Total (sacos).
  */
 public class SafrasController {
 
@@ -39,6 +42,10 @@ public class SafrasController {
     private TableColumn<SafraInfo, String> colSafraTalhao;
     @FXML
     private TableColumn<SafraInfo, Double> colSafraProd;
+    @FXML
+    private TableColumn<SafraInfo, Double> colSafraProdTotalSacos; // NOVO
+    @FXML
+    private TableColumn<SafraInfo, Double> colSafraProdTotalKg; 
 
     // Tabela Talhões
     @FXML
@@ -71,6 +78,8 @@ public class SafrasController {
         colSafraAno.setCellValueFactory(new PropertyValueFactory<>("anoInicio"));
         colSafraTalhao.setCellValueFactory(new PropertyValueFactory<>("talhaoNome"));
         colSafraProd.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
+        colSafraProdTotalSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos")); // NOVO
+        colSafraProdTotalKg.setCellValueFactory(new PropertyValueFactory<>("producaoTotalKg"));
         tabelaSafras.setItems(dadosTabelaSafras);
         
         // Configura Tabela Talhões
@@ -258,8 +267,8 @@ public class SafrasController {
     }
 
     /**
-     * NOVO: Manipulador para o botão "Registrar Colheita".
-     * ATUALIZAÇÃO 3: Agora pede sc/ha e calcula o total em kg.
+     * ATUALIZADO: Manipulador para "Registrar Colheita" com cálculo automático.
+     * Usa um Dialog customizado para melhor UX.
      */
     @FXML
     private void handleRegistrarColheita() {
@@ -269,50 +278,95 @@ public class SafrasController {
             AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra na tabela para registrar a colheita.");
             return;
         }
+        
+        // 1. Criar o diálogo customizado
+        Dialog<Double> dialog = new Dialog<>();
+        dialog.setTitle("Registrar Colheita");
+        dialog.setHeaderText("Insira a produtividade para: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getTalhaoNome() + ")");
 
-        // Calcula a produtividade atual em sc/ha para exibir como valor padrão
+        ButtonType registrarButtonType = new ButtonType("Registrar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(registrarButtonType, ButtonType.CANCEL);
+
+        // 2. Criar o layout (GridPane)
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        // Dados fixos da safra
+        double area = safraSelecionada.getAreaHectares();
         double prodAtualScHa = safraSelecionada.getProducaoSacosPorHectare();
 
-        // Usa Locale.US para garantir que o formato do número seja com "."
-        TextInputDialog dialog = new TextInputDialog(String.format(Locale.US, "%.2f", prodAtualScHa));
-        dialog.setTitle("Registrar Colheita");
-        dialog.setHeaderText("Registrando colheita para: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getTalhaoNome() + ")");
-        dialog.setContentText("Digite a produção (sacos por hectare):"); // Texto do pop-up atualizado
+        // Labels de informação
+        Label areaLabel = new Label(String.format(Locale.US, "%.2f ha", area));
+        Label totalSacosLabel = new Label("---");
+        Label totalKgLabel = new Label("---");
+        
+        // Campo de entrada
+        TextField scHaField = new TextField(String.format(Locale.US, "%.2f", prodAtualScHa));
+        
+        // Adiciona componentes ao grid
+        grid.add(new Label("Área do Talhão:"), 0, 0);
+        grid.add(areaLabel, 1, 0);
+        
+        grid.add(new Label("Produção (sc/ha):"), 0, 1);
+        grid.add(scHaField, 1, 1);
+        
+        grid.add(new Label("Total (sacos):"), 0, 2);
+        grid.add(totalSacosLabel, 1, 2);
+        
+        grid.add(new Label("Total (kg):"), 0, 3);
+        grid.add(totalKgLabel, 1, 3);
+        
+        // 3. Adicionar listener para cálculo automático
+        scHaField.textProperty().addListener(new ChangeListener<String>() {
+            @Override
+            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
+                // Chama o método helper
+                atualizarCalculoColheita(newValue, totalSacosLabel, totalKgLabel, area);
+            }
+        });
+        
+        // CORREÇÃO: Chama o método helper diretamente com o valor inicial
+        atualizarCalculoColheita(scHaField.getText(), totalSacosLabel, totalKgLabel, area);
 
-        Optional<String> result = dialog.showAndWait();
+        dialog.getDialogPane().setContent(grid);
 
-        result.ifPresent(producaoScHaStr -> {
+        // 4. Converter o resultado (queremos salvar o total em KG)
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == registrarButtonType) {
+                try {
+                    double producaoScHa = Double.parseDouble(scHaField.getText().replace(",", "."));
+                    if (producaoScHa < 0) {
+                        AlertUtil.showError("Valor Inválido", "A produção não pode ser negativa.");
+                        return null;
+                    }
+                    // Retorna o total em KG para ser salvo
+                    return (producaoScHa * area) * 60.0; 
+                } catch (NumberFormatException e) {
+                    AlertUtil.showError("Erro de Formato", "Valor de produção inválido. Use apenas números (ex: 65.5).");
+                    return null;
+                }
+            }
+            return null;
+        });
+
+        // 5. Exibir o diálogo e processar o resultado
+        Optional<Double> result = dialog.showAndWait();
+
+        result.ifPresent(producaoKg -> {
             try {
-                // 1. Lê a produtividade em sc/ha (aceita vírgula ou ponto)
-                double producaoScHa = Double.parseDouble(producaoScHaStr.replace(",", "."));
-                if (producaoScHa < 0) {
-                    AlertUtil.showError("Valor Inválido", "A produção não pode ser negativa.");
-                    return;
-                }
-
-                // 2. Obtém a área (já disponível no SafraInfo)
-                double area = safraSelecionada.getAreaHectares();
-                if (area <= 0) {
-                    AlertUtil.showError("Erro de Cálculo", "A área do talhão é inválida (0 ou negativa). Não é possível calcular a produção total.");
-                    return;
-                }
-                
-                // 3. Calcula o total em KG (Padrão de 60kg/saco, como definido em SafraInfo)
-                double totalSacos = producaoScHa * area;
-                double producaoKg = totalSacos * 60.0; // Assumindo 60kg/saco
-
-                // 4. Salva o total em KG no banco
+                // Salva o total em KG no banco
                 safraDAO.updateProducaoSafra(safraSelecionada.getId(), producaoKg);
                 carregarDadosSafras(); // Atualiza a tabela para refletir a nova produtividade
                 AlertUtil.showInfo("Sucesso", "Colheita registrada com sucesso.");
 
-            } catch (NumberFormatException e) {
-                AlertUtil.showError("Erro de Formato", "Valor de produção inválido. Use apenas números (ex: 65.5).");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar a produção: " + e.getMessage());
             }
         });
     }
+
 
     /**
      * NOVO: Manipulador para o botão "- Remover Safra".
@@ -368,6 +422,31 @@ public class SafrasController {
                     AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover o talhão: " + e.getMessage());
                 }
             }
+        }
+    }
+    
+    /**
+     * NOVO: Método helper para atualizar os labels de cálculo da colheita.
+     */
+    private void atualizarCalculoColheita(String newValue, Label totalSacosLabel, Label totalKgLabel, double area) {
+        try {
+            double producaoScHa = Double.parseDouble(newValue.replace(",", "."));
+            if (producaoScHa < 0) {
+                totalSacosLabel.setText("Inválido");
+                totalKgLabel.setText("Inválido");
+                return;
+            }
+            
+            // Cálculo (Assumindo 60kg/saco, conforme SafraInfo)
+            double totalSacos = producaoScHa * area;
+            double producaoKg = totalSacos * 60.0; 
+            
+            totalSacosLabel.setText(String.format(Locale.US, "%.2f sacos", totalSacos));
+            totalKgLabel.setText(String.format(Locale.US, "%.2f kg", producaoKg));
+            
+        } catch (NumberFormatException e) {
+            totalSacosLabel.setText("---");
+            totalKgLabel.setText("---");
         }
     }
 }
