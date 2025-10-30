@@ -8,26 +8,36 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ATUALIZADO:
+ * - addSafra: Salva ano_inicio como TEXT e salva o novo campo 'status'.
+ * - updateProducaoSafra: Define status como 'Colhida' ao registrar produção.
+ * - listSafrasComInfo: Carrega o 'status' e o 'ano_inicio' (TEXT).
+ * - getContagemSafrasAtivas: Conta safras onde status != 'Colhida'.
+ * - Adicionado updateStatusSafra.
+ */
 public class SafraDAO {
 
     public boolean addSafra(Safra safra) throws SQLException {
-        String sql = "INSERT INTO safras(cultura, ano_inicio, talhao_id) VALUES(?, ?, ?)";
+        // SQL atualizado com 'status' e 4 parâmetros
+        String sql = "INSERT INTO safras(cultura, ano_inicio, talhao_id, status) VALUES(?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, safra.getCultura());
-            pstmt.setInt(2, safra.getAnoInicio());
+            pstmt.setString(2, safra.getAnoInicio()); // Alterado para setString
             pstmt.setInt(3, safra.getTalhaoId());
+            pstmt.setString(4, safra.getStatus()); // NOVO
             return pstmt.executeUpdate() > 0;
         }
     }
 
     /**
-     * NOVO: Atualiza a produção total de uma safra existente.
-     * Usado para registrar a colheita.
+     * Atualiza a produção total de uma safra existente e define o status para 'Colhida'.
      */
     public boolean updateProducaoSafra(int safraId, double producaoKg) throws SQLException {
-        String sql = "UPDATE safras SET producao_total_kg = ? WHERE id = ?";
+        // SQL atualizado para incluir a mudança de status
+        String sql = "UPDATE safras SET producao_total_kg = ?, status = 'Colhida' WHERE id = ?";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
@@ -38,7 +48,21 @@ public class SafraDAO {
     }
 
     /**
-     * NOVO: Remove uma safra pelo ID.
+     * NOVO: Atualiza apenas o status de uma safra.
+     */
+    public boolean updateStatusSafra(int safraId, String novoStatus) throws SQLException {
+        String sql = "UPDATE safras SET status = ? WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, novoStatus);
+            pstmt.setInt(2, safraId);
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Remove uma safra pelo ID.
      */
     public boolean removerSafra(int safraId) throws SQLException {
         String sql = "DELETE FROM safras WHERE id = ?";
@@ -56,8 +80,8 @@ public class SafraDAO {
      */
     public List<SafraInfo> listSafrasComInfo() throws SQLException {
         List<SafraInfo> safras = new ArrayList<>();
-        // ATUALIZAÇÃO: Adicionado t.area_hectares à consulta
-        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome, t.area_hectares "
+        // ATUALIZAÇÃO: Adicionado s.status e t.area_hectares à consulta
+        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome, t.area_hectares, s.status "
             + "FROM safras s "
             + "JOIN talhoes t ON s.talhao_id = t.id";
         
@@ -69,10 +93,11 @@ public class SafraDAO {
                 SafraInfo si = new SafraInfo(
                     rs.getInt("id"),
                     rs.getString("cultura"),
-                    rs.getInt("ano_inicio"),
+                    rs.getString("ano_inicio"), // Alterado para getString
                     rs.getString("talhao_nome"),
                     rs.getDouble("producao_total_kg"),
-                    rs.getDouble("area_hectares") // ATUALIZAÇÃO: Passando a área para o construtor
+                    rs.getDouble("area_hectares"),
+                    rs.getString("status") // NOVO
                 );
                 safras.add(si);
             }
@@ -81,12 +106,12 @@ public class SafraDAO {
     }
 
     /**
-     * NOVO: Retorna a contagem de safras "ativas" (sem produção registrada).
+     * Retorna a contagem de safras "ativas" (status diferente de 'Colhida').
      * Usado pelo Dashboard.
      */
     public int getContagemSafrasAtivas() throws SQLException {
-        // Considera safras "ativas" as que ainda não tiveram produção registrada (produção = 0)
-        String sql = "SELECT COUNT(*) AS total FROM safras WHERE producao_total_kg = 0 OR producao_total_kg IS NULL";
+        // Query atualizada para usar o status
+        String sql = "SELECT COUNT(*) AS total FROM safras WHERE status != 'Colhida'";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
@@ -97,4 +122,3 @@ public class SafraDAO {
         return 0;
     }
 }
-

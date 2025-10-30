@@ -5,6 +5,8 @@ import com.farmmanager.model.SafraInfo;
 import com.farmmanager.model.SafraDAO;
 import com.farmmanager.model.Talhao;
 import com.farmmanager.model.TalhaoDAO;
+import com.farmmanager.model.EstoqueDAO; // NOVO
+import com.farmmanager.model.EstoqueItem; // NOVO
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -13,19 +15,26 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
-
-// Imports adicionados para o cálculo automático
+// ... (existing imports)
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
-
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors; // NOVO
+// ... (existing imports)
 import java.util.Optional;
 import java.util.Locale;
 
 /**
  * Controller para o SafrasView.fxml.
- * ATUALIZAÇÃO 6: Adicionada coluna de Produção Total (sacos).
+ * ATUALIZAÇÃO:
+ * - Adicionada coluna e lógica para 'status'.
+ * - Alterada lógica de 'anoInicio' para 'String' (ex: "2025/1").
+ * - Adicionado handler 'handleAtualizarStatus'.
+ * - AO REGISTRAR COLHEITA: Adiciona a produção ao estoque (EstoqueDAO) em SACOS.
+ * - Adicionado filtro de status para a tabela de safras.
  */
 public class SafrasController {
 
@@ -37,13 +46,15 @@ public class SafrasController {
     @FXML
     private TableColumn<SafraInfo, String> colSafraCultura;
     @FXML
-    private TableColumn<SafraInfo, Integer> colSafraAno;
+    private TableColumn<SafraInfo, String> colSafraAno; // Alterado de Integer
     @FXML
     private TableColumn<SafraInfo, String> colSafraTalhao;
     @FXML
+    private TableColumn<SafraInfo, String> colSafraStatus; // NOVO
+    @FXML
     private TableColumn<SafraInfo, Double> colSafraProd;
     @FXML
-    private TableColumn<SafraInfo, Double> colSafraProdTotalSacos; // NOVO
+    private TableColumn<SafraInfo, Double> colSafraProdTotalSacos;
     @FXML
     private TableColumn<SafraInfo, Double> colSafraProdTotalKg; 
 
@@ -57,16 +68,24 @@ public class SafrasController {
     @FXML
     private TableColumn<Talhao, Double> colTalhaoArea;
 
+    // NOVO: Filtro de Status
+    @FXML
+    private ComboBox<String> filtroStatusSafra;
+
     private final SafraDAO safraDAO;
     private final TalhaoDAO talhaoDAO;
+    private final EstoqueDAO estoqueDAO; // NOVO
     
-    private final ObservableList<SafraInfo> dadosTabelaSafras;
+    private final ObservableList<SafraInfo> dadosTabelaSafras; // Lista visível na tabela
+    private List<SafraInfo> listaMestraSafras; // Lista com todos os dados do banco
     private final ObservableList<Talhao> dadosTabelaTalhoes;
 
     public SafrasController() {
         safraDAO = new SafraDAO();
         talhaoDAO = new TalhaoDAO();
+        estoqueDAO = new EstoqueDAO(); // NOVO
         dadosTabelaSafras = FXCollections.observableArrayList();
+        listaMestraSafras = new ArrayList<>(); // NOVO
         dadosTabelaTalhoes = FXCollections.observableArrayList();
     }
 
@@ -77,8 +96,9 @@ public class SafrasController {
         colSafraCultura.setCellValueFactory(new PropertyValueFactory<>("cultura"));
         colSafraAno.setCellValueFactory(new PropertyValueFactory<>("anoInicio"));
         colSafraTalhao.setCellValueFactory(new PropertyValueFactory<>("talhaoNome"));
+        colSafraStatus.setCellValueFactory(new PropertyValueFactory<>("status")); // NOVO
         colSafraProd.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
-        colSafraProdTotalSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos")); // NOVO
+        colSafraProdTotalSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos"));
         colSafraProdTotalKg.setCellValueFactory(new PropertyValueFactory<>("producaoTotalKg"));
         tabelaSafras.setItems(dadosTabelaSafras);
         
@@ -88,19 +108,65 @@ public class SafrasController {
         colTalhaoArea.setCellValueFactory(new PropertyValueFactory<>("areaHectares"));
         tabelaTalhoes.setItems(dadosTabelaTalhoes);
 
+        // NOVO: Configura Filtro de Status
+        filtroStatusSafra.setItems(FXCollections.observableArrayList(
+            "Em Andamento", "Colhidas", "Todas"
+        ));
+        filtroStatusSafra.getSelectionModel().select("Em Andamento"); // Padrão
+        // Adiciona listener para aplicar o filtro quando o valor mudar
+        filtroStatusSafra.getSelectionModel().selectedItemProperty().addListener(
+            (obs, oldV, newV) -> aplicarFiltroSafras()
+        );
+
         // Carrega dados das duas tabelas
         carregarDadosSafras();
         carregarDadosTalhoes();
     }
 
+    /**
+     * ATUALIZADO: Carrega dados do DAO para a lista mestra e aplica o filtro.
+     */
     private void carregarDadosSafras() {
         try {
-            dadosTabelaSafras.clear();
-            dadosTabelaSafras.addAll(safraDAO.listSafrasComInfo());
+            listaMestraSafras.clear();
+            listaMestraSafras.addAll(safraDAO.listSafrasComInfo());
+            aplicarFiltroSafras(); // Aplica o filtro (que preenche a dadosTabelaSafras)
         } catch (SQLException e) {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as safras.");
         }
     }
+
+    /**
+     * NOVO: Filtra a lista mestra e exibe na tabela.
+     */
+    private void aplicarFiltroSafras() {
+        String filtro = filtroStatusSafra.getSelectionModel().getSelectedItem();
+        if (filtro == null) {
+            filtro = "Em Andamento"; // Padrão
+        }
+
+        List<SafraInfo> listaFiltrada;
+
+        switch (filtro) {
+            case "Colhidas":
+                listaFiltrada = listaMestraSafras.stream()
+                    .filter(s -> s.getStatus().equalsIgnoreCase("Colhida"))
+                    .collect(Collectors.toList());
+                break;
+            case "Em Andamento":
+                listaFiltrada = listaMestraSafras.stream()
+                    .filter(s -> !s.getStatus().equalsIgnoreCase("Colhida"))
+                    .collect(Collectors.toList());
+                break;
+            default: // "Todas"
+                listaFiltrada = new ArrayList<>(listaMestraSafras);
+                break;
+        }
+
+        dadosTabelaSafras.clear();
+        dadosTabelaSafras.addAll(listaFiltrada);
+    }
+
 
     private void carregarDadosTalhoes() {
          try {
@@ -173,6 +239,9 @@ public class SafrasController {
 
     /**
      * Manipulador para o botão "+ Nova Safra".
+     * ATUALIZADO:
+     * - Campo "Ano" agora é "Safra" (String).
+     * - Adicionado ComboBox para "Status".
      */
     @FXML
     private void handleNovaSafra() {
@@ -204,9 +273,18 @@ public class SafrasController {
 
         TextField culturaField = new TextField();
         culturaField.setPromptText("Ex: Soja");
-        TextField anoField = new TextField();
-        anoField.setPromptText("Ex: 2024");
+        TextField anoField = new TextField(); // Alterado para TextField
+        anoField.setPromptText("Ex: 2025/1"); // Prompt atualizado
+        
         ComboBox<Talhao> talhaoCombo = new ComboBox<>(FXCollections.observableArrayList(talhoes));
+        
+        // NOVO: ComboBox para Status
+        ComboBox<String> statusCombo = new ComboBox<>();
+        statusCombo.setItems(FXCollections.observableArrayList(
+            "Planejada", "Em Preparo", "Plantio", "Crescimento", "Aplicação Defensivos"
+        ));
+        statusCombo.getSelectionModel().selectFirst(); // Default "Planejada"
+
         
         // Isso faz o ComboBox mostrar o nome do talhão
         talhaoCombo.setCellFactory(lv -> new ListCell<Talhao>() {
@@ -226,29 +304,29 @@ public class SafrasController {
 
         grid.add(new Label("Cultura:"), 0, 0);
         grid.add(culturaField, 1, 0);
-        grid.add(new Label("Ano Início:"), 0, 1);
+        grid.add(new Label("Safra (ex: 2025/1):"), 0, 1); // Label atualizado
         grid.add(anoField, 1, 1);
         grid.add(new Label("Talhão:"), 0, 2);
         grid.add(talhaoCombo, 1, 2);
+        grid.add(new Label("Status Inicial:"), 0, 3); // NOVO
+        grid.add(statusCombo, 1, 3); // NOVO
 
         dialog.getDialogPane().setContent(grid);
 
+        // Lógica de conversão atualizada
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
-                try {
-                    String cultura = culturaField.getText();
-                    int ano = Integer.parseInt(anoField.getText());
-                    Talhao talhaoSel = talhaoCombo.getSelectionModel().getSelectedItem();
-                    
-                    if (cultura.isEmpty() || talhaoSel == null) {
-                        AlertUtil.showError("Erro de Validação", "Cultura e Talhão são obrigatórios.");
-                        return null;
-                    }
-                    return new Safra(cultura, ano, talhaoSel.getId());
-                } catch (NumberFormatException e) {
-                    AlertUtil.showError("Erro de Formato", "Valor de ano inválido.");
+                String cultura = culturaField.getText();
+                String ano = anoField.getText(); // Alterado para String
+                Talhao talhaoSel = talhaoCombo.getSelectionModel().getSelectedItem();
+                String status = statusCombo.getSelectionModel().getSelectedItem(); // NOVO
+                
+                if (cultura.isEmpty() || ano.isEmpty() || talhaoSel == null || status == null) {
+                    AlertUtil.showError("Erro de Validação", "Cultura, Safra e Talhão são obrigatórios.");
                     return null;
                 }
+                // Construtor atualizado
+                return new Safra(cultura, ano, talhaoSel.getId(), status);
             }
             return null;
         });
@@ -258,7 +336,7 @@ public class SafrasController {
         result.ifPresent(safra -> {
             try {
                 safraDAO.addSafra(safra);
-                carregarDadosSafras(); // Atualiza a tabela de safras
+                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
                 AlertUtil.showInfo("Sucesso", "Safra adicionada com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar a safra: " + e.getMessage());
@@ -267,8 +345,32 @@ public class SafrasController {
     }
 
     /**
-     * ATUALIZADO: Manipulador para "Registrar Colheita" com cálculo automático.
-     * Usa um Dialog customizado para melhor UX.
+     * Helper class para o resultado do diálogo de colheita.
+     * ATUALIZADO: Armazena produção em KG e SACOS, e valor por SACO.
+     */
+    private static class ColheitaData {
+        final double producaoKg; // Necessário para o SafraDAO
+        final double producaoSacos; // NOVO: Necessário para o EstoqueDAO
+        final double valorTotal; // Para EstoqueDAO
+        final double valorPorSaco; // NOVO: (valorTotal / producaoSacos)
+
+        ColheitaData(double producaoKg, double producaoSacos, double valorTotal) {
+            this.producaoKg = producaoKg;
+            this.producaoSacos = producaoSacos;
+            this.valorTotal = valorTotal;
+            if (producaoSacos > 0) {
+                this.valorPorSaco = valorTotal / producaoSacos;
+            } else {
+                this.valorPorSaco = 0;
+            }
+        }
+    }
+
+    /**
+     * Manipulador para "Registrar Colheita".
+     * ATUALIZADO:
+     * - Pergunta o Valor de Venda (R$/saco).
+     * - Adiciona o item colhido (em SACOS) ao Estoque.
      */
     @FXML
     private void handleRegistrarColheita() {
@@ -278,9 +380,15 @@ public class SafrasController {
             AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra na tabela para registrar a colheita.");
             return;
         }
+
+        // NOVO: Verificar se já está colhida
+        if (safraSelecionada.getStatus().equalsIgnoreCase("Colhida")) {
+             AlertUtil.showInfo("Ação Inválida", "Esta safra já foi colhida e a produção já foi registrada.");
+             return;
+        }
         
         // 1. Criar o diálogo customizado
-        Dialog<Double> dialog = new Dialog<>();
+        Dialog<ColheitaData> dialog = new Dialog<>(); // Alterado para ColheitaData
         dialog.setTitle("Registrar Colheita");
         dialog.setHeaderText("Insira a produtividade para: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getTalhaoNome() + ")");
 
@@ -301,9 +409,11 @@ public class SafrasController {
         Label areaLabel = new Label(String.format(Locale.US, "%.2f ha", area));
         Label totalSacosLabel = new Label("---");
         Label totalKgLabel = new Label("---");
+        Label valorTotalColheitaLabel = new Label("---"); // NOVO
         
         // Campo de entrada
         TextField scHaField = new TextField(String.format(Locale.US, "%.2f", prodAtualScHa));
+        TextField valorSacoField = new TextField("0.0"); // NOVO
         
         // Adiciona componentes ao grid
         grid.add(new Label("Área do Talhão:"), 0, 0);
@@ -318,33 +428,53 @@ public class SafrasController {
         grid.add(new Label("Total (kg):"), 0, 3);
         grid.add(totalKgLabel, 1, 3);
         
-        // 3. Adicionar listener para cálculo automático
-        scHaField.textProperty().addListener(new ChangeListener<String>() {
-            @Override
-            public void changed(ObservableValue<? extends String> observable, String oldValue, String newValue) {
-                // Chama o método helper
-                atualizarCalculoColheita(newValue, totalSacosLabel, totalKgLabel, area);
-            }
-        });
+        grid.add(new Label("Valor Venda (R$/saco):"), 0, 4); // NOVO
+        grid.add(valorSacoField, 1, 4); // NOVO
         
-        // CORREÇÃO: Chama o método helper diretamente com o valor inicial
-        atualizarCalculoColheita(scHaField.getText(), totalSacosLabel, totalKgLabel, area);
+        grid.add(new Label("Valor Total (R$):"), 0, 5); // NOVO
+        grid.add(valorTotalColheitaLabel, 1, 5); // NOVO
+        
+        // 3. Adicionar listener para cálculo automático
+        ChangeListener<String> listener = (obs, oldV, newV) -> {
+            atualizarCalculosDialogColheita(
+                scHaField.getText(), valorSacoField.getText(), area,
+                totalSacosLabel, totalKgLabel, valorTotalColheitaLabel
+            );
+        };
+        
+        scHaField.textProperty().addListener(listener);
+        valorSacoField.textProperty().addListener(listener); // NOVO listener
+        
+        // Chama o método helper diretamente com o valor inicial
+        atualizarCalculosDialogColheita(
+            scHaField.getText(), valorSacoField.getText(), area,
+            totalSacosLabel, totalKgLabel, valorTotalColheitaLabel
+        );
 
         dialog.getDialogPane().setContent(grid);
 
-        // 4. Converter o resultado (queremos salvar o total em KG)
+        // 4. Converter o resultado para o objeto ColheitaData
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == registrarButtonType) {
                 try {
                     double producaoScHa = Double.parseDouble(scHaField.getText().replace(",", "."));
-                    if (producaoScHa < 0) {
-                        AlertUtil.showError("Valor Inválido", "A produção não pode ser negativa.");
+                    double valorSaco = Double.parseDouble(valorSacoField.getText().replace(",", ".")); // NOVO
+                    
+                    if (producaoScHa <= 0 || valorSaco < 0) { // Validando valor (produção deve ser > 0)
+                        AlertUtil.showError("Valor Inválido", "A produção deve ser maior que zero e o valor não pode ser negativo.");
                         return null;
                     }
-                    // Retorna o total em KG para ser salvo
-                    return (producaoScHa * area) * 60.0; 
+
+                    // Cálculos
+                    double totalSacos = (producaoScHa * area);
+                    double producaoKg = totalSacos * 60.0;
+                    double valorTotal = totalSacos * valorSaco; 
+                    
+                    // Retorna o objeto atualizado
+                    return new ColheitaData(producaoKg, totalSacos, valorTotal); 
+
                 } catch (NumberFormatException e) {
-                    AlertUtil.showError("Erro de Formato", "Valor de produção inválido. Use apenas números (ex: 65.5).");
+                    AlertUtil.showError("Erro de Formato", "Valores de produção ou R$ inválidos.");
                     return null;
                 }
             }
@@ -352,24 +482,91 @@ public class SafrasController {
         });
 
         // 5. Exibir o diálogo e processar o resultado
-        Optional<Double> result = dialog.showAndWait();
+        Optional<ColheitaData> result = dialog.showAndWait(); // Tipo de Optional alterado
 
-        result.ifPresent(producaoKg -> {
+        result.ifPresent(colheitaData -> {
             try {
-                // Salva o total em KG no banco
-                safraDAO.updateProducaoSafra(safraSelecionada.getId(), producaoKg);
-                carregarDadosSafras(); // Atualiza a tabela para refletir a nova produtividade
-                AlertUtil.showInfo("Sucesso", "Colheita registrada com sucesso.");
+                // 1. Atualizar a safra (DAO define status como 'Colhida' e salva KG)
+                safraDAO.updateProducaoSafra(safraSelecionada.getId(), colheitaData.producaoKg);
+
+                // 2. Criar o item de estoque (ATUALIZADO PARA SACOS)
+                String nomeItem = safraSelecionada.getCultura() + " (Colheita " + safraSelecionada.getAnoInicio() + ")";
+                String unidadeItem = "sacos"; // ATUALIZADO
+
+                EstoqueItem itemColheita = new EstoqueItem(
+                    nomeItem,
+                    colheitaData.producaoSacos, // ATUALIZADO
+                    unidadeItem,
+                    colheitaData.valorPorSaco, // ATUALIZADO (R$/saco)
+                    colheitaData.valorTotal
+                );
+
+                // 3. NOVO: Adicionar ao estoque
+                estoqueDAO.addEstoque(itemColheita);
+
+                // 4. Recarregar dados e notificar
+                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                
+                // Mensagem de sucesso atualizada
+                AlertUtil.showInfo("Sucesso", 
+                    "Colheita registrada com sucesso.\n" +
+                    "Status da safra atualizado para 'Colhida'.\n" +
+                    String.format(Locale.US, "%.2f sacos de %s", colheitaData.producaoSacos, nomeItem) + // ATUALIZADO
+                    " foram adicionados ao estoque."
+                );
 
             } catch (SQLException e) {
-                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar a produção: " + e.getMessage());
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a colheita ou atualizar o estoque: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * NOVO: Manipulador para o botão "Atualizar Status".
+     */
+    @FXML
+    private void handleAtualizarStatus() {
+        SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
+        if (safraSelecionada == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra para atualizar o status.");
+            return;
+        }
+
+        // Não permite alterar status de safra colhida
+        if (safraSelecionada.getStatus().equalsIgnoreCase("Colhida")) {
+            AlertUtil.showInfo("Ação Inválida", "Esta safra já foi colhida e não pode ter seu status alterado.");
+            return;
+        }
+
+        // Lista de possíveis status
+        List<String> statusOpcoes = new ArrayList<>(Arrays.asList(
+            "Planejada", "Em Preparo", "Plantio", "Crescimento", 
+            "Aplicação Defensivos", "Colheita"
+            // Removido "Colhida", pois só deve ser setado via "Registrar Colheita"
+        ));
+        
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(safraSelecionada.getStatus(), statusOpcoes);
+        dialog.setTitle("Atualizar Status da Safra");
+        dialog.setHeaderText("Selecione o novo status para:\n" + safraSelecionada.getCultura() + " (" + safraSelecionada.getAnoInicio() + ")");
+        dialog.setContentText("Status:");
+
+        Optional<String> result = dialog.showAndWait();
+
+        result.ifPresent(novoStatus -> {
+            try {
+                // Chama o novo método do DAO
+                safraDAO.updateStatusSafra(safraSelecionada.getId(), novoStatus);
+                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                AlertUtil.showInfo("Sucesso", "Status da safra atualizado para '" + novoStatus + "'.");
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar o status: " + e.getMessage());
             }
         });
     }
 
 
     /**
-     * NOVO: Manipulador para o botão "- Remover Safra".
+     * Manipulador para o botão "- Remover Safra".
      */
     @FXML
     private void handleRemoverSafra() {
@@ -386,7 +583,7 @@ public class SafrasController {
         if (confirmado) {
             try {
                 safraDAO.removerSafra(safraSelecionada.getId());
-                carregarDadosSafras();
+                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
                 AlertUtil.showInfo("Sucesso", "Safra removida com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover a safra: " + e.getMessage());
@@ -395,7 +592,7 @@ public class SafrasController {
     }
 
     /**
-     * NOVO: Manipulador para o botão "- Remover Talhão".
+     * Manipulador para o botão "- Remover Talhão".
      */
     @FXML
     private void handleRemoverTalhao() {
@@ -426,27 +623,36 @@ public class SafrasController {
     }
     
     /**
-     * NOVO: Método helper para atualizar os labels de cálculo da colheita.
+     * NOVO: Método helper atualizado para calcular produção e valor.
      */
-    private void atualizarCalculoColheita(String newValue, Label totalSacosLabel, Label totalKgLabel, double area) {
+    private void atualizarCalculosDialogColheita(
+        String scHaStr, String vlrSacoStr, double area,
+        Label totalSacosLabel, Label totalKgLabel, Label totalValorLabel
+    ) {
         try {
-            double producaoScHa = Double.parseDouble(newValue.replace(",", "."));
-            if (producaoScHa < 0) {
+            double producaoScHa = Double.parseDouble(scHaStr.replace(",", "."));
+            double valorSaco = Double.parseDouble(vlrSacoStr.replace(",", "."));
+            
+            if (producaoScHa < 0 || valorSaco < 0) {
                 totalSacosLabel.setText("Inválido");
                 totalKgLabel.setText("Inválido");
+                totalValorLabel.setText("Inválido");
                 return;
             }
             
-            // Cálculo (Assumindo 60kg/saco, conforme SafraInfo)
+            // Cálculos
             double totalSacos = producaoScHa * area;
-            double producaoKg = totalSacos * 60.0; 
+            double producaoKg = totalSacos * 60.0;
+            double valorTotal = totalSacos * valorSaco;
             
             totalSacosLabel.setText(String.format(Locale.US, "%.2f sacos", totalSacos));
             totalKgLabel.setText(String.format(Locale.US, "%.2f kg", producaoKg));
+            totalValorLabel.setText(String.format(Locale.US, "R$ %.2f", valorTotal)); // Formata como moeda
             
         } catch (NumberFormatException e) {
             totalSacosLabel.setText("---");
             totalKgLabel.setText("---");
+            totalValorLabel.setText("---");
         }
     }
 }
