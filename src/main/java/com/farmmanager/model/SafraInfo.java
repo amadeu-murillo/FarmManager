@@ -3,7 +3,9 @@ package com.farmmanager.model;
 /**
  * DTO (Data Transfer Object) para carregar a lista de safras
  * com o nome do talhão (resultado do JOIN).
- * ATUALIZAÇÃO: Adicionado getter para Produção Total em Sacos.
+ * * ATUALIZAÇÃO:
+ * - anoInicio alterado de int para String.
+ * - Adicionado campo 'status'.
  */
 public class SafraInfo {
     // Constante para cálculo de produtividade
@@ -11,30 +13,33 @@ public class SafraInfo {
 
     private final int id;
     private final String cultura;
-    private final int anoInicio;
+    private final String anoInicio; // Alterado para String
     private final double producaoTotalKg;
     private final String talhaoNome;
-    private final double areaHectares; // NOVO: Campo para armazenar a área
+    private final double areaHectares;
+    private final String status; // NOVO
 
-    public SafraInfo(int id, String cultura, int ano, String talhaoNome, double producao, double areaHectares) {
+    public SafraInfo(int id, String cultura, String ano, String talhaoNome, double producao, double areaHectares, String status) {
         this.id = id;
         this.cultura = cultura;
-        this.anoInicio = ano;
+        this.anoInicio = ano; // Alterado
         this.talhaoNome = talhaoNome;
         this.producaoTotalKg = producao;
-        this.areaHectares = areaHectares; // NOVO
+        this.areaHectares = areaHectares;
+        this.status = status; // NOVO
     }
 
     // Getters
     public int getId() { return id; }
     public String getCultura() { return cultura; }
-    public int getAnoInicio() { return anoInicio; }
+    public String getAnoInicio() { return anoInicio; } // Tipo de retorno alterado
     public double getProducaoTotalKg() { return producaoTotalKg; }
     public String getTalhaoNome() { return talhaoNome; }
-    public double getAreaHectares() { return areaHectares; } // NOVO
+    public double getAreaHectares() { return areaHectares; }
+    public String getStatus() { return status; } // NOVO
 
     /**
-     * NOVO: Calcula a produção em sacos por hectare.
+     * Calcula a produção em sacos por hectare.
      * Este método será usado pela TableView.
      * @return Produção em sc/ha.
      */
@@ -47,7 +52,7 @@ public class SafraInfo {
     }
 
     /**
-     * NOVO: Calcula a produção total em sacos.
+     * Calcula a produção total em sacos.
      * Usado pela nova coluna da tabela.
      * @return Produção total em sacos.
      */

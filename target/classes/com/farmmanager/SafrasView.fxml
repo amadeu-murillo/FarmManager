@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.geometry.Insets?>
 
-<!-- Tela de Gestão de Safras e Talhões -->
-<!-- ATUALIZADO: Adicionada coluna de Produção Total (sacos) -->
+<!-- 
+  Tela de Gestão de Safras e Talhões
+  ATUALIZADO: 
+  - Adicionada coluna "Status" na tabela de Safras.
+  - Adicionado botão "Atualizar Status".
+  - Adicionado ComboBox para filtrar safras por status.
+-->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
       <Label styleClass="content-title" text="Gestão de Safras e Talhões" />
@@ -20,25 +27,38 @@
             <!-- Tabela de Safras (Esquerda) -->
             <VBox spacing="10.0">
                <children>
-                  <!-- NOVO: Toolbar específica para Safras -->
                   <HBox styleClass="module-toolbar">
                      <children>
                         <Button mnemonicParsing="false" onAction="#handleNovaSafra" styleClass="module-button" text="+ Nova Safra" />
                         <Button mnemonicParsing="false" onAction="#handleRegistrarColheita" styleClass="module-button" text="Registrar Colheita" />
+                        <Button mnemonicParsing="false" onAction="#handleAtualizarStatus" styleClass="module-button" text="Atualizar Status" />
                         <Button mnemonicParsing="false" onAction="#handleRemoverSafra" styleClass="module-button, danger" text="- Remover Safra" />
                      </children>
                   </HBox>
+                  
+                  <!-- NOVO: Filtro de Status -->
+                  <HBox alignment="CENTER_LEFT" spacing="10.0">
+                     <children>
+                        <Label text="Filtrar status:" style="-fx-font-weight: bold;" />
+                        <ComboBox fx:id="filtroStatusSafra" prefWidth="200.0" />
+                     </children>
+                     <VBox.margin>
+                        <Insets bottom="5.0" />
+                     </VBox.margin>
+                  </HBox>
+                  
                   <Label styleClass="card-title" text="Safras Registradas" />
                   <TableView fx:id="tabelaSafras" VBox.vgrow="ALWAYS">
                      <columns>
-                        <TableColumn fx:id="colSafraId" prefWidth="75.0" text="ID" />
-                        <TableColumn fx:id="colSafraCultura" prefWidth="150.0" text="Cultura" />
-                        <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Ano" />
-                        <TableColumn fx:id="colSafraTalhao" prefWidth="150.0" text="Talhão" />
+                        <TableColumn fx:id="colSafraId" prefWidth="50.0" text="ID" />
+                        <TableColumn fx:id="colSafraCultura" prefWidth="120.0" text="Cultura" />
+                        <TableColumn fx:id="colSafraAno" prefWidth="80.0" text="Safra" />
+                        <TableColumn fx:id="colSafraTalhao" prefWidth="120.0" text="Talhão" />
+                        <!-- NOVA COLUNA -->
+                        <TableColumn fx:id="colSafraStatus" prefWidth="110.0" text="Status" />
                         <TableColumn fx:id="colSafraProd" prefWidth="120.0" text="Produção (sc/ha)" />
-                        <!-- NOVA COLUNA (Sacos) -->
-                        <TableColumn fx:id="colSafraProdTotalSacos" prefWidth="120.0" text="Produção Total (sacos)" />
-                        <TableColumn fx:id="colSafraProdTotalKg" prefWidth="120.0" text="Produção Total (kg)" />
+                        <TableColumn fx:id="colSafraProdTotalSacos" prefWidth="120.0" text="Total (sacos)" />
+                        <TableColumn fx:id="colSafraProdTotalKg" prefWidth="120.0" text="Total (kg)" />
                      </columns>
                   </TableView>
                </children>
@@ -47,7 +67,6 @@
             <!-- Tabela de Talhões (Direita) -->
             <VBox spacing="10.0">
                <children>
-                  <!-- NOVO: Toolbar específica para Talhões -->
                   <HBox styleClass="module-toolbar">
                      <children>
                         <Button mnemonicParsing="false" onAction="#handleNovoTalhao" styleClass="module-button" text="+ Novo Talhão" />

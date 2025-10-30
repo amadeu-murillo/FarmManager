@@ -21,7 +21,9 @@ import java.util.Map; // NOVO
 
 /**
  * Controller para o DashboardView.fxml.
- * ATUALIZADO: Carrega dados de Safras e Talhões.
+ * ATUALIZADO:
+ * - Carrega dados de Safras e Talhões.
+ * - Lógica de 'Safras Ativas' atualizada para usar o novo campo 'status'.
  */
 public class DashboardController {
 
@@ -138,10 +140,11 @@ public class DashboardController {
     }
 
     /**
-     * NOVO: Carrega o número de safras ativas (não colhidas).
+     * NOVO: Carrega o número de safras ativas (status != 'Colhida').
      */
     private void carregarTotalSafras() {
         try {
+            // Lógica atualizada para usar o novo método do DAO
             int total = safraDAO.getContagemSafrasAtivas();
             lblSafras.setText(String.valueOf(total));
         } catch (SQLException e) {
@@ -211,4 +214,3 @@ public class DashboardController {
         }
     }
 }
-
