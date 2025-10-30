@@ -9,7 +9,7 @@
 <?import javafx.scene.layout.VBox?>
 
 <!-- Tela de Gestão de Safras e Talhões -->
-<!-- ATUALIZADO: Layout refeito com toolbars separadas para cada tabela -->
+<!-- ATUALIZADO: Adicionada coluna de Produção Total (sacos) -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
       <Label styleClass="content-title" text="Gestão de Safras e Talhões" />
@@ -36,6 +36,9 @@
                         <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Ano" />
                         <TableColumn fx:id="colSafraTalhao" prefWidth="150.0" text="Talhão" />
                         <TableColumn fx:id="colSafraProd" prefWidth="120.0" text="Produção (sc/ha)" />
+                        <!-- NOVA COLUNA (Sacos) -->
+                        <TableColumn fx:id="colSafraProdTotalSacos" prefWidth="120.0" text="Produção Total (sacos)" />
+                        <TableColumn fx:id="colSafraProdTotalKg" prefWidth="120.0" text="Produção Total (kg)" />
                      </columns>
                   </TableView>
                </children>
