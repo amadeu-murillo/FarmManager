@@ -89,7 +89,65 @@
     -fx-padding: 25px;
     /* Sombra mais suave e profissional */
     -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.08), 15, 0.1, 0, 4);
+    /* NOVO: Transição suave para hover */
+    -fx-transition: all 0.2s ease-in-out;
 }
+
+/* NOVO: Efeito de hover sutil para cards normais */
+.card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.12), 20, 0.15, 0, 6);
+    -fx-translate-y: -2px;
+}
+
+
+/* NOVO: Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
+.card-alerta-danger {
+    -fx-background-color: #FFF5F5; /* Vermelho bem claro (Tailwind red-50) */
+    -fx-border-color: #E53E3E; /* Vermelho (Tailwind red-500) */
+    -fx-border-width: 2px;
+}
+.card-alerta-danger:hover {
+    -fx-background-color: #FEF2F2; /* Tailwind red-100 */
+    -fx-border-color: #C53030; /* Tailwind red-700 */
+    -fx-translate-y: -2px;
+    -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.12), 20, 0.15, 0, 6);
+}
+
+/* Faz o texto do número no card de alerta ser vermelho */
+.card-alerta-danger .card-content-texto {
+    -fx-text-fill: #E53E3E; /* Vermelho (negativo-text color) */
+}
+
+/* Estilo para ícone de alerta vermelho */
+.card-alerta-danger .alert-icon {
+    -fx-fill: #E53E3E;
+}
+
+
+/* NOVO: Estilo para cards de Alerta Amarelo (TEMA AVISO) */
+.card-alerta-warning {
+    -fx-background-color: #FFFBEB; /* Amarelo bem claro (Tailwind yellow-50) */
+    -fx-border-color: #FBBF24; /* Amarelo (Tailwind yellow-400) */
+    -fx-border-width: 2px;
+    -fx-transition: all 0.2s ease-in-out;
+}
+.card-alerta-warning:hover {
+     -fx-background-color: #FEF9C3; /* Tailwind yellow-100 */
+     -fx-border-color: #D97706; /* Tailwind yellow-600 */
+     -fx-translate-y: -2px;
+     -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.12), 20, 0.15, 0, 6);
+}
+
+/* Faz o texto do número no card de alerta ser laranja */
+.card-alerta-warning .card-content-texto {
+    -fx-text-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
+}
+
+/* NOVO: Estilo para ícone de alerta laranja/amarelo */
+.card-alerta-warning .alert-icon {
+    -fx-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
+}
+
 
 .card-title {
     -fx-font-size: 15px;
@@ -263,6 +321,19 @@
 }
 /* --- FIM DA NOVA REGRA --- */
 
+/* NOVO: Linha de aviso (estoque baixo) */
+.table-row-cell:warning {
+     -fx-background-color: #FEF3C7; /* Amarelo claro (Tailwind yellow-100) */
+}
+.table-row-cell:warning:hover {
+     -fx-background-color: #FDE68A; /* Amarelo mais forte (Tailwind yellow-200) */
+}
+.table-row-cell:warning .text {
+    -fx-fill: #92400E; /* Marrom escuro (Tailwind yellow-800) */
+    -fx-font-weight: bold;
+}
+/* --- FIM DA NOVA REGRA --- */
+
 
 /* Remove fundo da área vazia da tabela */
 .table-view .filler {
@@ -302,3 +373,36 @@
     -fx-background-color: #E2E8F0;
     -fx-padding: 0 1px;
 }
+
+/* NOVO: Estilo para o ScrollPane do Dashboard (remove bordas e fundo) */
+.scroll-pane-dashboard {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.scroll-pane-dashboard > .viewport {
+   -fx-background-color: transparent;
+}
+
+/* Oculta a barra de rolagem horizontal (pois fitToWidth=true) */
+.scroll-pane-dashboard .scroll-bar:horizontal {
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+
+/* Estiliza a barra de rolagem vertical */
+.scroll-pane-dashboard .scroll-bar:vertical {
+    -fx-background-color: #F7FAFC; /* Fundo da barra */
+    -fx-pref-width: 10px;
+}
+
+.scroll-pane-dashboard .scroll-bar:vertical .thumb {
+    -fx-background-color: #A0AEC0; /* Cor do "polegar" (cinza) */
+    -fx-background-radius: 5px;
+}
+
+.scroll-pane-dashboard .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #718096;
+}
+
