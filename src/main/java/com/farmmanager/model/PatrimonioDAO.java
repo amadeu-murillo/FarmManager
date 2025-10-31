@@ -12,6 +12,7 @@ import java.util.List;
 /**
  * NOVO: DAO para gerenciar a tabela 'patrimonio'.
  * ATUALIZADO: Adicionado updateStatus.
+ * ATUALIZADO: Adicionados métodos para o Dashboard (Contagem por Status, Valor Total).
  */
 public class PatrimonioDAO {
 
@@ -95,6 +96,38 @@ public class PatrimonioDAO {
         return lista;
     }
     
-    // TODO: Adicionar métodos para updateStatus, registrarManutencao, etc.
-}
+    /**
+     * NOVO: Retorna a contagem de patrimonio por um status específico.
+     * Usado pelo Dashboard para "Em Manutenção".
+     */
+    public int getContagemPatrimonioPorStatus(String status) throws SQLException {
+        String sql = "SELECT COUNT(*) AS total FROM patrimonio WHERE status = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, status);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total");
+                }
+            }
+        }
+        return 0;
+    }
 
+    /**
+     * NOVO: Retorna o valor total (soma) de todos os ativos do patrimônio.
+     * Usado pelo Dashboard.
+     */
+    public double getValorTotalPatrimonio() throws SQLException {
+        String sql = "SELECT SUM(valor_aquisicao) AS valor_total FROM patrimonio";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            if (rs.next()) {
+                return rs.getDouble("valor_total");
+            }
+        }
+        return 0.0;
+    }
+}

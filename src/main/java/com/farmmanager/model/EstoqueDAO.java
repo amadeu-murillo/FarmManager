@@ -1,6 +1,6 @@
 package com.farmmanager.model;
 
-import com.farmmanager.util.DateTimeUtil; // NOVO
+import com.farmmanager.util.DateTimeUtil; 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -10,6 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EstoqueDAO {
+
+    // NOVO: Limite para alerta de estoque baixo (replicado do EstoqueController)
+    private static final double LIMITE_BAIXO_ESTOQUE = 10.0;
 
     /**
      * Adiciona um item ao estoque.
@@ -293,6 +296,27 @@ public class EstoqueDAO {
     }
 
     /**
+     * NOVO: Retorna a contagem de itens com estoque baixo.
+     * Usado pelo Dashboard.
+     */
+    public int getContagemItensEstoqueBaixo() throws SQLException {
+        String sql = "SELECT COUNT(*) AS total FROM estoque WHERE quantidade > 0 AND quantidade <= ?";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setDouble(1, LIMITE_BAIXO_ESTOQUE);
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total");
+                }
+            }
+        }
+        return 0;
+    }
+
+    /**
      * Retorna o nome de um item baseado no ID.
      * Usado pelo SafrasController para preencher a tabela de detalhes.
      */
@@ -313,4 +337,3 @@ public class EstoqueDAO {
         return "ID: " + id + " (Não encontrado)";
     }
 }
-
