@@ -8,7 +8,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.format.DateTimeFormatter; 
 import java.util.ArrayList;
+import java.util.LinkedHashMap; // NOVO
 import java.util.List;
+import java.util.Map; // NOVO
 
 /**
  * ATUALIZADO:
@@ -139,5 +141,24 @@ public class SafraDAO {
             }
         }
         return 0;
+    }
+
+    /**
+     * NOVO: Retorna um mapa das culturas ativas e suas respectivas contagens.
+     * Usado pelo Gráfico de Pizza de Culturas no Dashboard.
+     */
+    public Map<String, Integer> getContagemCulturasAtivas() throws SQLException {
+        Map<String, Integer> contagemCulturas = new LinkedHashMap<>();
+        String sql = "SELECT cultura, COUNT(*) AS total FROM safras WHERE status != 'Colhida' GROUP BY cultura ORDER BY total DESC";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            while (rs.next()) {
+                contagemCulturas.put(rs.getString("cultura"), rs.getInt("total"));
+            }
+        }
+        return contagemCulturas;
     }
 }

@@ -246,6 +246,24 @@
     -fx-background-color: #EDF2F7;
 }
 
+/* --- NOVO: Linha selecionada --- */
+.table-row-cell:selected {
+    -fx-background-color: #C6F6D5; /* Verde claro (Tailwind green-200) */
+}
+
+/* Texto na célula selecionada */
+.table-row-cell:selected .text {
+    -fx-fill: #22543D; /* Verde escuro para o texto (Tailwind green-800) */
+    -fx-font-weight: bold;
+}
+
+/* Células customizadas (como as de financeiro) quando selecionadas */
+.table-row-cell:selected .label {
+     -fx-text-fill: #22543D;
+}
+/* --- FIM DA NOVA REGRA --- */
+
+
 /* Remove fundo da área vazia da tabela */
 .table-view .filler {
     -fx-background-color: white;

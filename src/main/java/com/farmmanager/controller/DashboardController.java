@@ -24,6 +24,7 @@ import java.util.Map; // NOVO
  * ATUALIZADO:
  * - Carrega dados de Safras e Talhões.
  * - Lógica de 'Safras Ativas' atualizada para usar o novo campo 'status'.
+ * - NOVO: Carrega gráfico de Culturas Ativas.
  */
 public class DashboardController {
 
@@ -47,6 +48,8 @@ public class DashboardController {
     private PieChart chartDespesas;
     @FXML
     private LineChart<String, Number> chartBalanco;
+    @FXML
+    private PieChart chartCulturas; // NOVO
 
     // DAOs necessários para o resumo
     private final FinanceiroDAO financeiroDAO;
@@ -84,6 +87,7 @@ public class DashboardController {
         carregarAreaTotal(); // NOVO
         carregarChartDespesas(); // NOVO
         carregarChartBalanco(); // NOVO
+        carregarChartCulturas(); // NOVO
     }
 
     private void carregarBalanco() {
@@ -202,15 +206,44 @@ public class DashboardController {
             XYChart.Series<String, Number> series = new XYChart.Series<>();
             series.setName("Balanço Mensal");
 
+            // Limpa dados antigos antes de adicionar novos
+            chartBalanco.getData().clear(); 
+
             for (Map.Entry<String, Double> entry : balancoMap.entrySet()) {
                 series.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
             }
 
-            chartBalanco.getData().clear(); // Limpa dados antigos
             chartBalanco.getData().add(series);
             chartBalanco.setTitle("Histórico do Balanço (Mensal)");
         } catch (SQLException e) {
             AlertUtil.showError("Dashboard", "Erro ao carregar histórico de balanço.");
+        }
+    }
+
+    /**
+     * NOVO: Carrega o gráfico de pizza de culturas ativas.
+     */
+    private void carregarChartCulturas() {
+        try {
+            Map<String, Integer> contagemCulturas = safraDAO.getContagemCulturasAtivas();
+
+            ObservableList<PieChart.Data> pieChartData = FXCollections.observableArrayList();
+            for (Map.Entry<String, Integer> entry : contagemCulturas.entrySet()) {
+                // Adiciona a contagem ao label (ex: "Soja (3)")
+                pieChartData.add(new PieChart.Data(entry.getKey() + " (" + entry.getValue() + ")", entry.getValue()));
+            }
+
+            chartCulturas.setData(pieChartData);
+            
+            if (contagemCulturas.isEmpty()) {
+                chartCulturas.setTitle("Nenhuma cultura ativa");
+            } else {
+                 chartCulturas.setTitle("Culturas Ativas");
+            }
+
+        } catch (SQLException e) {
+            AlertUtil.showError("Dashboard", "Erro ao carregar gráfico de culturas.");
+            e.printStackTrace(); // Ajuda a depurar
         }
     }
 }

@@ -16,10 +16,14 @@ import javafx.scene.layout.GridPane;
 import javafx.util.Pair; // NOVO
 
 import java.sql.SQLException;
+import java.text.NumberFormat;
 import java.time.LocalDate; // NOVO
 import java.time.format.DateTimeFormatter; // NOVO
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.Locale; 
+import java.util.stream.Collectors;
 
 /**
  * Controller para o EstoqueView.fxml.
@@ -29,9 +33,14 @@ import java.util.Locale;
  * - NOVO: 'handleVenderItem' para remover estoque e lançar receita.
  * - NOVO: 'handleConsumirItem' agora pede uma descrição de uso.
  * - NOVO: Adicionadas colunas de data na tabela.
+ * - NOVO: Adicionado filtro de busca, resumo de valor total, alerta de baixo estoque e função de editar.
  */
 public class EstoqueController {
 
+    // --- Constantes ---
+    private static final double LIMITE_BAIXO_ESTOQUE = 10.0;
+
+    // --- Componentes FXML ---
     @FXML
     private TableView<EstoqueItem> tabelaEstoque;
     @FXML
@@ -51,10 +60,19 @@ public class EstoqueController {
     @FXML
     private TableColumn<EstoqueItem, String> colDataModificacao; // NOVO
 
+    // NOVO: Componentes de Filtro e Resumo
+    @FXML
+    private Label lblValorTotalEstoque;
+    @FXML
+    private TextField filtroNome;
+
+    // --- Lógica Interna ---
     private final EstoqueDAO estoqueDAO;
     private final FinanceiroDAO financeiroDAO; // NOVO
-    private final ObservableList<EstoqueItem> dadosTabela;
+    private final ObservableList<EstoqueItem> dadosTabelaFiltrada; // O que está visível na tabela
+    private List<EstoqueItem> listaMestraEstoque; // Lista completa do banco
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); // NOVO
+    private final NumberFormat currencyFormatter; // NOVO
 
     // Flag para evitar loops nos listeners
     private boolean isUpdating = false;
@@ -62,7 +80,9 @@ public class EstoqueController {
     public EstoqueController() {
         estoqueDAO = new EstoqueDAO();
         financeiroDAO = new FinanceiroDAO(); // NOVO
-        dadosTabela = FXCollections.observableArrayList();
+        dadosTabelaFiltrada = FXCollections.observableArrayList(); // ATUALIZADO
+        listaMestraEstoque = new ArrayList<>(); // NOVO
+        currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); // NOVO
     }
 
     @FXML
@@ -76,18 +96,82 @@ public class EstoqueController {
         colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); // NOVO
         colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); // NOVO
 
-        tabelaEstoque.setItems(dadosTabela);
-        carregarDadosDaTabela();
+        tabelaEstoque.setItems(dadosTabelaFiltrada); // ATUALIZADO
+
+        // NOVO: Adiciona listener para o campo de filtro
+        filtroNome.textProperty().addListener((obs, oldV, newV) -> aplicarFiltroEAtualizarResumo());
+
+        // NOVO: Adiciona RowFactory para destacar baixo estoque
+        tabelaEstoque.setRowFactory(tv -> new TableRow<EstoqueItem>() {
+            @Override
+            protected void updateItem(EstoqueItem item, boolean empty) {
+                super.updateItem(item, empty);
+                // Limpa estilos anteriores
+                getStyleClass().remove("table-row-cell:warning");
+
+                if (empty || item == null) {
+                    setStyle("");
+                } else if (item.getQuantidade() <= LIMITE_BAIXO_ESTOQUE) {
+                    // Aplica a classe CSS de aviso
+                    if (!getStyleClass().contains("table-row-cell:warning")) {
+                        getStyleClass().add("table-row-cell:warning");
+                    }
+                }
+            }
+        });
+
+        carregarDadosMestres(); // ATUALIZADO
     }
 
-    private void carregarDadosDaTabela() {
+    /**
+     * NOVO: Carrega todos os dados do banco para a lista mestra e atualiza a tela.
+     */
+    private void carregarDadosMestres() {
         try {
-            dadosTabela.clear();
-            dadosTabela.addAll(estoqueDAO.listEstoque());
+            listaMestraEstoque.clear();
+            listaMestraEstoque.addAll(estoqueDAO.listEstoque());
+            aplicarFiltroEAtualizarResumo(); // Aplica filtro (vazio) e atualiza resumo
         } catch (SQLException e) {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar o estoque.");
         }
     }
+
+    /**
+     * NOVO: Filtra a lista mestra com base no campo de busca e atualiza a tabela.
+     */
+    private void aplicarFiltroEAtualizarResumo() {
+        String filtro = filtroNome.getText().toLowerCase().trim();
+
+        // 1. Filtra a lista
+        List<EstoqueItem> listaFiltrada;
+        if (filtro.isEmpty()) {
+            listaFiltrada = new ArrayList<>(listaMestraEstoque);
+        } else {
+            listaFiltrada = listaMestraEstoque.stream()
+                .filter(item -> item.getItemNome().toLowerCase().contains(filtro))
+                .collect(Collectors.toList());
+        }
+
+        // 2. Atualiza a tabela
+        dadosTabelaFiltrada.setAll(listaFiltrada);
+
+        // 3. Atualiza o resumo
+        atualizarResumoEstoque();
+    }
+
+    /**
+     * NOVO: Busca o valor total do DAO e atualiza o label.
+     */
+    private void atualizarResumoEstoque() {
+        try {
+            double valorTotal = estoqueDAO.getValorTotalEmEstoque();
+            lblValorTotalEstoque.setText(currencyFormatter.format(valorTotal));
+        } catch (SQLException e) {
+            lblValorTotalEstoque.setText("Erro ao carregar");
+            e.printStackTrace();
+        }
+    }
+
 
     /**
      * Manipulador para o botão "+ Comprar Item" (antigo Adicionar Item).
@@ -185,7 +269,7 @@ public class EstoqueController {
                 Transacao transacao = new Transacao(desc, valor, data, "despesa");
                 financeiroDAO.addTransacao(transacao);
 
-                carregarDadosDaTabela();
+                carregarDadosMestres(); // ATUALIZADO
                 AlertUtil.showInfo("Sucesso", "Item comprado com sucesso e despesa registrada.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a compra: " + e.getMessage());
@@ -335,7 +419,7 @@ public class EstoqueController {
                 financeiroDAO.addTransacao(transacao);
 
                 AlertUtil.showInfo("Sucesso", "Venda registrada com sucesso. Estoque atualizado e receita lançada.");
-                carregarDadosDaTabela(); // Recarrega a tabela
+                carregarDadosMestres(); // ATUALIZADO
 
             } catch (IllegalStateException e) {
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
@@ -424,27 +508,99 @@ public class EstoqueController {
                 // 1. Dá baixa no estoque
                 estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
                 
-                // 2. NOVO: Lança a despesa
-                double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
-                if (custoConsumo > 0) {
-                    String data = LocalDate.now().format(dateFormatter);
-                    // NOVO: Usa a descrição do diálogo
-                    String desc = "Consumo (" + descricaoUso + "): " + selecionado.getItemNome();
-                    Transacao transacao = new Transacao(desc, -custoConsumo, data, "despesa");
-                    financeiroDAO.addTransacao(transacao);
-                    
-                    AlertUtil.showInfo("Sucesso", "Estoque atualizado e despesa de consumo registrada.");
-                } else {
-                     AlertUtil.showInfo("Sucesso", "Estoque atualizado (item sem valor de custo).");
-                }
+                // 2. NOVO: Lança a despesa <-- REMOVIDO
+                // O custo já foi registrado na COMPRA do insumo.
+                // double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
+                // if (custoConsumo > 0) {
+                //     String data = LocalDate.now().format(dateFormatter);
+                //     // NOVO: Usa a descrição do diálogo
+                //     String desc = "Consumo (" + descricaoUso + "): " + selecionado.getItemNome();
+                //     Transacao transacao = new Transacao(desc, -custoConsumo, data, "despesa");
+                //     financeiroDAO.addTransacao(transacao);
+                //     
+                //     AlertUtil.showInfo("Sucesso", "Estoque atualizado e despesa de consumo registrada.");
+                // } else {
+                //      AlertUtil.showInfo("Sucesso", "Estoque atualizado (item sem valor de custo).");
+                // }
                 
-                carregarDadosDaTabela(); // Recarrega a tabela
+                // Nova mensagem de sucesso (sem mencionar despesa)
+                AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
+                
+                carregarDadosMestres(); // ATUALIZADO
 
             } catch (IllegalStateException e) {
                 // Captura a exceção de estoque insuficiente lançada pelo DAO
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível consumir o item: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * NOVO: Manipulador para o botão "Editar Item".
+     * Permite alterar o nome e a unidade de um item.
+     */
+    @FXML
+    private void handleEditarItem() {
+        EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
+        
+        if (selecionado == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione um item na tabela para editar.");
+            return;
+        }
+
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Editar Item");
+        dialog.setHeaderText("Editar dados de: " + selecionado.getItemNome());
+
+        ButtonType salvarButtonType = new ButtonType("Salvar", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(salvarButtonType, ButtonType.CANCEL);
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20, 150, 10, 10));
+
+        TextField nomeField = new TextField(selecionado.getItemNome());
+        TextField unidadeField = new TextField(selecionado.getUnidade());
+
+        grid.add(new Label("Nome:"), 0, 0);
+        grid.add(nomeField, 1, 0);
+        grid.add(new Label("Unidade:"), 0, 1);
+        grid.add(unidadeField, 1, 1);
+
+        dialog.getDialogPane().setContent(grid);
+
+        // Converte o resultado para um Par (Nome, Unidade)
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == salvarButtonType) {
+                String nome = nomeField.getText().trim();
+                String unidade = unidadeField.getText().trim();
+
+                if (nome.isEmpty() || unidade.isEmpty()) {
+                    AlertUtil.showError("Erro de Validação", "Nome e Unidade são obrigatórios.");
+                    return null;
+                }
+                return new Pair<>(nome, unidade);
+            }
+            return null;
+        });
+
+        Optional<Pair<String, String>> result = dialog.showAndWait();
+
+        result.ifPresent(pair -> {
+            try {
+                String novoNome = pair.getKey();
+                String novaUnidade = pair.getValue();
+
+                estoqueDAO.updateEstoqueItem(selecionado.getId(), novoNome, novaUnidade);
+                
+                AlertUtil.showInfo("Sucesso", "Item atualizado com sucesso.");
+                carregarDadosMestres(); // ATUALIZADO
+
+            } catch (SQLException e) {
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar o item: " + e.getMessage());
             }
         });
     }
@@ -471,7 +627,7 @@ public class EstoqueController {
             try {
                 if (estoqueDAO.removerItemEstoque(selecionado.getId())) {
                     AlertUtil.showInfo("Removido", "Item removido do estoque com sucesso.");
-                    carregarDadosDaTabela();
+                    carregarDadosMestres(); // ATUALIZADO
                 } else {
                     AlertUtil.showError("Erro ao Remover", "O item não pôde ser removido.");
                 }
