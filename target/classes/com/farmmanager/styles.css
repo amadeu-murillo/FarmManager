@@ -112,6 +112,36 @@
     -fx-text-fill: #E53E3E; /* Vermelho mais suave */
 }
 
+/* NOVO: Estilos para texto (usado na tabela e resumo) */
+.positivo-text {
+    -fx-text-fill: #38A169;
+    -fx-font-weight: bold;
+}
+.negativo-text {
+    -fx-text-fill: #E53E3E;
+    -fx-font-weight: bold;
+}
+
+/* NOVO: Estilos para o painel de resumo financeiro */
+.summary-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #718096;
+}
+.summary-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+}
+/* Aplica as cores de positivo/negativo também no resumo */
+.summary-value.positivo-text {
+    -fx-text-fill: #38A169;
+}
+.summary-value.negativo-text {
+    -fx-text-fill: #E53E3E;
+}
+
+
 .card-content-texto {
     -fx-font-size: 30px;
     -fx-font-weight: bold;
@@ -164,6 +194,12 @@
 }
 .module-button.warning:hover {
     -fx-background-color: #DD6B20;
+}
+
+/* --- NOVO: Painel de Filtros --- */
+.filter-pane {
+    -fx-padding: 10px 0px 10px 0px;
+    -fx-alignment: CENTER_LEFT;
 }
 
 /* --- Estilo da Tabela --- */
