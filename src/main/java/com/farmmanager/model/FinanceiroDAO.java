@@ -1,6 +1,6 @@
 package com.farmmanager.model;
 
-import com.farmmanager.util.DateTimeUtil; // NOVO
+import com.farmmanager.util.DateTimeUtil; 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -16,7 +16,7 @@ public class FinanceiroDAO {
     public boolean addTransacao(Transacao transacao) throws SQLException {
         // NOVO: SQL atualizado com data_hora_criacao
         String sql = "INSERT INTO financeiro(descricao, valor, data, tipo, data_hora_criacao) VALUES(?, ?, ?, ?, ?)";
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, transacao.getDescricao());
@@ -30,19 +30,22 @@ public class FinanceiroDAO {
 
     public List<Transacao> listTransacoes() throws SQLException {
         List<Transacao> transacoes = new ArrayList<>();
-        String sql = "SELECT id, data, descricao, tipo, valor FROM financeiro ORDER BY data DESC";
+        // ATUALIZADO: Seleciona data_hora_criacao e ordena por ela (DESC - mais recente primeiro)
+        String sql = "SELECT id, data, descricao, tipo, valor, data_hora_criacao FROM financeiro ORDER BY data_hora_criacao DESC";
         
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
+                // ATUALIZADO: Usa o novo construtor para incluir data_hora_criacao
                 Transacao t = new Transacao(
                     rs.getInt("id"),
                     rs.getString("descricao"),
                     rs.getDouble("valor"),
                     rs.getString("data"),
-                    rs.getString("tipo")
+                    rs.getString("tipo"),
+                    rs.getString("data_hora_criacao") // NOVO
                 );
                 transacoes.add(t);
             }
@@ -57,7 +60,7 @@ public class FinanceiroDAO {
     public Transacao getTransacaoPorDescricao(String descricao) throws SQLException {
         String sql = "SELECT * FROM financeiro WHERE descricao = ?";
         
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, descricao);
@@ -69,7 +72,8 @@ public class FinanceiroDAO {
                         rs.getString("descricao"),
                         rs.getDouble("valor"),
                         rs.getString("data"),
-                        rs.getString("tipo")
+                        rs.getString("tipo"),
+                        rs.getString("data_hora_criacao") // NOVO
                     );
                 }
             }
@@ -85,7 +89,7 @@ public class FinanceiroDAO {
         List<Transacao> transacoes = new ArrayList<>();
         String sql = "SELECT * FROM financeiro WHERE descricao LIKE ?";
         
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             // O '%' é o curinga do SQL para "qualquer coisa"
@@ -98,7 +102,8 @@ public class FinanceiroDAO {
                         rs.getString("descricao"),
                         rs.getDouble("valor"),
                         rs.getString("data"),
-                        rs.getString("tipo")
+                        rs.getString("tipo"),
+                        rs.getString("data_hora_criacao") // NOVO
                     ));
                 }
             }
@@ -109,7 +114,7 @@ public class FinanceiroDAO {
 
     public double getBalançoFinanceiro() throws SQLException {
         String sql = "SELECT SUM(valor) AS balanco FROM financeiro";
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
 
@@ -130,7 +135,7 @@ public class FinanceiroDAO {
         
         // Query para somar todas as receitas (valores positivos)
         String sqlReceita = "SELECT SUM(valor) AS total FROM financeiro WHERE tipo = 'receita'";
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sqlReceita);
              ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
@@ -140,7 +145,7 @@ public class FinanceiroDAO {
         
         // Query para somar todas as despesas (valores negativos) e pegar o absoluto
         String sqlDespesa = "SELECT ABS(SUM(valor)) AS total FROM financeiro WHERE tipo = 'despesa'";
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sqlDespesa);
              ResultSet rs = pstmt.executeQuery()) {
             if (rs.next()) {
@@ -163,7 +168,7 @@ public class FinanceiroDAO {
                      "GROUP BY mes " +
                      "ORDER BY mes ASC";
 
-        try (Connection conn = Database.getConnection();
+        try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
 
@@ -174,3 +179,4 @@ public class FinanceiroDAO {
         return balancoMensal;
     }
 }
+
