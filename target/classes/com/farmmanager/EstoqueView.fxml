@@ -4,25 +4,68 @@
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.geometry.Insets?>
 
 <!-- Tela de Gestão de Estoque -->
 <!-- 
   ATUALIZADO: 
   - Título alterado para "Insumos e Produtos".
+  - NOVO: Adicionado Cartão de Resumo (Valor Total).
+  - NOVO: Adicionado Filtro de Busca.
+  - NOVO: Adicionado botão "Editar Item".
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
    <children>
       <Label styleClass="content-title" text="Gestão de Insumos e Produtos" />
-      <HBox styleClass="module-toolbar">
+
+      <!-- NOVO: Painel de Resumo (Valor Total em Estoque) -->
+      <GridPane styleClass="card" hgap="20.0" vgap="10.0">
+         <padding>
+            <Insets top="20" right="20" bottom="20" left="20" />
+         </padding>
+         <columnConstraints>
+            <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+         </columnConstraints>
+         <children>
+            <VBox spacing="5.0" GridPane.columnIndex="0">
+               <children>
+                  <Label text="Valor Total em Estoque" styleClass="summary-label" />
+                  <Label fx:id="lblValorTotalEstoque" styleClass="summary-value" text="R$ 0,00" />
+               </children>
+            </VBox>
+         </children>
+      </GridPane>
+
+      <!-- NOVO: Painel de Filtros (Busca) -->
+      <GridPane styleClass="filter-pane" hgap="10.0" vgap="10.0">
+         <columnConstraints>
+            <ColumnConstraints hgrow="NEVER" />
+            <ColumnConstraints hgrow="ALWAYS" />
+         </columnConstraints>
+         <children>
+            <Label text="Buscar por nome:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+            <TextField fx:id="filtroNome" promptText="Filtrar por nome do item..." GridPane.columnIndex="1" GridPane.rowIndex="0" />
+         </children>
+      </GridPane>
+
+      <!-- Toolbar de Ações -->
+      <HBox styleClass="module-toolbar" style="-fx-padding-bottom: 0;">
          <children>
             <Button mnemonicParsing="false" onAction="#handleComprarItem" styleClass="module-button" text="+ Comprar Item" />
             <Button mnemonicParsing="false" onAction="#handleVenderItem" styleClass="module-button, success" text="Vender Item" />
             <Button mnemonicParsing="false" onAction="#handleConsumirItem" styleClass="module-button, warning" text="Consumir Item (Uso Interno)" />
+            <!-- NOVO: Botão Editar -->
+            <Button mnemonicParsing="false" onAction="#handleEditarItem" styleClass="module-button" text="Editar Item" />
             <Button mnemonicParsing="false" onAction="#handleRemoverItem" styleClass="module-button, danger" text="- Remover Item (Ajuste)" />
          </children>
       </HBox>
+      
+      <!-- Tabela de Estoque -->
       <TableView fx:id="tabelaEstoque" VBox.vgrow="ALWAYS">
          <columns>
             <TableColumn fx:id="colItemId" prefWidth="50.0" text="ID" />

@@ -76,7 +76,7 @@
          </children>
       </GridPane>
       
-      <!-- NOVO: Seção de Gráficos -->
+      <!-- ATUALIZADO: Seção de Gráficos com 3 colunas -->
       <HBox spacing="20.0" VBox.vgrow="ALWAYS">
          <children>
             <!-- Gráfico de Pizza: Receita vs Despesa -->
@@ -101,9 +101,16 @@
                   </LineChart>
                </children>
             </VBox>
+            
+            <!-- NOVO: Gráfico de Pizza: Culturas Ativas -->
+            <VBox styleClass="card" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label styleClass="card-title" text="Culturas Ativas" />
+                  <PieChart fx:id="chartCulturas" title="Distribuição de Culturas" VBox.vgrow="ALWAYS" />
+               </children>
+            </VBox>
          </children>
       </HBox>
       
    </children>
 </VBox>
-

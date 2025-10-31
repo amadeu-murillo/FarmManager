@@ -78,6 +78,24 @@ public class EstoqueDAO {
     }
 
     /**
+     * NOVO: Atualiza os dados básicos (nome, unidade) de um item.
+     * Não mexe em valores ou quantidades.
+     */
+    public boolean updateEstoqueItem(int id, String nome, String unidade) throws SQLException {
+        String sql = "UPDATE estoque SET item_nome = ?, unidade = ?, data_modificacao = ? WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, nome);
+            pstmt.setString(2, unidade);
+            pstmt.setString(3, DateTimeUtil.getCurrentTimestamp());
+            pstmt.setInt(4, id);
+            
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * Consome (dá baixa) em uma quantidade específica de um item.
      * Recalcula o valor_total com base no valor_unitário (custo médio).
      * NOVO: Atualiza data_modificacao.
@@ -211,11 +229,12 @@ public class EstoqueDAO {
 
     /**
      * ATUALIZADO: Seleciona e popula os novos campos de data.
+     * NOVO: Lista apenas itens com quantidade > 0.
      */
     public List<EstoqueItem> listEstoque() throws SQLException {
         List<EstoqueItem> items = new ArrayList<>();
-        // ATUALIZADO: Seleciona novos campos
-        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao FROM estoque";
+        // ATUALIZADO: Seleciona novos campos e filtra por quantidade > 0
+        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao FROM estoque WHERE quantidade > 0";
         
         try (Connection conn = Database.getConnection();
              Statement stmt = conn.createStatement();
@@ -254,6 +273,23 @@ public class EstoqueDAO {
             }
         }
         return 0;
+    }
+
+    /**
+     * NOVO: Retorna o valor monetário total de todos os itens em estoque.
+     */
+    public double getValorTotalEmEstoque() throws SQLException {
+        String sql = "SELECT SUM(valor_total) AS valor_total_global FROM estoque WHERE quantidade > 0";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql);
+             ResultSet rs = pstmt.executeQuery()) {
+            
+            if (rs.next()) {
+                return rs.getDouble("valor_total_global");
+            }
+        }
+        return 0.0;
     }
 
     /**

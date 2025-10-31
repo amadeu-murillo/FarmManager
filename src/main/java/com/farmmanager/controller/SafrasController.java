@@ -670,15 +670,17 @@ public class SafrasController {
                 // 2. Consome o item do estoque
                 estoqueDAO.consumirEstoque(atividade.getItemConsumidoId(), atividade.getQuantidadeConsumida());
 
-                // 3. NOVO: Lança a despesa no financeiro
-                if (atividade.getCustoTotalAtividade() > 0) {
-                    String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
-                    double valorFin = -atividade.getCustoTotalAtividade(); // Despesa é negativa
-                    Transacao transacao = new Transacao(descFin, valorFin, atividade.getData(), "despesa");
-                    financeiroDAO.addTransacao(transacao);
-                }
+                // 3. NOVO: Lança a despesa no financeiro <-- REMOVIDO
+                // O custo já foi registrado na COMPRA do insumo (EstoqueController)
+                // if (atividade.getCustoTotalAtividade() > 0) {
+                //     String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
+                //     double valorFin = -atividade.getCustoTotalAtividade(); // Despesa é negativa
+                //     Transacao transacao = new Transacao(descFin, valorFin, atividade.getData(), "despesa");
+                //     financeiroDAO.addTransacao(transacao);
+                // }
 
-                AlertUtil.showInfo("Sucesso", "Atividade lançada, estoque consumido e despesa registrada.");
+                // Mensagem de sucesso atualizada
+                AlertUtil.showInfo("Sucesso", "Atividade lançada e estoque consumido.\nO custo da atividade foi registrado na safra.");
                 
                 // 4. Atualiza a tabela de detalhes se a safra ainda estiver selecionada
                 if (safraSelecionada.equals(tabelaSafras.getSelectionModel().getSelectedItem())) {
