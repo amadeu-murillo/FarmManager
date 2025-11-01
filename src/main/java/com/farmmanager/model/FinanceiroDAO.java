@@ -222,27 +222,27 @@ public class FinanceiroDAO {
     }
 
     /**
-     * NOVO: Retorna um histórico do balanço (soma de transações) agrupado por mês.
-     * Usa strftime (função do SQLite) para agrupar por Ano-Mês.
+     * NOVO: Retorna um histórico do balanço (soma de transações) agrupado por DIA.
+     * Usa a data (YYYY-MM-DD) para agrupar.
      * Usado pelo Gráfico de Linha.
      */
-    public Map<String, Double> getBalancoPorMes() throws SQLException {
-        Map<String, Double> balancoMensal = new LinkedHashMap<>(); // LinkedHashMap para manter a ordem
+    public Map<String, Double> getBalancoPorDia() throws SQLException {
+        Map<String, Double> balancoDiario = new LinkedHashMap<>(); // LinkedHashMap para manter a ordem
         
-        String sql = "SELECT strftime('%Y-%m', data) as mes, SUM(valor) as balanco_mes " +
+        String sql = "SELECT data, SUM(valor) as balanco_dia " +
                      "FROM financeiro " +
-                     "GROUP BY mes " +
-                     "ORDER BY mes ASC";
+                     "GROUP BY data " +
+                     "ORDER BY data ASC";
 
         try (Connection conn = Database.getConnection(); // CORRIGIDO
              PreparedStatement pstmt = conn.prepareStatement(sql);
              ResultSet rs = pstmt.executeQuery()) {
 
             while (rs.next()) {
-                balancoMensal.put(rs.getString("mes"), rs.getDouble("balanco_mes"));
+                balancoDiario.put(rs.getString("data"), rs.getDouble("balanco_dia"));
             }
         }
-        return balancoMensal;
+        return balancoDiario;
     }
 }
 

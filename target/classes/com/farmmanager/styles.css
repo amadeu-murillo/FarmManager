@@ -14,7 +14,7 @@
 .sidebar {
     -fx-background-color: #2D3748; /* Cinza-azulado bem escuro */
     -fx-padding: 10px;
-    -fx-spacing: 8px;
+    -fx-spacing: 5px; /* ATUALIZADO de 8px */
 }
 
 .sidebar-title {
@@ -22,6 +22,15 @@
     -fx-font-weight: bold;
     -fx-text-fill: white;
     -fx-padding: 15px 15px 20px 15px;
+}
+
+/* NOVO: Título da Seção (GERAL, FINANCEIRO, etc.) */
+.sidebar-section-title {
+    -fx-font-size: 11px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #A0AEC0; /* Cinza claro (mesma cor do ícone inativo) */
+    -fx-text-transform: uppercase;
+    -fx-padding: 20px 15px 5px 15px; /* Mais espaço acima, menos abaixo */
 }
 
 /* Ícone do menu lateral */
@@ -35,12 +44,13 @@
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-alignment: CENTER_LEFT;
-    -fx-padding: 12px 20px;
+    -fx-padding: 10px 20px; /* ATUALIZADO de 12px 20px */
     -fx-background-radius: 8px;
     -fx-graphic-text-gap: 12px;
 }
 
 .sidebar .button:hover {
+/* ... existing code ... */
     -fx-background-color: #4A5568; /* Hover sutil */
     -fx-text-fill: white;
 }
@@ -60,6 +70,7 @@
 
 
 /* --- Área de Conteúdo --- */
+/* ... existing code ... */
 .content-area {
     -fx-padding: 25px; /* Mais respiro */
     -fx-spacing: 20px;
@@ -67,6 +78,7 @@
 }
 
 .content-title {
+/* ... existing code ... */
     -fx-font-size: 26px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748;
@@ -76,12 +88,14 @@
 }
 
 /* --- Estilos do Dashboard (Cards) --- */
+/* ... existing code ... */
 .dashboard-grid {
     -fx-hgap: 25px;
     -fx-vgap: 25px;
 }
 
 .card {
+/* ... existing code ... */
     -fx-background-color: #FFFFFF;
     -fx-border-color: transparent; /* Remove borda, usa sombra */
     -fx-border-radius: 10px;
@@ -94,6 +108,7 @@
 }
 
 /* NOVO: Efeito de hover sutil para cards normais */
+/* ... existing code ... */
 .card:hover {
     -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.12), 20, 0.15, 0, 6);
     -fx-translate-y: -2px;
@@ -101,12 +116,14 @@
 
 
 /* NOVO: Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
+/* ... existing code ... */
 .card-alerta-danger {
     -fx-background-color: #FFF5F5; /* Vermelho bem claro (Tailwind red-50) */
     -fx-border-color: #E53E3E; /* Vermelho (Tailwind red-500) */
     -fx-border-width: 2px;
 }
 .card-alerta-danger:hover {
+/* ... existing code ... */
     -fx-background-color: #FEF2F2; /* Tailwind red-100 */
     -fx-border-color: #C53030; /* Tailwind red-700 */
     -fx-translate-y: -2px;
@@ -114,17 +131,20 @@
 }
 
 /* Faz o texto do número no card de alerta ser vermelho */
+/* ... existing code ... */
 .card-alerta-danger .card-content-texto {
     -fx-text-fill: #E53E3E; /* Vermelho (negativo-text color) */
 }
 
 /* Estilo para ícone de alerta vermelho */
+/* ... existing code ... */
 .card-alerta-danger .alert-icon {
     -fx-fill: #E53E3E;
 }
 
 
 /* NOVO: Estilo para cards de Alerta Amarelo (TEMA AVISO) */
+/* ... existing code ... */
 .card-alerta-warning {
     -fx-background-color: #FFFBEB; /* Amarelo bem claro (Tailwind yellow-50) */
     -fx-border-color: #FBBF24; /* Amarelo (Tailwind yellow-400) */
@@ -132,6 +152,7 @@
     -fx-transition: all 0.2s ease-in-out;
 }
 .card-alerta-warning:hover {
+/* ... existing code ... */
      -fx-background-color: #FEF9C3; /* Tailwind yellow-100 */
      -fx-border-color: #D97706; /* Tailwind yellow-600 */
      -fx-translate-y: -2px;
@@ -139,23 +160,27 @@
 }
 
 /* Faz o texto do número no card de alerta ser laranja */
+/* ... existing code ... */
 .card-alerta-warning .card-content-texto {
     -fx-text-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
 }
 
 /* NOVO: Estilo para ícone de alerta laranja/amarelo */
+/* ... existing code ... */
 .card-alerta-warning .alert-icon {
     -fx-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
 }
 
 
 .card-title {
+/* ... existing code ... */
     -fx-font-size: 15px;
     -fx-font-weight: bold;
     -fx-text-fill: #718096; /* Cinza médio para subtítulos */
 }
 
 .card-content-valor {
+/* ... existing code ... */
     -fx-font-size: 30px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748; /* Cor escura principal */
@@ -163,6 +188,7 @@
 }
 
 /* Cores específicas para os cards (Verde/Vermelho) */
+/* ... existing code ... */
 .card-content-valor.positivo, .label.positivo {
     -fx-text-fill: #38A169; /* Verde mais suave */
 }
@@ -171,36 +197,43 @@
 }
 
 /* NOVO: Estilos para texto (usado na tabela e resumo) */
+/* ... existing code ... */
 .positivo-text {
     -fx-text-fill: #38A169;
     -fx-font-weight: bold;
 }
 .negativo-text {
+/* ... existing code ... */
     -fx-text-fill: #E53E3E;
     -fx-font-weight: bold;
 }
 
 /* NOVO: Estilos para o painel de resumo financeiro */
+/* ... existing code ... */
 .summary-label {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-text-fill: #718096;
 }
 .summary-value {
+/* ... existing code ... */
     -fx-font-size: 18px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748;
 }
 /* Aplica as cores de positivo/negativo também no resumo */
+/* ... existing code ... */
 .summary-value.positivo-text {
     -fx-text-fill: #38A169;
 }
 .summary-value.negativo-text {
+/* ... existing code ... */
     -fx-text-fill: #E53E3E;
 }
 
 
 .card-content-texto {
+/* ... existing code ... */
     -fx-font-size: 30px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748;
@@ -208,12 +241,14 @@
 }
 
 /* --- Estilos dos Módulos (Botões da Toolbar) --- */
+/* ... existing code ... */
 .module-toolbar {
     -fx-spacing: 12px;
     -fx-padding-bottom: 20px;
 }
 
 .module-button {
+/* ... existing code ... */
     -fx-background-color: #4299E1; /* Azul (Principal) */
     -fx-text-fill: white;
     -fx-font-size: 13px;
@@ -224,43 +259,52 @@
     -fx-effect: dropshadow(gaussian, rgba(66, 153, 225, 0.2), 8, 0.1, 0, 2);
 }
 .module-button:hover {
+/* ... existing code ... */
     -fx-background-color: #3182CE; /* Azul mais escuro */
 }
 
 /* Botão de Sucesso (Verde) */
+/* ... existing code ... */
 .module-button.success {
     -fx-background-color: #48BB78; /* Verde */
     -fx-effect: dropshadow(gaussian, rgba(72, 187, 120, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.success:hover {
+/* ... existing code ... */
     -fx-background-color: #38A169;
 }
 
 /* Botão de Perigo (Vermelho) */
+/* ... existing code ... */
 .module-button.danger {
     -fx-background-color: #E53E3E; /* Vermelho */
     -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.danger:hover {
+/* ... existing code ... */
     -fx-background-color: #C53030;
 }
 
 /* NOVO: Botão de Aviso (Laranja) - Usado no EstoqueView */
+/* ... existing code ... */
 .module-button.warning {
     -fx-background-color: #ED8936; /* Laranja */
     -fx-effect: dropshadow(gaussian, rgba(237, 137, 54, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.warning:hover {
+/* ... existing code ... */
     -fx-background-color: #DD6B20;
 }
 
 /* --- NOVO: Painel de Filtros --- */
+/* ... existing code ... */
 .filter-pane {
     -fx-padding: 10px 0px 10px 0px;
     -fx-alignment: CENTER_LEFT;
 }
 
 /* --- Estilo da Tabela --- */
+/* ... existing code ... */
 .table-view {
     -fx-background-color: white;
     -fx-border-color: #E2E8F0;
@@ -270,12 +314,14 @@
 }
 
 .table-view .column-header-background {
+/* ... existing code ... */
     -fx-background-color: #F7FAFC; /* Fundo do cabeçalho (combina com o root) */
     -fx-border-color: #E2E8F0;
     -fx-border-width: 0 0 1px 0;
 }
 
 .table-view .column-header {
+/* ... existing code ... */
     -fx-background-color: transparent;
     -fx-font-size: 12px;
     -fx-font-weight: bold;
@@ -284,6 +330,7 @@
 }
 
 .table-view .table-cell {
+/* ... existing code ... */
     -fx-padding: 12px 10px;
     -fx-font-size: 13px;
     -fx-text-fill: #2D3748;
@@ -292,43 +339,52 @@
 }
 
 /* Linhas zebradas (striping) */
+/* ... existing code ... */
 .table-row-cell:odd {
     -fx-background-color: white;
 }
 .table-row-cell:even {
+/* ... existing code ... */
     -fx-background-color: #F7FAFC; /* Cinza bem claro */
 }
 
 /* Hover na linha da tabela */
+/* ... existing code ... */
 .table-row-cell:hover {
     -fx-background-color: #EDF2F7;
 }
 
 /* --- NOVO: Linha selecionada --- */
+/* ... existing code ... */
 .table-row-cell:selected {
     -fx-background-color: #C6F6D5; /* Verde claro (Tailwind green-200) */
 }
 
 /* Texto na célula selecionada */
+/* ... existing code ... */
 .table-row-cell:selected .text {
     -fx-fill: #22543D; /* Verde escuro para o texto (Tailwind green-800) */
     -fx-font-weight: bold;
 }
 
 /* Células customizadas (como as de financeiro) quando selecionadas */
+/* ... existing code ... */
 .table-row-cell:selected .label {
      -fx-text-fill: #22543D;
 }
 /* --- FIM DA NOVA REGRA --- */
 
 /* NOVO: Linha de aviso (estoque baixo) */
+/* ... existing code ... */
 .table-row-cell:warning {
      -fx-background-color: #FEF3C7; /* Amarelo claro (Tailwind yellow-100) */
 }
 .table-row-cell:warning:hover {
+/* ... existing code ... */
      -fx-background-color: #FDE68A; /* Amarelo mais forte (Tailwind yellow-200) */
 }
 .table-row-cell:warning .text {
+/* ... existing code ... */
     -fx-fill: #92400E; /* Marrom escuro (Tailwind yellow-800) */
     -fx-font-weight: bold;
 }
@@ -336,39 +392,47 @@
 
 
 /* Remove fundo da área vazia da tabela */
+/* ... existing code ... */
 .table-view .filler {
     -fx-background-color: white;
     -fx-background-radius: 0 0 8px 8px;
 }
 
 /* --- Estilos dos Gráficos (Dashboard) --- */
+/* ... existing code ... */
 .chart-title {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-text-fill: #4A5568;
 }
 .axis {
+/* ... existing code ... */
     -fx-tick-label-fill: #718096;
     -fx-font-size: 10px;
 }
 .chart-pie-label-line {
+/* ... existing code ... */
     -fx-stroke: #A0AEC0;
 }
 .chart-pie-label {
+/* ... existing code ... */
     -fx-fill: #2D3748;
     -fx-font-size: 11px;
 }
 /* Cores padrão para o PieChart */
+/* ... existing code ... */
 .default-color0.chart-pie { -fx-pie-color: #4299E1; } /* Azul */
 .default-color1.chart-pie { -fx-pie-color: #E53E3E; } /* Vermelho */
 .default-color2.chart-pie { -fx-pie-color: #48BB78; } /* Verde */
 .default-color3.chart-pie { -fx-pie-color: #ED8936; } /* Laranja */
 
 /* Cor da linha do LineChart */
+/* ... existing code ... */
 .default-color0.chart-series-line { -fx-stroke: #4299E1; }
 .default-color0.chart-line-symbol { -fx-background-color: #4299E1, white; }
 
 /* --- NOVO: Estilos para Menu de Contexto (Clique Direito) --- */
+/* ... existing code ... */
 .context-menu {
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 8px;
@@ -380,19 +444,23 @@
 }
 
 .context-menu .menu-item {
+/* ... existing code ... */
     -fx-padding: 8px 12px;
     -fx-background-radius: 6px;
 }
 
 .context-menu .menu-item:focused {
+/* ... existing code ... */
     -fx-background-color: #F7FAFC; /* Cinza bem claro (hover) */
 }
 
 .context-menu .menu-item:focused .label {
+/* ... existing code ... */
     -fx-text-fill: #2D3748; /* Cor de texto principal */
 }
 
 .context-menu .separator .line {
+/* ... existing code ... */
     -fx-border-insets: 0 0 0 0;
     -fx-border-width: 1px 0 0 0;
     -fx-border-color: #E2E8F0;
@@ -400,12 +468,14 @@
 /* --- FIM DOS NOVOS ESTILOS --- */
 
 /* --- Outros Componentes --- */
+/* ... existing code ... */
 .split-pane-divider {
     -fx-background-color: #E2E8F0;
     -fx-padding: 0 1px;
 }
 
 /* NOVO: Estilo para o ScrollPane do Dashboard (remove bordas e fundo) */
+/* ... existing code ... */
 .scroll-pane-dashboard {
     -fx-background-color: transparent;
     -fx-background-insets: 0;
@@ -413,27 +483,31 @@
 }
 
 .scroll-pane-dashboard > .viewport {
+/* ... existing code ... */
    -fx-background-color: transparent;
 }
 
 /* Oculta a barra de rolagem horizontal (pois fitToWidth=true) */
+/* ... existing code ... */
 .scroll-pane-dashboard .scroll-bar:horizontal {
     -fx-max-height: 0;
     -fx-opacity: 0;
 }
 
 /* Estiliza a barra de rolagem vertical */
+/* ... existing code ... */
 .scroll-pane-dashboard .scroll-bar:vertical {
     -fx-background-color: #F7FAFC; /* Fundo da barra */
     -fx-pref-width: 10px;
 }
 
 .scroll-pane-dashboard .scroll-bar:vertical .thumb {
+/* ... existing code ... */
     -fx-background-color: #A0AEC0; /* Cor do "polegar" (cinza) */
     -fx-background-radius: 5px;
 }
 
 .scroll-pane-dashboard .scroll-bar:vertical .thumb:hover {
+/* ... existing code ... */
     -fx-background-color: #718096;
 }
-
