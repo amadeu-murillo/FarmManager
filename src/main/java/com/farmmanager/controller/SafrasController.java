@@ -47,6 +47,7 @@ import java.util.Locale;
  * - ATUALIZADO: Registro de colheita agora apenas adiciona ao estoque (ativo), não lança receita.
  * - ATUALIZADO: Painel de detalhes agora inclui resumo financeiro (Receita, Estoque, Lucro).
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionado botão "MAX" para preencher a quantidade total.
+ * - ATUALIZAÇÃO (handleLancarAtividade): Adicionada opção de "Custo Manual".
  */
 public class SafrasController {
 
@@ -530,6 +531,7 @@ public class SafrasController {
      * Implementa a Etapa 2 do plano.
      * ATUALIZADO: Agora também lança despesa no financeiro.
      * ATUALIZADO: Adicionado botão "MAX".
+     * ATUALIZADO: Adicionada opção de Custo Manual.
      */
     @FXML
     private void handleLancarAtividade() {
@@ -548,16 +550,18 @@ public class SafrasController {
         // 1. Buscar itens de estoque para o ComboBox
         List<EstoqueItem> itensEstoque;
         try {
-            itensEstoque = estoqueDAO.listEstoque();
+            // Permitir lançar custo manual mesmo se o estoque estiver vazio
+            itensEstoque = estoqueDAO.listEstoque(); 
         } catch (SQLException e) {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar a lista de itens do estoque.");
             return;
         }
 
-        if (itensEstoque.isEmpty()) {
-            AlertUtil.showError("Estoque Vazio", "Você precisa ter itens cadastrados no Estoque para lançar um consumo.");
-            return;
-        }
+        // Comentado - agora permitimos custo manual
+        // if (itensEstoque.isEmpty()) {
+        //     AlertUtil.showError("Estoque Vazio", "Você precisa ter itens cadastrados no Estoque para lançar um consumo.");
+        //     return;
+        // }
 
         // 2. Criar o Diálogo
         Dialog<AtividadeSafra> dialog = new Dialog<>();
@@ -575,27 +579,32 @@ public class SafrasController {
 
         DatePicker dataField = new DatePicker(LocalDate.now());
         TextField descField = new TextField();
-        descField.setPromptText("Ex: Adubação de cobertura");
+        descField.setPromptText("Ex: Adubação de cobertura / Mão de obra");
         
+        // --- NOVOS COMPONENTES PARA CUSTO MANUAL ---
+        CheckBox isManualCheck = new CheckBox("Lançar custo manual (sem item de estoque)");
+        Label custoManualLabel = new Label("Custo Manual (R$):");
+        TextField custoManualField = new TextField();
+        custoManualField.setPromptText("Ex: 150.00");
+        // ----------------------------------------
+
         ComboBox<EstoqueItem> itemCombo = new ComboBox<>(FXCollections.observableArrayList(itensEstoque));
         TextField qtdField = new TextField("1.0");
         Label custoCalculadoLabel = new Label("Custo (R$): ---");
 
-        // --- INÍCIO DA MODIFICAÇÃO (Botão MAX) ---
+        // --- Botão MAX ---
         Button maxButton = new Button("MAX");
         maxButton.setOnAction(e -> {
             EstoqueItem itemSelecionado = itemCombo.getSelectionModel().getSelectedItem();
             if (itemSelecionado != null) {
-                // Preenche com a quantidade disponível, formatada
                 qtdField.setText(String.format(Locale.US, "%.2f", itemSelecionado.getQuantidade()));
             }
         });
-        // Desabilita o botão se nenhum item for selecionado
         maxButton.disableProperty().bind(itemCombo.getSelectionModel().selectedItemProperty().isNull());
 
-        HBox qtdBox = new HBox(5, qtdField, maxButton); // 5 é o espaçamento
+        HBox qtdBox = new HBox(5, qtdField, maxButton); 
         qtdBox.setAlignment(Pos.CENTER_LEFT);
-        // --- FIM DA MODIFICAÇÃO ---
+        // --- Fim Botão MAX ---
 
         // Configura ComboBox para mostrar nome do item
         itemCombo.setCellFactory(lv -> new ListCell<EstoqueItem>() {
@@ -612,96 +621,158 @@ public class SafrasController {
                 setText(item == null || empty ? "Selecione um Insumo" : item.getItemNome());
             }
         });
+        
+        // Se não houver itens de estoque, força o modo manual
+        if (itensEstoque.isEmpty()) {
+            isManualCheck.setSelected(true);
+            isManualCheck.setDisable(true);
+        }
 
         // 4. Lógica de cálculo automático de custo (CORRIGIDO)
-        
-        // Listener for ComboBox<EstoqueItem>
         itemCombo.valueProperty().addListener((obs, oldV, newV) -> {
             atualizarCustoAtividade(newV, qtdField.getText(), custoCalculadoLabel);
         });
-
-        // Listener for TextField (String)
         qtdField.textProperty().addListener((obs, oldV, newV) -> {
             atualizarCustoAtividade(itemCombo.getSelectionModel().getSelectedItem(), newV, custoCalculadoLabel);
         });
+        
+        // --- LÓGICA DE VISIBILIDADE (MODO MANUAL VS INSUMO) ---
+        // Estado inicial
+        custoManualLabel.setVisible(isManualCheck.isSelected());
+        custoManualField.setVisible(isManualCheck.isSelected());
+        custoManualLabel.setManaged(isManualCheck.isSelected());
+        custoManualField.setManaged(isManualCheck.isSelected());
 
+        itemCombo.setDisable(isManualCheck.isSelected());
+        qtdBox.setDisable(isManualCheck.isSelected());
+        custoCalculadoLabel.setVisible(!isManualCheck.isSelected());
+
+        // Listener da CheckBox
+        isManualCheck.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
+            // Modo Manual
+            custoManualLabel.setVisible(isSelected);
+            custoManualField.setVisible(isSelected);
+            custoManualLabel.setManaged(isSelected);
+            custoManualField.setManaged(isSelected);
+
+            // Modo Insumo
+            itemCombo.setDisable(isSelected);
+            qtdBox.setDisable(isSelected); // Disables TextField and MAX button
+            custoCalculadoLabel.setVisible(!isSelected);
+            custoCalculadoLabel.setManaged(!isSelected); // Garante que ele ocupe espaço
+        });
+        // --- FIM DA LÓGICA DE VISIBILIDADE ---
+
+
+        // Adiciona componentes ao grid
         grid.add(new Label("Data:"), 0, 0);
         grid.add(dataField, 1, 0);
         grid.add(new Label("Descrição:"), 0, 1);
         grid.add(descField, 1, 1);
-        grid.add(new Label("Insumo (do Estoque):"), 0, 2);
-        grid.add(itemCombo, 1, 2);
-        grid.add(new Label("Quantidade Usada:"), 0, 3);
-        grid.add(qtdBox, 1, 3); // ATUALIZADO: Adiciona o HBox
-        grid.add(custoCalculadoLabel, 1, 4);
+        
+        grid.add(isManualCheck, 0, 2, 2, 1); // CheckBox ocupando 2 colunas
+
+        grid.add(new Label("Insumo (do Estoque):"), 0, 3);
+        grid.add(itemCombo, 1, 3);
+        grid.add(new Label("Quantidade Usada:"), 0, 4);
+        grid.add(qtdBox, 1, 4); // ATUALIZADO: Adiciona o HBox
+        grid.add(custoCalculadoLabel, 1, 5);
+        
+        grid.add(custoManualLabel, 0, 6); // Novo label de custo manual
+        grid.add(custoManualField, 1, 6); // Novo campo de custo manual
 
         dialog.getDialogPane().setContent(grid);
 
-        // 5. Converter resultado
+        // 5. Converter resultado (ATUALIZADO)
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == lancarButtonType) {
                 try {
                     LocalDate data = dataField.getValue();
                     String desc = descField.getText();
-                    EstoqueItem item = itemCombo.getSelectionModel().getSelectedItem();
-                    double qtd = parseDouble(qtdField.getText());
 
-                    if (data == null || desc.isEmpty() || item == null) {
-                        AlertUtil.showError("Erro de Validação", "Data, Descrição e Insumo são obrigatórios.");
+                    if (data == null || desc.isEmpty()) {
+                        AlertUtil.showError("Erro de Validação", "Data e Descrição são obrigatórios.");
                         return null;
                     }
-                    if (qtd <= 0) {
-                        AlertUtil.showError("Erro de Validação", "A quantidade deve ser positiva.");
-                        return null;
-                    }
-                    if (qtd > item.getQuantidade()) {
-                        AlertUtil.showError("Estoque Insuficiente", "Disponível: " + item.getQuantidade() + ". Solicitado: " + qtd);
-                        return null;
-                    }
-
-                    double custoTotal = qtd * item.getValorUnitario();
                     
-                    return new AtividadeSafra(
-                        safraSelecionada.getId(),
-                        desc,
-                        data.toString(),
-                        item.getId(),
-                        qtd,
-                        custoTotal
-                    );
+                    if (isManualCheck.isSelected()) {
+                        // --- MODO MANUAL ---
+                        double custoManual = parseDouble(custoManualField.getText());
+                        if (custoManual <= 0) {
+                            AlertUtil.showError("Erro de Validação", "O custo manual deve ser positivo.");
+                            return null;
+                        }
+                        
+                        return new AtividadeSafra(
+                            safraSelecionada.getId(),
+                            desc,
+                            data.toString(),
+                            null, // itemConsumidoId
+                            0,    // quantidadeConsumida
+                            custoManual
+                        );
+
+                    } else {
+                        // --- MODO INSUMO (LÓGICA ANTIGA) ---
+                        EstoqueItem item = itemCombo.getSelectionModel().getSelectedItem();
+                        double qtd = parseDouble(qtdField.getText());
+
+                        if (item == null) {
+                            AlertUtil.showError("Erro de Validação", "Um insumo deve ser selecionado.");
+                            return null;
+                        }
+                        if (qtd <= 0) {
+                            AlertUtil.showError("Erro de Validação", "A quantidade deve ser positiva.");
+                            return null;
+                        }
+                        if (qtd > item.getQuantidade()) {
+                            AlertUtil.showError("Estoque Insuficiente", "Disponível: " + item.getQuantidade() + ". Solicitado: " + qtd);
+                            return null;
+                        }
+
+                        double custoTotal = qtd * item.getValorUnitario();
+                        
+                        return new AtividadeSafra(
+                            safraSelecionada.getId(),
+                            desc,
+                            data.toString(),
+                            item.getId(),
+                            qtd,
+                            custoTotal
+                        );
+                    }
 
                 } catch (NumberFormatException e) {
-                    AlertUtil.showError("Erro de Formato", "Quantidade inválida.");
+                    AlertUtil.showError("Erro de Formato", "Quantidade ou Custo inválido.");
                     return null;
                 }
             }
             return null;
         });
 
-        // 6. Processar resultado
+
+        // 6. Processar resultado (ATUALIZADO)
         Optional<AtividadeSafra> result = dialog.showAndWait();
 
         result.ifPresent(atividade -> {
             try {
-                // 1. Lança a atividade no banco
+                // 1. Lança a atividade no banco (sempre)
                 atividadeSafraDAO.addAtividade(atividade);
                 
-                // 2. Consome o item do estoque
-                estoqueDAO.consumirEstoque(atividade.getItemConsumidoId(), atividade.getQuantidadeConsumida());
+                String successMessage;
 
-                // 3. NOVO: Lança a despesa no financeiro <-- REMOVIDO
-                // O custo já foi registrado na COMPRA do insumo (EstoqueController)
-                // if (atividade.getCustoTotalAtividade() > 0) {
-                //     String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
-                //     double valorFin = -atividade.getCustoTotalAtividade(); // Despesa é negativa
-                //     Transacao transacao = new Transacao(descFin, valorFin, atividade.getData(), "despesa");
-                //     financeiroDAO.addTransacao(transacao);
-                // }
+                // 2. Consome o item do estoque (SOMENTE se for atividade de insumo)
+                if (atividade.getItemConsumidoId() != null && atividade.getItemConsumidoId() > 0) {
+                    estoqueDAO.consumirEstoque(atividade.getItemConsumidoId(), atividade.getQuantidadeConsumida());
+                    successMessage = "Atividade lançada e estoque consumido.\nO custo da atividade foi registrado na safra.";
+                } else {
+                    // É um custo manual
+                    successMessage = "Custo manual lançado com sucesso.";
+                }
 
-                // Mensagem de sucesso atualizada
-                AlertUtil.showInfo("Sucesso", "Atividade lançada e estoque consumido.\nO custo da atividade foi registrado na safra.");
+                AlertUtil.showInfo("Sucesso", successMessage);
                 
-                // 4. Atualiza a tabela de detalhes se a safra ainda estiver selecionada
+                // 4. Atualiza a tabela de detalhes
                 if (safraSelecionada.equals(tabelaSafras.getSelectionModel().getSelectedItem())) {
                     handleSafraSelectionChanged(safraSelecionada);
                 }
@@ -1204,4 +1275,3 @@ public class SafrasController {
         public double getCusto() { return custo; }
     }
 }
-
