@@ -1,5 +1,7 @@
 package com.farmmanager.model;
 
+// Importe isso no início do arquivo
+import java.io.File;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -16,7 +18,14 @@ import java.sql.Statement;
 public class Database {
 
     // O arquivo "fazenda.db" será criado na raiz do projeto
-    private static final String DB_URL = "jdbc:sqlite:fazenda.db";
+    // private static final String DB_URL = "jdbc:sqlite:fazenda.db"; // LINHA ANTIGA REMOVIDA
+    
+    // Define o caminho para o banco de dados na pasta 'home' do usuário
+    // Ex: C:\Users\NomeDoUsuario\fazenda.db
+    private static final String USER_HOME = System.getProperty("user.home");
+    private static final String DB_PATH = USER_HOME + File.separator + "fazenda.db";
+    private static final String DB_URL = "jdbc:sqlite:" + DB_PATH;
+
 
     /**
      * Retorna uma nova conexão com o banco de dados SQLite.
@@ -278,3 +287,4 @@ public class Database {
         return false;
     }
 }
+

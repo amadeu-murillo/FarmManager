@@ -14,6 +14,7 @@ import java.net.URL;
  * ATUALIZADO:
  * - Adicionado handler para a nova tela de Contas (Lançamentos Futuros).
  * - ADICIONADO HANDLER para a nova tela de Histórico de Safras.
+ * - ATUALIZADO: loadView agora injeta referência do MainViewController no DashboardController.
  */
 public class MainViewController {
 
@@ -35,7 +36,7 @@ public class MainViewController {
     // Cada handler agora chama o método loadView()
 
     @FXML
-    private void handleShowDashboard() {
+    public void handleShowDashboard() {
         loadView("DashboardView.fxml");
     }
 
@@ -43,17 +44,17 @@ public class MainViewController {
      * NOVO: Handler para a tela de Contas (Lançamentos Futuros).
      */
     @FXML
-    private void handleShowContas() {
+    public void handleShowContas() {
         loadView("ContasView.fxml");
     }
 
     @FXML
-    private void handleShowFinanceiro() {
+    public void handleShowFinanceiro() {
         loadView("FinanceiroView.fxml");
     }
 
     @FXML
-    private void handleShowEstoque() {
+    public void handleShowEstoque() {
         loadView("EstoqueView.fxml");
     }
 
@@ -61,17 +62,17 @@ public class MainViewController {
      * NOVO: Handler para a tela de Patrimônio.
      */
     @FXML
-    private void handleShowPatrimonio() {
+    public void handleShowPatrimonio() {
         loadView("PatrimonioView.fxml");
     }
 
     @FXML
-    private void handleShowFuncionarios() {
+    public void handleShowFuncionarios() {
         loadView("FuncionariosView.fxml");
     }
 
     @FXML
-    private void handleShowSafras() {
+    public void handleShowSafras() {
         loadView("SafrasView.fxml");
     }
 
@@ -79,7 +80,7 @@ public class MainViewController {
      * NOVO: Handler para a tela de Histórico de Safras.
      */
     @FXML
-    private void handleShowHistoricoSafras() {
+    public void handleShowHistoricoSafras() {
         loadView("HistoricoSafrasView.fxml");
     }
 
@@ -96,8 +97,18 @@ public class MainViewController {
                 throw new IOException("Não foi possível encontrar o FXML: " + fxmlFileName);
             }
             
-            // Carrega o FXML
-            Node view = FXMLLoader.load(fxmlUrl);
+            // --- ATUALIZAÇÃO: Injeção de Dependência Manual ---
+            // Carrega o FXML manualmente para obter o controller
+            FXMLLoader loader = new FXMLLoader(fxmlUrl);
+            Node view = loader.load();
+            
+            // Tenta injetar este MainViewController no controller carregado
+            // (Isso é usado para permitir que o Dashboard navegue para outras telas)
+            Object controller = loader.getController();
+            if (controller instanceof DashboardController) {
+                ((DashboardController) controller).setMainViewController(this);
+            }
+            // --- FIM DA ATUALIZAÇÃO ---
             
             // Limpa o conteúdo antigo e adiciona a nova tela
             contentArea.getChildren().clear();
