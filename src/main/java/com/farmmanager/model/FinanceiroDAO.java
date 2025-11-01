@@ -145,6 +145,38 @@ public class FinanceiroDAO {
         return transacoes;
     }
 
+    /**
+     * NOVO: Retorna uma lista de transações onde a descrição CONTÉM o nome fornecido.
+     * Usado pelo FuncionariosController para buscar histórico de pagamento.
+     * Ordena por data (mais recente primeiro).
+     */
+    public List<Transacao> listTransacoesPorDescricaoContendo(String nome) throws SQLException {
+        List<Transacao> transacoes = new ArrayList<>();
+        // Busca por transações que contenham o nome em qualquer parte da descrição
+        String sql = "SELECT * FROM financeiro WHERE descricao LIKE ? ORDER BY data DESC";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            // O '%' é o curinga do SQL para "qualquer coisa"
+            pstmt.setString(1, "%" + nome + "%"); 
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    transacoes.add(new Transacao(
+                        rs.getInt("id"),
+                        rs.getString("descricao"),
+                        rs.getDouble("valor"),
+                        rs.getString("data"),
+                        rs.getString("tipo"),
+                        rs.getString("data_hora_criacao")
+                    ));
+                }
+            }
+        }
+        return transacoes;
+    }
+
 
     public double getBalançoFinanceiro() throws SQLException {
         String sql = "SELECT SUM(valor) AS balanco FROM financeiro";
@@ -213,3 +245,4 @@ public class FinanceiroDAO {
         return balancoMensal;
     }
 }
+

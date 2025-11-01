@@ -13,6 +13,8 @@ import java.sql.Statement;
  * ATUALIZADO:
  * - Adicionada nova tabela 'manutencao_patrimonio' para histórico de custos.
  * - Adicionada coluna 'data_modificacao' à tabela 'financeiro'.
+ * - ADICIONADA COLUNA 'data_inicio' à tabela 'funcionarios'.
+ * - ATUALIZADO: Adicionadas colunas cpf, telefone, endereco à tabela 'funcionarios'.
  */
 public class Database {
 
@@ -31,21 +33,26 @@ public class Database {
      * ainda não existirem, e executa migrações em bancos existentes.
      */
     public static void initDb() {
+        // ATUALIZADO: Adicionado data_inicio, cpf, telefone, endereco
         String sqlFuncionarios = "CREATE TABLE IF NOT EXISTS funcionarios ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "nome TEXT NOT NULL,"
             + "cargo TEXT,"
             + "salario REAL,"
-            + "data_criacao TEXT," // NOVO
-            + "data_modificacao TEXT" // NOVO
+            + "data_inicio TEXT," // NOVO
+            + "cpf TEXT," // NOVO
+            + "telefone TEXT," // NOVO
+            + "endereco TEXT," // NOVO
+            + "data_criacao TEXT,"
+            + "data_modificacao TEXT"
             + ");";
             
         String sqlTalhoes = "CREATE TABLE IF NOT EXISTS talhoes ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "nome TEXT NOT NULL UNIQUE,"
             + "area_hectares REAL NOT NULL,"
-            + "data_criacao TEXT," // NOVO
-            + "data_modificacao TEXT" // NOVO
+            + "data_criacao TEXT,"
+            + "data_modificacao TEXT"
             + ");";
             
         // Definição ATUALIZADA da tabela safras
@@ -53,11 +60,11 @@ public class Database {
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "cultura TEXT NOT NULL,"
             + "ano_inicio TEXT," // ATUALIZADO: De INTEGER para TEXT
-            + "status TEXT DEFAULT 'Planejada' NOT NULL," // NOVO
+            + "status TEXT DEFAULT 'Planejada' NOT NULL,"
             + "talhao_id INTEGER,"
             + "producao_total_kg REAL DEFAULT 0,"
-            + "data_criacao TEXT," // NOVO
-            + "data_modificacao TEXT," // NOVO
+            + "data_criacao TEXT,"
+            + "data_modificacao TEXT,"
             + "FOREIGN KEY (talhao_id) REFERENCES talhoes(id)"
             + ");";
             
@@ -68,8 +75,8 @@ public class Database {
             + "unidade TEXT NOT NULL,"
             + "valor_unitario REAL DEFAULT 0,"
             + "valor_total REAL DEFAULT 0,"
-            + "data_criacao TEXT," // NOVO
-            + "data_modificacao TEXT" // NOVO
+            + "data_criacao TEXT,"
+            + "data_modificacao TEXT"
             + ");";
             
         // ATUALIZADO: Adicionado data_modificacao
@@ -79,8 +86,8 @@ public class Database {
             + "valor REAL NOT NULL,"
             + "data TEXT NOT NULL,"
             + "tipo TEXT NOT NULL,"
-            + "data_hora_criacao TEXT," // NOVO
-            + "data_modificacao TEXT" // NOVO
+            + "data_hora_criacao TEXT,"
+            + "data_modificacao TEXT"
             + ");";
 
         // NOVO: Definição da tabela de atividades da safra
@@ -92,7 +99,7 @@ public class Database {
             + "item_consumido_id INTEGER,"
             + "quantidade_consumida REAL,"
             + "custo_total_atividade REAL NOT NULL,"
-            + "data_hora_criacao TEXT," // NOVO
+            + "data_hora_criacao TEXT,"
             + "FOREIGN KEY (safra_id) REFERENCES safras(id) ON DELETE CASCADE," // Adicionado ON DELETE CASCADE
             + "FOREIGN KEY (item_consumido_id) REFERENCES estoque(id) ON DELETE SET NULL" // Adicionado ON DELETE SET NULL
             + ");";
@@ -181,6 +188,10 @@ public class Database {
         }
 
         // --- NOVO: Migrações de Data/Hora ---
+        runTimestampMigration(conn, "funcionarios", "data_inicio"); // NOVO
+        runTimestampMigration(conn, "funcionarios", "cpf"); // NOVO
+        runTimestampMigration(conn, "funcionarios", "telefone"); // NOVO
+        runTimestampMigration(conn, "funcionarios", "endereco"); // NOVO
         runTimestampMigration(conn, "funcionarios", "data_criacao");
         runTimestampMigration(conn, "funcionarios", "data_modificacao");
         
@@ -255,3 +266,4 @@ public class Database {
         return false;
     }
 }
+
