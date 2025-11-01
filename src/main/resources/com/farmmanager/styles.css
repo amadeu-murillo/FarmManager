@@ -368,6 +368,37 @@
 .default-color0.chart-series-line { -fx-stroke: #4299E1; }
 .default-color0.chart-line-symbol { -fx-background-color: #4299E1, white; }
 
+/* --- NOVO: Estilos para Menu de Contexto (Clique Direito) --- */
+.context-menu {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.08), 10, 0.1, 0, 2);
+    -fx-padding: 5px;
+}
+
+.context-menu .menu-item {
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 6px;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #F7FAFC; /* Cinza bem claro (hover) */
+}
+
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: #2D3748; /* Cor de texto principal */
+}
+
+.context-menu .separator .line {
+    -fx-border-insets: 0 0 0 0;
+    -fx-border-width: 1px 0 0 0;
+    -fx-border-color: #E2E8F0;
+}
+/* --- FIM DOS NOVOS ESTILOS --- */
+
 /* --- Outros Componentes --- */
 .split-pane-divider {
     -fx-background-color: #E2E8F0;

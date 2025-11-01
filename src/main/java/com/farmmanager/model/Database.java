@@ -12,6 +12,7 @@ import java.sql.Statement;
  *
  * ATUALIZADO:
  * - Adicionada nova tabela 'manutencao_patrimonio' para histórico de custos.
+ * - Adicionada coluna 'data_modificacao' à tabela 'financeiro'.
  */
 public class Database {
 
@@ -71,13 +72,15 @@ public class Database {
             + "data_modificacao TEXT" // NOVO
             + ");";
             
+        // ATUALIZADO: Adicionado data_modificacao
         String sqlFinanceiro = "CREATE TABLE IF NOT EXISTS financeiro ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "descricao TEXT NOT NULL,"
             + "valor REAL NOT NULL,"
             + "data TEXT NOT NULL,"
             + "tipo TEXT NOT NULL,"
-            + "data_hora_criacao TEXT" // NOVO
+            + "data_hora_criacao TEXT," // NOVO
+            + "data_modificacao TEXT" // NOVO
             + ");";
 
         // NOVO: Definição da tabela de atividades da safra
@@ -191,6 +194,7 @@ public class Database {
         runTimestampMigration(conn, "safras", "data_modificacao");
         
         runTimestampMigration(conn, "financeiro", "data_hora_criacao");
+        runTimestampMigration(conn, "financeiro", "data_modificacao"); // <-- ADICIONADO
         
         runTimestampMigration(conn, "atividades_safra", "data_hora_criacao");
 
@@ -251,4 +255,3 @@ public class Database {
         return false;
     }
 }
-

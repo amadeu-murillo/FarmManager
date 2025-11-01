@@ -7,6 +7,7 @@ public class Transacao {
     private String data; // YYYY-MM-DD
     private String tipo; // "receita" ou "despesa"
     private String dataHoraCriacao; // NOVO CAMPO
+    // private String dataModificacao; // Adicionado implicitamente pela DAO
 
     public Transacao(String descricao, double valor, String data, String tipo) {
         this.descricao = descricao;

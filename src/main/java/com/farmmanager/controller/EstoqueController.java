@@ -13,6 +13,8 @@ import javafx.beans.value.ChangeListener;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox; // <-- IMPORTAÇÃO ADICIONADA
+import javafx.geometry.Pos; // <-- IMPORTAÇÃO ADICIONADA
 import javafx.util.Pair; // NOVO
 
 import java.sql.SQLException;
@@ -34,6 +36,7 @@ import java.util.stream.Collectors;
  * - NOVO: 'handleConsumirItem' agora pede uma descrição de uso.
  * - NOVO: Adicionadas colunas de data na tabela.
  * - NOVO: Adicionado filtro de busca, resumo de valor total, alerta de baixo estoque e função de editar.
+ * - ATUALIZAÇÃO (handleVenderItem): Adicionado botão "MAX" para preencher a quantidade total.
  */
 public class EstoqueController {
 
@@ -327,6 +330,7 @@ public class EstoqueController {
     /**
      * NOVO: Manipulador para o botão "Vender Item".
      * Lança uma receita no financeiro e dá baixa no estoque.
+     * ATUALIZADO: Adicionado botão "MAX".
      */
     @FXML
     private void handleVenderItem() {
@@ -350,12 +354,29 @@ public class EstoqueController {
         grid.setPadding(new Insets(20, 150, 10, 10));
 
         TextField qtdField = new TextField("1.0");
+
+        // --- INÍCIO DA MODIFICAÇÃO ---
+        
+        // NOVO: Criar botão MAX
+        Button maxButton = new Button("MAX");
+        maxButton.setOnAction(e -> {
+            // Define o texto do qtdField para a quantidade total disponível
+            // Usando Locale.US para garantir o formato com ponto decimal
+            qtdField.setText(String.format(Locale.US, "%.2f", selecionado.getQuantidade()));
+        });
+
+        // NOVO: Criar HBox para agrupar TextField e Botão
+        HBox qtdBox = new HBox(5, qtdField, maxButton); // 5 é o espaçamento
+        qtdBox.setAlignment(Pos.CENTER_LEFT);
+
+        // --- FIM DA MODIFICAÇÃO ---
+
         // Sugere o preço de venda baseado no custo unitário (valor de estoque)
         TextField precoVendaField = new TextField(String.format(Locale.US, "%.2f", selecionado.getValorUnitario()));
         Label valorTotalVendaLabel = new Label("Total da Venda: R$ 0,00");
 
         grid.add(new Label("Quantidade a Vender:"), 0, 0);
-        grid.add(qtdField, 1, 0);
+        grid.add(qtdBox, 1, 0); // ATUALIZADO: Adiciona o HBox
         grid.add(new Label("Preço de Venda (unitário):"), 0, 1);
         grid.add(precoVendaField, 1, 1);
         grid.add(valorTotalVendaLabel, 1, 2);
@@ -637,4 +658,3 @@ public class EstoqueController {
         }
     }
 }
-
