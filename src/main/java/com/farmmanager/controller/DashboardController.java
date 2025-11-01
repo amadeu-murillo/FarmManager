@@ -1,9 +1,10 @@
 package com.farmmanager.controller;
 
+import com.farmmanager.model.ContaDAO;
 import com.farmmanager.model.EstoqueDAO;
 import com.farmmanager.model.FinanceiroDAO;
 import com.farmmanager.model.FuncionarioDAO;
-import com.farmmanager.model.PatrimonioDAO; // NOVO
+import com.farmmanager.model.PatrimonioDAO;
 import com.farmmanager.model.SafraDAO;
 import com.farmmanager.model.TalhaoDAO;
 import com.farmmanager.util.AlertUtil;
@@ -14,6 +15,7 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
+import javafx.scene.layout.HBox; // Import para o HBox de alerta
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -22,41 +24,49 @@ import java.util.Map;
 
 /**
  * Controller para o DashboardView.fxml.
- * ATUALIZADO:
- * - Carrega dados de Safras e Talhões.
- * - Lógica de 'Safras Ativas' atualizada para usar o novo campo 'status'.
- * - NOVO: Carrega gráfico de Culturas Ativas.
- * - NOVO: Adicionados cards de Alertas (Estoque Baixo, Patrimônio em Manutenção).
- * - NOVO: Adicionado card de Valor Total do Patrimônio.
- * - ATUALIZADO: Card de Estoque agora mostra Valor Total (R$) ao invés de contagem.
- * - ATUALIZADO: Card de Talhões e Área agora estão combinados.
+ * ATUALIZADO (Refatorado):
+ * - Adicionado card de Contas Pendentes.
+ * - Reorganizada a ordem de carregamento para refletir o novo FXML.
+ * - Ajustado `carregarAreaTotal` para popular o novo card de "Área Total".
+ * - ATUALIZADO: `carregarAlertas()` e FXML IDs relacionados foram re-adicionados.
+ * - ATUALIZADO: `carregarChartBalanco()` para usar `getBalancoPorDia()`.
+ * - ATUALIZADO: Alertas agora separam Vencidas de A Vencer.
  */
 public class DashboardController {
 
+    // --- Componentes FXML ---
+
+    // Alertas (Topo)
+    @FXML
+    private Label lblContasVencidasCount; // NOVO: Para contas vencidas
+    @FXML
+    private HBox alertaContasVencidasBox; // NOVO: HBox para contas vencidas
+    @FXML
+    private Label lblContasAVencerCount; // RENOMEADO
+    @FXML
+    private HBox alertaContasAVencerBox; // RENOMEADO
+
+    // KPIs Financeiros
     @FXML
     private Label lblBalanco;
     @FXML
-    private Label lblFuncionarios;
+    private Label lblValorEstoque;
     @FXML
-    private Label lblValorEstoque; // ATUALIZADO (era lblEstoque)
+    private Label lblValorPatrimonio;
+    @FXML
+    private Label lblContasPendentes; // NOVO
 
-    // Labels para os cards antigos
+    // KPIs Operacionais
     @FXML
     private Label lblTalhoes;
     @FXML
     private Label lblSafras;
     @FXML
+    private Label lblFuncionarios;
+    @FXML
     private Label lblAreaTotal;
 
-    // NOVO: Labels para os novos cards
-    @FXML
-    private Label lblValorPatrimonio;
-    @FXML
-    private Label lblEstoqueBaixo;
-    @FXML
-    private Label lblPatrimonioManutencao;
-
-    // IDs dos Gráficos
+    // Gráficos
     @FXML
     private PieChart chartDespesas;
     @FXML
@@ -64,13 +74,14 @@ public class DashboardController {
     @FXML
     private PieChart chartCulturas;
 
-    // DAOs necessários para o resumo
+    // --- DAOs e Lógica Interna ---
     private final FinanceiroDAO financeiroDAO;
     private final FuncionarioDAO funcionarioDAO;
     private final EstoqueDAO estoqueDAO;
     private final SafraDAO safraDAO;
     private final TalhaoDAO talhaoDAO;
-    private final PatrimonioDAO patrimonioDAO; // NOVO
+    private final PatrimonioDAO patrimonioDAO;
+    private final ContaDAO contaDAO; // NOVO
 
     // Formatador para Reais (R$)
     private final NumberFormat currencyFormatter;
@@ -82,7 +93,8 @@ public class DashboardController {
         estoqueDAO = new EstoqueDAO();
         safraDAO = new SafraDAO();
         talhaoDAO = new TalhaoDAO();
-        patrimonioDAO = new PatrimonioDAO(); // NOVO
+        patrimonioDAO = new PatrimonioDAO();
+        contaDAO = new ContaDAO(); // NOVO
         
         // Configura o formatador de moeda
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
@@ -94,18 +106,75 @@ public class DashboardController {
      */
     @FXML
     public void initialize() {
+        // Ordem de carregamento atualizada para refletir o novo layout
+        
+        // 1. Alertas (Topo) - NOVO
+        carregarAlertas();
+        
+        // 2. KPIs Financeiros
         carregarBalanco();
-        carregarTotalFuncionarios();
-        carregarValorTotalEstoque(); // ATUALIZADO
-        carregarValorTotalPatrimonio(); // NOVO
-        carregarTotalTalhoes();
+        carregarValorTotalEstoque();
+        carregarValorTotalPatrimonio();
+        carregarContasPendentes(); // NOVO
+        
+        // 3. KPIs Operacionais
         carregarTotalSafras();
-        carregarAreaTotal();
-        carregarAlertas(); // NOVO
+        carregarTotalFuncionarios();
+        carregarTotalTalhoesEArea(); // Método combinado
+        
+        // 4. Gráficos
         carregarChartDespesas();
         carregarChartBalanco();
         carregarChartCulturas();
     }
+    
+    /**
+     * ATUALIZADO: Carrega os cards de Alertas Operacionais
+     * (Contas Vencidas e Contas a Vencer).
+     */
+    private void carregarAlertas() {
+        // 1. Alerta de Contas VENCIDAS (Perigo - Vermelho)
+        try {
+            int totalVencidas = contaDAO.getContagemContasVencidas(); 
+            
+            if (totalVencidas > 0) {
+                lblContasVencidasCount.setText(String.valueOf(totalVencidas));
+                alertaContasVencidasBox.setVisible(true);
+                alertaContasVencidasBox.setManaged(true);
+            } else {
+                alertaContasVencidasBox.setVisible(false);
+                alertaContasVencidasBox.setManaged(false);
+            }
+        } catch (SQLException e) {
+            lblContasVencidasCount.setText("!");
+            alertaContasVencidasBox.setVisible(true);
+            alertaContasVencidasBox.setManaged(true);
+            AlertUtil.showError("Dashboard", "Erro ao carregar alertas de contas vencidas.");
+            e.printStackTrace();
+        }
+        
+        // 2. Alerta de Contas A VENCER (Aviso - Amarelo)
+        try {
+            // Busca contas a vencer nos próximos 7 dias
+            int totalAVencer = contaDAO.getContagemContasAVencer(7); 
+            
+            if (totalAVencer > 0) {
+                lblContasAVencerCount.setText(String.valueOf(totalAVencer));
+                alertaContasAVencerBox.setVisible(true);
+                alertaContasAVencerBox.setManaged(true);
+            } else {
+                alertaContasAVencerBox.setVisible(false);
+                alertaContasAVencerBox.setManaged(false);
+            }
+        } catch (SQLException e) {
+            lblContasAVencerCount.setText("!"); // Mostra um erro
+            alertaContasAVencerBox.setVisible(true); // Mostra o card mesmo com erro
+            alertaContasAVencerBox.setManaged(true);
+            AlertUtil.showError("Dashboard", "Erro ao carregar alertas de contas a vencer.");
+            e.printStackTrace();
+        }
+    }
+
 
     private void carregarBalanco() {
         try {
@@ -115,25 +184,15 @@ public class DashboardController {
             lblBalanco.setText(balancoFormatado);
 
             // Adiciona classe de estilo (CSS) para cor
-            lblBalanco.getStyleClass().removeAll("positivo", "negativo");
+            lblBalanco.getStyleClass().removeAll("positivo-text", "negativo-text"); // Usa novas classes
             if (balanco >= 0) {
-                lblBalanco.getStyleClass().add("positivo");
+                lblBalanco.getStyleClass().add("positivo-text");
             } else {
-                lblBalanco.getStyleClass().add("negativo");
+                lblBalanco.getStyleClass().add("negativo-text");
             }
         } catch (SQLException e) {
             lblBalanco.setText("Erro");
             AlertUtil.showError("Dashboard", "Erro ao carregar balanço financeiro.");
-        }
-    }
-
-    private void carregarTotalFuncionarios() {
-        try {
-            int total = funcionarioDAO.getContagemFuncionarios();
-            lblFuncionarios.setText(String.valueOf(total));
-        } catch (SQLException e) {
-            lblFuncionarios.setText("Erro");
-            AlertUtil.showError("Dashboard", "Erro ao carregar total de funcionários.");
         }
     }
 
@@ -162,17 +221,27 @@ public class DashboardController {
             AlertUtil.showError("Dashboard", "Erro ao carregar valor total do patrimônio.");
         }
     }
-
+    
     /**
-     * Carrega o número total de talhões (para o card combinado).
+     * NOVO: Carrega o balanço de contas pendentes (Receber - Pagar).
      */
-    private void carregarTotalTalhoes() {
+    private void carregarContasPendentes() {
         try {
-            int total = talhaoDAO.getContagemTalhoes();
-            lblTalhoes.setText(String.valueOf(total));
+            double aReceber = contaDAO.getTotalPendente("receber");
+            double aPagar = contaDAO.getTotalPendente("pagar");
+            double balanco = aReceber - aPagar;
+            
+            lblContasPendentes.setText(currencyFormatter.format(balanco));
+            
+            lblContasPendentes.getStyleClass().removeAll("positivo-text", "negativo-text");
+            if (balanco >= 0) {
+                lblContasPendentes.getStyleClass().add("positivo-text");
+            } else {
+                lblContasPendentes.getStyleClass().add("negativo-text");
+            }
         } catch (SQLException e) {
-            lblTalhoes.setText("Erro");
-            AlertUtil.showError("Dashboard", "Erro ao carregar total de talhões.");
+            lblContasPendentes.setText("Erro");
+            AlertUtil.showError("Dashboard", "Erro ao carregar contas pendentes.");
         }
     }
 
@@ -189,51 +258,35 @@ public class DashboardController {
         }
     }
 
-    /**
-     * Carrega a área total da fazenda (para o card combinado).
-     * ATUALIZADO: Formato de texto sutil.
-     */
-    private void carregarAreaTotal() {
+    private void carregarTotalFuncionarios() {
         try {
-            double total = talhaoDAO.getTotalAreaHectares();
-            // Formata para "(120,5 ha no total)"
-            lblAreaTotal.setText(String.format(Locale.forLanguageTag("pt-BR"), "(%.1f ha no total)", total));
+            int total = funcionarioDAO.getContagemFuncionarios();
+            lblFuncionarios.setText(String.valueOf(total));
         } catch (SQLException e) {
-            lblAreaTotal.setText("(Erro)");
-            AlertUtil.showError("Dashboard", "Erro ao carregar área total.");
+            lblFuncionarios.setText("Erro");
+            AlertUtil.showError("Dashboard", "Erro ao carregar total de funcionários.");
         }
     }
 
     /**
-     * NOVO: Carrega os cards de Alertas Operacionais.
+     * ATUALIZADO: Carrega a contagem de talhões E a área total nos labels corretos.
      */
-    private void carregarAlertas() {
-        // Alerta 1: Estoque Baixo
+    private void carregarTotalTalhoesEArea() {
         try {
-            int total = estoqueDAO.getContagemItensEstoqueBaixo();
-            lblEstoqueBaixo.setText(String.valueOf(total));
-            // Adiciona/remove classe de alerta (vermelho)
-            lblEstoqueBaixo.getStyleClass().remove("negativo-text");
-            if (total > 0) {
-                lblEstoqueBaixo.getStyleClass().add("negativo-text");
-            }
+            int totalTalhoes = talhaoDAO.getContagemTalhoes();
+            lblTalhoes.setText(String.valueOf(totalTalhoes));
         } catch (SQLException e) {
-            lblEstoqueBaixo.setText("!");
-            AlertUtil.showError("Dashboard", "Erro ao carregar alertas de estoque.");
+            lblTalhoes.setText("Erro");
+            AlertUtil.showError("Dashboard", "Erro ao carregar total de talhões.");
         }
-
-        // Alerta 2: Patrimônio em Manutenção
+        
         try {
-            int total = patrimonioDAO.getContagemPatrimonioPorStatus("Em Manutenção");
-            lblPatrimonioManutencao.setText(String.valueOf(total));
-            // Adiciona/remove classe de alerta (vermelho)
-            lblPatrimonioManutencao.getStyleClass().remove("negativo-text");
-            if (total > 0) {
-                lblPatrimonioManutencao.getStyleClass().add("negativo-text");
-            }
+            double totalArea = talhaoDAO.getTotalAreaHectares();
+            // Formata para "(120,5 ha)"
+            lblAreaTotal.setText(String.format(Locale.forLanguageTag("pt-BR"), "(%.1f ha)", totalArea));
         } catch (SQLException e) {
-            lblPatrimonioManutencao.setText("!");
-            AlertUtil.showError("Dashboard", "Erro ao carregar alertas de patrimônio.");
+            lblAreaTotal.setText("(Erro)");
+            AlertUtil.showError("Dashboard", "Erro ao carregar área total.");
         }
     }
 
@@ -254,21 +307,22 @@ public class DashboardController {
                     );
             
             chartDespesas.setData(pieChartData);
-            chartDespesas.setTitle("Receitas vs. Despesas");
+            // chartDespesas.setTitle("Receitas vs. Despesas"); // Título já está no FXML
         } catch (SQLException e) {
             AlertUtil.showError("Dashboard", "Erro ao carregar gráfico de financeiro.");
         }
     }
 
     /**
-     * Carrega o gráfico de linha do histórico de balanço.
+     * Carrega o gráfico de linha do histórico de balanço (DIÁRIO).
      */
     private void carregarChartBalanco() {
         try {
-            Map<String, Double> balancoMap = financeiroDAO.getBalancoPorMes();
+            // ATUALIZADO: Chama o novo método do DAO
+            Map<String, Double> balancoMap = financeiroDAO.getBalancoPorDia(); 
             
             XYChart.Series<String, Number> series = new XYChart.Series<>();
-            series.setName("Balanço Mensal");
+            series.setName("Balanço Diário"); // Título da série atualizado
 
             chartBalanco.getData().clear(); 
 
@@ -277,9 +331,10 @@ public class DashboardController {
             }
 
             chartBalanco.getData().add(series);
-            chartBalanco.setTitle("Histórico do Balanço (Mensal)");
+            // chartBalanco.setTitle("Histórico do Balanço (Diário)"); // Título já está no FXML
         } catch (SQLException e) {
             AlertUtil.showError("Dashboard", "Erro ao carregar histórico de balanço.");
+            e.printStackTrace();
         }
     }
 
@@ -300,7 +355,7 @@ public class DashboardController {
             if (contagemCulturas.isEmpty()) {
                 chartCulturas.setTitle("Nenhuma cultura ativa");
             } else {
-                 chartCulturas.setTitle("Culturas Ativas");
+                 // chartCulturas.setTitle("Culturas Ativas"); // Título já está no FXML
             }
 
         } catch (SQLException e) {
@@ -309,3 +364,4 @@ public class DashboardController {
         }
     }
 }
+

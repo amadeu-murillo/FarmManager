@@ -12,6 +12,7 @@ import java.util.List;
 /**
  * NOVO: DAO para gerenciar a tabela 'contas' (Contas a Pagar/Receber).
  * ATUALIZADO: Adicionado updateConta.
+ * ATUALIZADO: Adicionados métodos para alertas de dashboard (Vencidas, A Vencer).
  */
 public class ContaDAO {
 
@@ -191,6 +192,56 @@ public class ContaDAO {
             }
         }
         return 0.0;
+    }
+
+    /**
+     * NOVO: Retorna a contagem de contas pendentes VENCIDAS.
+     * @return A contagem de contas.
+     * @throws SQLException
+     */
+    public int getContagemContasVencidas() throws SQLException {
+        // SQL do SQLite para comparar datas. date('now') é hoje.
+        String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+                     "AND data_vencimento < date('now')";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total");
+                }
+            }
+        }
+        return 0;
+    }
+
+
+    /**
+     * NOVO: Retorna a contagem de contas pendentes a vencer em um determinado
+     * número de dias.
+     * @param dias O número de dias a partir de hoje (ex: 7 para a próxima semana).
+     * @return A contagem de contas.
+     * @throws SQLException
+     */
+    public int getContagemContasAVencer(int dias) throws SQLException {
+        // SQL do SQLite para comparar datas. date('now') é hoje.
+        String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+                     "AND data_vencimento >= date('now') " +
+                     "AND data_vencimento <= date('now', '+' || ? || ' days')";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, String.valueOf(dias)); // Passa os dias como string para o SQLite
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("total");
+                }
+            }
+        }
+        return 0;
     }
 
     // Helper para mapear o ResultSet
