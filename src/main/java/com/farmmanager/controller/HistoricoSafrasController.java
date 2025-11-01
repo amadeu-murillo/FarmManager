@@ -13,12 +13,16 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DatePicker; // NOVO
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 
 import java.sql.SQLException;
+import java.time.LocalDate; // NOVO
+import java.time.LocalDateTime; // NOVO
+import java.time.format.DateTimeFormatter; // NOVO
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,6 +30,7 @@ import java.util.stream.Collectors;
 /**
  * NOVO: Controller para a tela de Histórico e Relatórios de Safras.
  * Esta classe foca em analisar dados de safras *colhidas*.
+ * ATUALIZADO: Adicionado filtro de data.
  */
 public class HistoricoSafrasController {
 
@@ -38,6 +43,9 @@ public class HistoricoSafrasController {
     private final ObservableList<SafraInfo> dadosTabelaHistorico;
     private final ObservableList<PieChart.Data> dadosChartCultura;
     private final ObservableList<XYChart.Series<String, Number>> dadosChartProducaoMedia;
+    
+    // NOVO: Formatador de data/hora do banco
+    private final DateTimeFormatter dbTimestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // Componentes FXML
     @FXML
@@ -46,6 +54,12 @@ public class HistoricoSafrasController {
     private ComboBox<Talhao> filtroTalhao;
     @FXML
     private Button btnAplicarFiltro;
+    @FXML
+    private Button btnLimparFiltro; // NOVO
+    @FXML
+    private DatePicker filtroDataInicio; // NOVO
+    @FXML
+    private DatePicker filtroDataFim; // NOVO
 
     // Gráficos
     @FXML
@@ -66,6 +80,8 @@ public class HistoricoSafrasController {
     private TableColumn<SafraInfo, String> colTalhao;
     @FXML
     private TableColumn<SafraInfo, Double> colArea;
+    @FXML
+    private TableColumn<SafraInfo, String> colDataColheita; // NOVO
     @FXML
     private TableColumn<SafraInfo, Double> colProdSacos;
     @FXML
@@ -89,6 +105,7 @@ public class HistoricoSafrasController {
         colCultura.setCellValueFactory(new PropertyValueFactory<>("cultura"));
         colTalhao.setCellValueFactory(new PropertyValueFactory<>("talhaoNome"));
         colArea.setCellValueFactory(new PropertyValueFactory<>("areaHectares"));
+        colDataColheita.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); // NOVO
         colProdSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos"));
         colProdScHa.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
         tabelaHistorico.setItems(dadosTabelaHistorico);
@@ -100,6 +117,10 @@ public class HistoricoSafrasController {
         // 3. Carregar Dados
         carregarFiltros();
         carregarDadosMestresEAtualizarTudo();
+        
+        // NOVO: Listeners para os novos filtros
+        filtroDataInicio.valueProperty().addListener((o, ov, nv) -> handleAplicarFiltro());
+        filtroDataFim.valueProperty().addListener((o, ov, nv) -> handleAplicarFiltro());
     }
 
     /**
@@ -166,6 +187,18 @@ public class HistoricoSafrasController {
     }
 
     /**
+     * NOVO: Limpa todos os filtros para os valores padrão.
+     */
+    @FXML
+    private void handleLimparFiltro() {
+        filtroCultura.getSelectionModel().select("Todas as Culturas");
+        filtroTalhao.getSelectionModel().selectFirst(); // Seleciona o "Todos os Talhões"
+        filtroDataInicio.setValue(null);
+        filtroDataFim.setValue(null);
+        // handleAplicarFiltro(); // É chamado automaticamente pelos listeners dos DatePickers
+    }
+
+    /**
      * Chamado pelo botão "Aplicar Filtros" ou na inicialização.
      * Filtra a lista mestra e atualiza a tabela e os gráficos.
      */
@@ -173,6 +206,8 @@ public class HistoricoSafrasController {
     private void handleAplicarFiltro() {
         String culturaSel = filtroCultura.getSelectionModel().getSelectedItem();
         Talhao talhaoSel = filtroTalhao.getSelectionModel().getSelectedItem();
+        LocalDate dataInicio = filtroDataInicio.getValue(); // NOVO
+        LocalDate dataFim = filtroDataFim.getValue(); // NOVO
 
         // 1. Filtrar a lista mestra
         List<SafraInfo> safrasFiltradas = listaMestraSafrasColhidas.stream()
@@ -181,7 +216,32 @@ public class HistoricoSafrasController {
                 boolean culturaMatch = (culturaSel == null || culturaSel.equals("Todas as Culturas") || safra.getCultura().equals(culturaSel));
                 // Filtro de Talhão
                 boolean talhaoMatch = (talhaoSel == null || talhaoSel.getId() == 0 || safra.getTalhaoNome().equals(talhaoSel.getNome()));
-                return culturaMatch && talhaoMatch;
+                
+                // NOVO: Filtro de Data (usa dataModificacao como data da colheita)
+                boolean dataMatch = true;
+                if (safra.getDataModificacao() != null) {
+                    try {
+                        // Converte o timestamp do banco (String) para LocalDate
+                        LocalDate dataColheita = LocalDateTime.parse(safra.getDataModificacao(), dbTimestampFormatter).toLocalDate();
+                        
+                        if (dataInicio != null && dataColheita.isBefore(dataInicio)) {
+                            dataMatch = false;
+                        }
+                        if (dataFim != null && dataColheita.isAfter(dataFim)) {
+                            dataMatch = false;
+                        }
+                    } catch (Exception e) {
+                        // Ignora falha no parse, considera que a data não bate
+                        dataMatch = false; 
+                    }
+                } else {
+                    // Se não tem data de modificação, não deve aparecer no filtro de data
+                    if(dataInicio != null || dataFim != null) {
+                        dataMatch = false;
+                    }
+                }
+
+                return culturaMatch && talhaoMatch && dataMatch; // NOVO: dataMatch
             })
             .collect(Collectors.toList());
 
@@ -239,3 +299,4 @@ public class HistoricoSafrasController {
             });
     }
 }
+

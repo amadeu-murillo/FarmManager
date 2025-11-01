@@ -102,7 +102,8 @@ public class SafraDAO {
     public List<SafraInfo> listSafrasComInfo() throws SQLException {
         List<SafraInfo> safras = new ArrayList<>();
         // ATUALIZAÇÃO: Adicionado s.status e t.area_hectares à consulta
-        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome, t.area_hectares, s.status "
+        // ATUALIZAÇÃO 2: Adicionado s.data_modificacao (será a data da colheita para safras colhidas)
+        String sql = "SELECT s.id, s.cultura, s.ano_inicio, s.producao_total_kg, t.nome as talhao_nome, t.area_hectares, s.status, s.data_modificacao "
             + "FROM safras s "
             + "JOIN talhoes t ON s.talhao_id = t.id";
         
@@ -118,7 +119,8 @@ public class SafraDAO {
                     rs.getString("talhao_nome"),
                     rs.getDouble("producao_total_kg"),
                     rs.getDouble("area_hectares"),
-                    rs.getString("status") // NOVO
+                    rs.getString("status"), // NOVO
+                    rs.getString("data_modificacao") // NOVO
                 );
                 safras.add(si);
             }
@@ -162,3 +164,4 @@ public class SafraDAO {
         return contagemCulturas;
     }
 }
+

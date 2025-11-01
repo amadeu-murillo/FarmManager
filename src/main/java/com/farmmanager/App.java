@@ -8,6 +8,8 @@ import javafx.stage.Stage;
 // NOVO: Imports necessários para obter o tamanho da tela
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+// NOVO: Import para imagem (ícone da janela)
+import javafx.scene.image.Image;
 
 import java.io.IOException;
 import java.net.URL;
@@ -16,6 +18,7 @@ import java.net.URL;
  * Classe principal do JavaFX.
  * Configura e exibe a cena principal (Stage).
  * ATUALIZADO: Agora define a janela para ser maximizada ao iniciar.
+ * ATUALIZADO: Adiciona o ícone da aplicação na barra de título da janela.
  */
 public class App extends Application {
 
@@ -49,6 +52,17 @@ public class App extends Application {
         stage.setTitle("FarmManager - Sistema de Gestão de Fazenda");
         stage.setScene(scene);
         
+        // --- NOVO: Adiciona o ícone da aplicação ---
+        // O ícone deve estar na pasta 'resources/com/farmmanager/'
+        try {
+            // Tenta carregar a imagem 'logo.png' da pasta de resources
+            Image appIcon = new Image(getClass().getResourceAsStream("/com/farmmanager/logo.png"));
+            stage.getIcons().add(appIcon);
+        } catch (Exception e) {
+            // Informa se o logo não for encontrado, mas não impede a aplicação de rodar
+            System.err.println("Aviso: Não foi possível carregar o ícone da aplicação 'logo.png'. " + e.getMessage());
+        }
+        
         // --- NOVO: Maximiza a janela ---
         // Define o estado da janela como maximizado
         stage.setMaximized(true);
@@ -60,3 +74,4 @@ public class App extends Application {
         launch(args);
     }
 }
+

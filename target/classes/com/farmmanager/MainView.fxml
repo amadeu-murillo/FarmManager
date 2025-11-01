@@ -1,23 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!-- 
+  IMPORTAÇÕES ADICIONADAS: MenuBar, Menu, MenuItem 
+-->
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuItem?>
 <?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
+<!-- NOVO: Importações para Imagem (agora usado para ícone) -->
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.image.Image?>
+<?import javafx.geometry.Insets?>
+
 
 <!-- 
   MainView.fxml (O "Shell" da Aplicação)
   ATUALIZADO:
-  - Itens do menu lateral agrupados por seções (Geral, Financeiro, Operações, Relatórios)
-  - Adicionados Labels para os títulos das seções.
+  - Adicionado <MenuBar> na seção <top> do BorderPane.
+  - Adicionado <FontAwesomeIconView> para o logo na barra lateral.
 -->
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
+   
+   <!-- NOVO: Menu Superior Adicionado -->
+   <top>
+      <MenuBar>
+        <menus>
+          <!-- Menu "Geral" -->
+          <Menu text="Geral">
+            <items>
+              <MenuItem text="Dashboard" onAction="#handleShowDashboard" />
+            </items>
+          </Menu>
+          
+          <!-- Menu "Financeiro" -->
+          <Menu text="Financeiro">
+            <items>
+              <MenuItem text="Contas (Pagar/Receber)" onAction="#handleShowContas" />
+              <MenuItem text="Financeiro (Caixa)" onAction="#handleShowFinanceiro" />
+            </items>
+          </Menu>
+          
+          <!-- Menu "Operações" -->
+          <Menu text="Operações">
+            <items>
+              <MenuItem text="Safras e Talhões" onAction="#handleShowSafras" />
+              <MenuItem text="Insumos/Produtos" onAction="#handleShowEstoque" />
+              <MenuItem text="Patrimônio" onAction="#handleShowPatrimonio" />
+              <MenuItem text="Funcionários" onAction="#handleShowFuncionarios" />
+            </items>
+          </Menu>
+          
+          <!-- Menu "Relatórios" -->
+          <Menu text="Relatórios">
+            <items>
+              <MenuItem text="Histórico de Safras" onAction="#handleShowHistoricoSafras" />
+            </items>
+          </Menu>
+        </menus>
+      </MenuBar>
+   </top>
+   
    <left>
-      <!-- Menu Lateral de Navegação (com ícones) -->
-      <VBox prefWidth="200.0" styleClass="sidebar" BorderPane.alignment="CENTER">
+      <!-- Menu Lateral de Navegação (com ícones) - ATUALIZADO com alignment="TOP_CENTER" -->
+      <VBox prefWidth="200.0" styleClass="sidebar" BorderPane.alignment="CENTER" alignment="TOP_CENTER">
          <children>
+         
+            <!-- ATUALIZADO: Local para o Logo agora usa um Ícone -->
+            <FontAwesomeIconView glyphName="LEAF" size="4em" styleClass="sidebar-logo-icon">
+               <VBox.margin>
+                  <Insets top="20.0" bottom="10.0" />
+               </VBox.margin>
+            </FontAwesomeIconView>
+            
             <Label styleClass="sidebar-title" text="FarmManager" />
             
             <!-- GERAL -->
@@ -80,3 +139,4 @@
       <StackPane fx:id="contentArea" styleClass="content-area" BorderPane.alignment="CENTER" />
    </center>
 </BorderPane>
+

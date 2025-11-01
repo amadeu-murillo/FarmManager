@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
  * - NOVO: Adicionado filtro de busca, resumo de valor total, alerta de baixo estoque e função de editar.
  * - ATUALIZAÇÃO (handleVenderItem): Adicionado botão "MAX" para preencher a quantidade total.
  * - ATUALIZAÇÃO (handleComprarItem): Adicionada lógica de "Compra a Prazo" (PASSO 1 a 4).
+ * - ATUALIZAÇÃO (handleVenderItem): Adicionada lógica de "Venda a Prazo".
  */
 public class EstoqueController {
 
@@ -412,7 +413,8 @@ public class EstoqueController {
             return;
         }
 
-        Dialog<Pair<Double, Double>> dialog = new Dialog<>();
+        // Dialog<Pair<Double, Double>> dialog = new Dialog<>(); // Antigo
+        Dialog<VendaInfo> dialog = new Dialog<>(); // NOVO
         dialog.setTitle("Vender Item do Estoque");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + selecionado.getQuantidade() + " " + selecionado.getUnidade() + ")");
 
@@ -446,11 +448,43 @@ public class EstoqueController {
         TextField precoVendaField = new TextField(String.format(Locale.US, "%.2f", selecionado.getValorUnitario()));
         Label valorTotalVendaLabel = new Label("Total da Venda: R$ 0,00");
 
+        // --- NOVO: Campos para Venda a Prazo ---
+        Label tipoPagLabel = new Label("Recebimento:");
+        ComboBox<String> tipoPagCombo = new ComboBox<>(
+                FXCollections.observableArrayList("À Vista", "A Prazo")
+        );
+        tipoPagCombo.getSelectionModel().select("À Vista");
+
+        Label vencimentoLabel = new Label("Data Recebimento:");
+        DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
+        
+        vencimentoLabel.setVisible(false);
+        vencimentoPicker.setVisible(false);
+        vencimentoLabel.setManaged(false);
+        vencimentoPicker.setManaged(false);
+
+        tipoPagCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            boolean aPrazo = newVal.equals("A Prazo");
+            vencimentoLabel.setVisible(aPrazo);
+            vencimentoPicker.setVisible(aPrazo);
+            vencimentoLabel.setManaged(aPrazo);
+            vencimentoPicker.setManaged(aPrazo);
+        });
+        // --- Fim Venda a Prazo ---
+
         grid.add(new Label("Quantidade a Vender:"), 0, 0);
         grid.add(qtdBox, 1, 0); // ATUALIZADO: Adiciona o HBox
         grid.add(new Label("Preço de Venda (unitário):"), 0, 1);
         grid.add(precoVendaField, 1, 1);
-        grid.add(valorTotalVendaLabel, 1, 2);
+        
+        // --- NOVOS CAMPOS NO GRID ---
+        grid.add(tipoPagLabel, 0, 2);
+        grid.add(tipoPagCombo, 1, 2);
+        grid.add(vencimentoLabel, 0, 3);
+        grid.add(vencimentoPicker, 1, 3);
+        // --- FIM NOVOS CAMPOS ---
+        
+        grid.add(valorTotalVendaLabel, 1, 4); // Posição atualizada
 
         // Listener para atualizar o total da venda
         ChangeListener<String> listener = (obs, oldV, newV) -> {
@@ -469,12 +503,14 @@ public class EstoqueController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Converte o resultado para um Par (Qtd, PrecoUnit)
+        // Converte o resultado para o objeto VendaInfo
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == venderButtonType) {
                 try {
                     double qtd = parseDouble(qtdField.getText());
                     double preco = parseDouble(precoVendaField.getText());
+                    String tipoRecebimento = tipoPagCombo.getSelectionModel().getSelectedItem(); // NOVO
+                    LocalDate dataVencimento = vencimentoPicker.getValue(); // NOVO
 
                     if (qtd <= 0 || preco < 0) {
                         AlertUtil.showError("Valor Inválido", "Quantidade deve ser positiva e preço não pode ser negativo.");
@@ -484,7 +520,14 @@ public class EstoqueController {
                          AlertUtil.showError("Estoque Insuficiente", "Disponível: " + selecionado.getQuantidade() + ". Solicitado: " + qtd);
                          return null;
                     }
-                    return new Pair<>(qtd, preco);
+                    // NOVO: Validação da data a prazo
+                    if (tipoRecebimento.equals("A Prazo") && dataVencimento == null) {
+                        AlertUtil.showError("Erro de Validação", "A Data de Recebimento é obrigatória para vendas 'A Prazo'.");
+                        return null;
+                    }
+                    
+                    // return new Pair<>(qtd, preco); // Antigo
+                    return new VendaInfo(qtd, preco, tipoRecebimento, dataVencimento); // NOVO
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
                     return null;
@@ -493,24 +536,41 @@ public class EstoqueController {
             return null;
         });
 
-        Optional<Pair<Double, Double>> result = dialog.showAndWait();
+        // Optional<Pair<Double, Double>> result = dialog.showAndWait(); // Antigo
+        Optional<VendaInfo> result = dialog.showAndWait(); // NOVO
 
-        result.ifPresent(par -> {
-            double qtdAVender = par.getKey();
-            double precoVendaUnitario = par.getValue();
+        result.ifPresent(vendaInfo -> { // Atualizado
+            // double qtdAVender = par.getKey(); // Antigo
+            // double precoVendaUnitario = par.getValue(); // Antigo
             
             try {
-                // 1. Dá baixa no estoque
-                estoqueDAO.consumirEstoque(selecionado.getId(), qtdAVender);
+                // 1. Dá baixa no estoque (Sempre)
+                estoqueDAO.consumirEstoque(selecionado.getId(), vendaInfo.qtdAVender);
 
-                // 2. Lança a receita
-                double valorReceita = qtdAVender * precoVendaUnitario;
-                String data = LocalDate.now().format(dateFormatter);
+                double valorReceita = vendaInfo.qtdAVender * vendaInfo.precoVendaUnitario;
                 String desc = "Venda de " + selecionado.getItemNome();
-                Transacao transacao = new Transacao(desc, valorReceita, data, "receita"); // Receita é positiva
-                financeiroDAO.addTransacao(transacao);
 
-                AlertUtil.showInfo("Sucesso", "Venda registrada com sucesso. Estoque atualizado e receita lançada.");
+                // 2. Lança a receita (À Vista ou A Prazo)
+                if (vendaInfo.tipoRecebimento.equals("À Vista")) {
+                    // Lógica antiga: Lança no financeiro
+                    String data = LocalDate.now().format(dateFormatter);
+                    Transacao transacao = new Transacao(desc, valorReceita, data, "receita"); // Receita é positiva
+                    financeiroDAO.addTransacao(transacao);
+                    AlertUtil.showInfo("Sucesso", "Venda (à vista) registrada. Estoque atualizado e receita lançada.");
+
+                } else {
+                    // Lógica nova: Lança em Contas a Receber
+                    Conta conta = new Conta(
+                        desc,
+                        valorReceita, // Valor positivo
+                        vendaInfo.dataVencimento.toString(),
+                        "receber", // Tipo
+                        "pendente" // Status
+                    );
+                    contaDAO.addConta(conta);
+                    AlertUtil.showInfo("Sucesso", "Venda (a prazo) registrada. Estoque atualizado e 'Conta a Receber' criada.");
+                }
+
                 carregarDadosMestres(); // ATUALIZADO
 
             } catch (IllegalStateException e) {
@@ -741,5 +801,19 @@ public class EstoqueController {
             this.dataVencimento = data;
         }
     }
-}
+    
+    // NOVO: Classe interna simples para guardar o resultado do diálogo de Venda
+    private static class VendaInfo {
+        final double qtdAVender;
+        final double precoVendaUnitario;
+        final String tipoRecebimento; // "À Vista" ou "A Prazo"
+        final LocalDate dataVencimento; // Pode ser nulo se for "À Vista"
 
+        VendaInfo(double qtd, double preco, String tipo, LocalDate data) {
+            this.qtdAVender = qtd;
+            this.precoVendaUnitario = preco;
+            this.tipoRecebimento = tipo;
+            this.dataVencimento = data;
+        }
+    }
+}
