@@ -863,27 +863,29 @@ public class SafrasController {
 
         // Dados fixos da safra
         double area = safraSelecionada.getAreaHectares();
-        double prodAtualScHa = safraSelecionada.getProducaoSacosPorHectare();
+        // double prodAtualScHa = safraSelecionada.getProducaoSacosPorHectare(); // Valor antigo (sc/ha)
+        double prodAtualTotalSacos = safraSelecionada.getProducaoTotalSacos(); // NOVO: Valor total
 
         // Labels de informação
         Label areaLabel = new Label(String.format(Locale.US, "%.2f ha", area));
-        Label totalSacosLabel = new Label("---");
+        Label scHaLabel = new Label("---"); // ATUALIZADO: Este agora é o label de sc/ha
         Label totalKgLabel = new Label("---");
         Label valorTotalColheitaLabel = new Label("---"); // NOVO
         
         // Campo de entrada
-        TextField scHaField = new TextField(String.format(Locale.US, "%.2f", prodAtualScHa));
+        // ATUALIZADO: O campo de entrada agora é o Total de Sacos
+        TextField totalSacosField = new TextField(String.format(Locale.US, "%.2f", prodAtualTotalSacos));
         TextField valorSacoField = new TextField("0.0"); // NOVO
         
         // Adiciona componentes ao grid
         grid.add(new Label("Área do Talhão:"), 0, 0);
         grid.add(areaLabel, 1, 0);
         
-        grid.add(new Label("Produção (sc/ha):"), 0, 1);
-        grid.add(scHaField, 1, 1);
+        grid.add(new Label("Total (sacos):"), 0, 1); // ATUALIZADO
+        grid.add(totalSacosField, 1, 1); // ATUALIZADO
         
-        grid.add(new Label("Total (sacos):"), 0, 2);
-        grid.add(totalSacosLabel, 1, 2);
+        grid.add(new Label("Produção (sc/ha):"), 0, 2); // ATUALIZADO
+        grid.add(scHaLabel, 1, 2); // ATUALIZADO
         
         grid.add(new Label("Total (kg):"), 0, 3);
         grid.add(totalKgLabel, 1, 3);
@@ -897,18 +899,19 @@ public class SafrasController {
         // 3. Adicionar listener para cálculo automático
         ChangeListener<String> listener = (obs, oldV, newV) -> {
             atualizarCalculosDialogColheita(
-                scHaField.getText(), valorSacoField.getText(), area,
-                totalSacosLabel, totalKgLabel, valorTotalColheitaLabel
+                // scHaField.getText(), valorSacoField.getText(), area, // Antigo
+                totalSacosField.getText(), valorSacoField.getText(), area, // NOVO
+                scHaLabel, totalKgLabel, valorTotalColheitaLabel // ATUALIZADO
             );
         };
         
-        scHaField.textProperty().addListener(listener);
+        totalSacosField.textProperty().addListener(listener); // ATUALIZADO
         valorSacoField.textProperty().addListener(listener); // NOVO listener
         
         // Chama o método helper diretamente com o valor inicial
         atualizarCalculosDialogColheita(
-            scHaField.getText(), valorSacoField.getText(), area,
-            totalSacosLabel, totalKgLabel, valorTotalColheitaLabel
+            totalSacosField.getText(), valorSacoField.getText(), area, // NOVO
+            scHaLabel, totalKgLabel, valorTotalColheitaLabel // ATUALIZADO
         );
 
         dialog.getDialogPane().setContent(grid);
@@ -917,18 +920,20 @@ public class SafrasController {
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == registrarButtonType) {
                 try {
-                    double producaoScHa = parseDouble(scHaField.getText()); // Usando novo helper
+                    // double producaoScHa = parseDouble(scHaField.getText()); // Antigo
+                    double totalSacos = parseDouble(totalSacosField.getText()); // NOVO
                     double valorSaco = parseDouble(valorSacoField.getText()); // NOVO
                     
-                    if (producaoScHa <= 0 || valorSaco < 0) { // Validando valor (produção deve ser > 0)
-                        AlertUtil.showError("Valor Inválido", "A produção deve ser maior que zero e o valor não pode ser negativo.");
+                    // if (producaoScHa <= 0 || valorSaco < 0) { // Antigo
+                    if (totalSacos <= 0 || valorSaco < 0) { // NOVO
+                        AlertUtil.showError("Valor Inválido", "A produção total deve ser maior que zero e o valor não pode ser negativo."); // Mensagem atualizada
                         return null;
                     }
 
                     // Cálculos
-                    double totalSacos = (producaoScHa * area);
-                    double producaoKg = totalSacos * 60.0;
-                    double valorTotal = totalSacos * valorSaco; 
+                    // double totalSacos = (producaoScHa * area); // Antigo
+                    double producaoKg = totalSacos * 60.0; // Correto
+                    double valorTotal = totalSacos * valorSaco; // Correto
                     
                     // Retorna o objeto atualizado
                     return new ColheitaData(producaoKg, totalSacos, valorTotal); 
@@ -1211,31 +1216,32 @@ public class SafrasController {
      * NOVO: Método helper atualizado para calcular produção e valor.
      */
     private void atualizarCalculosDialogColheita(
-        String scHaStr, String vlrSacoStr, double area,
-        Label totalSacosLabel, Label totalKgLabel, Label totalValorLabel
+        String totalSacosStr, String vlrSacoStr, double area,
+        Label scHaLabel, Label totalKgLabel, Label totalValorLabel
     ) {
         try {
-            double producaoScHa = parseDouble(scHaStr); // Usando novo helper
+            double totalSacos = parseDouble(totalSacosStr); // ATUALIZADO
             double valorSaco = parseDouble(vlrSacoStr); // Usando novo helper
             
-            if (producaoScHa < 0 || valorSaco < 0) {
-                totalSacosLabel.setText("Inválido");
+            if (totalSacos < 0 || valorSaco < 0) { // ATUALIZADO
+                scHaLabel.setText("Inválido"); // ATUALIZADO
                 totalKgLabel.setText("Inválido");
                 totalValorLabel.setText("Inválido");
                 return;
             }
             
             // Cálculos
-            double totalSacos = producaoScHa * area;
-            double producaoKg = totalSacos * 60.0;
-            double valorTotal = totalSacos * valorSaco;
+            // double totalSacos = producaoScHa * area; // Antigo
+            double producaoKg = totalSacos * 60.0; // Correto
+            double valorTotal = totalSacos * valorSaco; // Correto
+            double producaoScHa = (area > 0) ? (totalSacos / area) : 0.0; // NOVO
             
-            totalSacosLabel.setText(String.format(Locale.US, "%.2f sacos", totalSacos));
+            scHaLabel.setText(String.format(Locale.US, "%.2f sc/ha", producaoScHa)); // ATUALIZADO
             totalKgLabel.setText(String.format(Locale.US, "%.2f kg", producaoKg));
             totalValorLabel.setText(currencyFormatter.format(valorTotal)); // Formata como moeda
             
         } catch (NumberFormatException e) {
-            totalSacosLabel.setText("---");
+            scHaLabel.setText("---"); // ATUALIZADO
             totalKgLabel.setText("---");
             totalValorLabel.setText("---");
         }
@@ -1292,3 +1298,4 @@ public class SafrasController {
         public double getCusto() { return custo; }
     }
 }
+

@@ -6,6 +6,7 @@ package com.farmmanager.model;
  * * ATUALIZAÇÃO:
  * - anoInicio alterado de int para String.
  * - Adicionado campo 'status'.
+ * - Adicionado campo 'dataModificacao'.
  */
 public class SafraInfo {
     // Constante para cálculo de produtividade
@@ -18,8 +19,9 @@ public class SafraInfo {
     private final String talhaoNome;
     private final double areaHectares;
     private final String status; // NOVO
+    private final String dataModificacao; // NOVO
 
-    public SafraInfo(int id, String cultura, String ano, String talhaoNome, double producao, double areaHectares, String status) {
+    public SafraInfo(int id, String cultura, String ano, String talhaoNome, double producao, double areaHectares, String status, String dataModificacao) {
         this.id = id;
         this.cultura = cultura;
         this.anoInicio = ano; // Alterado
@@ -27,6 +29,7 @@ public class SafraInfo {
         this.producaoTotalKg = producao;
         this.areaHectares = areaHectares;
         this.status = status; // NOVO
+        this.dataModificacao = dataModificacao; // NOVO
     }
 
     // Getters
@@ -37,6 +40,12 @@ public class SafraInfo {
     public String getTalhaoNome() { return talhaoNome; }
     public double getAreaHectares() { return areaHectares; }
     public String getStatus() { return status; } // NOVO
+    
+    /**
+     * NOVO: Retorna a data da última modificação.
+     * Para safras colhidas, esta será a data da colheita.
+     */
+    public String getDataModificacao() { return dataModificacao; }
 
     /**
      * Calcula a produção em sacos por hectare.
@@ -63,3 +72,4 @@ public class SafraInfo {
         return producaoTotalKg / KG_POR_SACO;
     }
 }
+
