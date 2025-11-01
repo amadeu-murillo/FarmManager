@@ -48,6 +48,7 @@ import java.util.Locale;
  * - ATUALIZADO: Painel de detalhes agora inclui resumo financeiro (Receita, Estoque, Lucro).
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionado botão "MAX" para preencher a quantidade total.
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionada opção de "Custo Manual".
+ * - ATUALIZAÇÃO (handleLancarAtividade): Custo manual agora lança no financeiro.
  */
 public class SafrasController {
 
@@ -751,7 +752,7 @@ public class SafrasController {
         });
 
 
-        // 6. Processar resultado (ATUALIZADO)
+        // 6. Processar resultado (ATUALIZADO para incluir lançamento financeiro manual)
         Optional<AtividadeSafra> result = dialog.showAndWait();
 
         result.ifPresent(atividade -> {
@@ -767,7 +768,23 @@ public class SafrasController {
                     successMessage = "Atividade lançada e estoque consumido.\nO custo da atividade foi registrado na safra.";
                 } else {
                     // É um custo manual
-                    successMessage = "Custo manual lançado com sucesso.";
+                    
+                    // --- INÍCIO DA MODIFICAÇÃO (SOLICITAÇÃO DO USUÁRIO) ---
+                    // Lança a despesa no financeiro, pois é um custo manual
+                    if (atividade.getCustoTotalAtividade() > 0) {
+                        String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
+                        Transacao transacao = new Transacao(
+                            descFin,
+                            -atividade.getCustoTotalAtividade(), // Despesa é negativa
+                            atividade.getData(),
+                            "despesa"
+                        );
+                        financeiroDAO.addTransacao(transacao);
+                        successMessage = "Custo manual lançado com sucesso na safra e no financeiro."; // Mensagem atualizada
+                    } else {
+                         successMessage = "Custo manual (R$ 0,00) lançado na safra."; // Caso o custo seja zero
+                    }
+                    // --- FIM DA MODIFICAÇÃO ---
                 }
 
                 AlertUtil.showInfo("Sucesso", successMessage);

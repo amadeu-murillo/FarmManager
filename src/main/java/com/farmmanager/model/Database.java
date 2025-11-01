@@ -11,10 +11,7 @@ import java.sql.Statement;
  * e a inicialização das tabelas.
  *
  * ATUALIZADO:
- * - Adicionada nova tabela 'manutencao_patrimonio' para histórico de custos.
- * - Adicionada coluna 'data_modificacao' à tabela 'financeiro'.
- * - ADICIONADA COLUNA 'data_inicio' à tabela 'funcionarios'.
- * - ATUALIZADO: Adicionadas colunas cpf, telefone, endereco à tabela 'funcionarios'.
+ * - Adicionada nova tabela 'contas' para Contas a Pagar/Receber.
  */
 public class Database {
 
@@ -127,6 +124,17 @@ public class Database {
             + "FOREIGN KEY (patrimonio_id) REFERENCES patrimonio(id) ON DELETE CASCADE"
             + ");";
 
+        // NOVO: Tabela para Contas a Pagar/Receber
+        String sqlContas = "CREATE TABLE IF NOT EXISTS contas ("
+            + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            + "descricao TEXT NOT NULL,"
+            + "valor REAL NOT NULL,"
+            + "data_vencimento TEXT NOT NULL,"
+            + "tipo TEXT NOT NULL," // "pagar" ou "receber"
+            + "status TEXT NOT NULL," // "pendente" ou "pago"
+            + "data_criacao TEXT"
+            + ");";
+
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             // 1. Cria tabelas se não existirem (para instalação inicial)
             stmt.execute(sqlFuncionarios);
@@ -137,6 +145,7 @@ public class Database {
             stmt.execute(sqlAtividadesSafra); // NOVO: Executa a criação da nova tabela
             stmt.execute(sqlPatrimonio); // NOVO: Cria tabela de patrimônio
             stmt.execute(sqlManutencaoPatrimonio); // NOVO: Cria tabela de manutenção
+            stmt.execute(sqlContas); // NOVO: Cria tabela de contas
 
             // 2. NOVO: Executa migrações para bancos de dados antigos
             runMigrations(conn);
@@ -215,6 +224,9 @@ public class Database {
 
         // NOVO: Migrações para 'manutencao_patrimonio'
         runTimestampMigration(conn, "manutencao_patrimonio", "data_hora_criacao");
+
+        // NOVO: Migrações para 'contas'
+        runTimestampMigration(conn, "contas", "data_criacao");
     }
 
     /**
@@ -266,4 +278,3 @@ public class Database {
         return false;
     }
 }
-
