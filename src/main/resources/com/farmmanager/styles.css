@@ -111,6 +111,7 @@
 .card:hover {
     -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.12), 20, 0.15, 0, 6);
     -fx-translate-y: -2px;
+    -fx-cursor: hand; /* NOVO: Indica clicabilidade */
 }
 
 
@@ -161,6 +162,28 @@
 .card-alerta-warning .alert-icon {
     -fx-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
 }
+
+/* --- NOVO: Estilos para KPIs (Cards do Dashboard) --- */
+
+/* Container para o ícone (StackPane) */
+.kpi-icon-container {
+    -fx-background-color: #F7FAFC; /* Fundo cinza claro */
+    -fx-min-width: 60px;
+    -fx-pref-width: 60px;
+    -fx-max-width: 60px;
+    -fx-min-height: 60px;
+    -fx-pref-height: 60px;
+    -fx-max-height: 60px;
+    -fx-background-radius: 8px;
+    -fx-alignment: CENTER;
+}
+
+/* Ícone dentro do container */
+.kpi-icon {
+    -fx-fill: #4299E1; /* Azul principal */
+}
+
+/* --- FIM DOS ESTILOS DE KPI --- */
 
 
 .card-title {

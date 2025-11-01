@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.IOException; 
 import java.io.PrintWriter; 
 import java.sql.SQLException;
+import java.text.DecimalFormat; // NOVO: Import para formatação decimal
 import java.text.NumberFormat; 
 import java.time.LocalDate; 
 import java.util.ArrayList;
@@ -49,6 +50,7 @@ import java.util.Locale;
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionado botão "MAX" para preencher a quantidade total.
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionada opção de "Custo Manual".
  * - ATUALIZAÇÃO (handleLancarAtividade): Custo manual agora lança no financeiro.
+ * - ATUALIZAÇÃO (initialize): Adicionada formatação decimal para coluna sc/ha.
  */
 public class SafrasController {
 
@@ -127,6 +129,7 @@ public class SafrasController {
     private final ObservableList<AtividadeSafraInfo> dadosTabelaAtividades; // NOVO
 
     private final NumberFormat currencyFormatter; // NOVO
+    private final NumberFormat decimalFormatter; // NOVO
 
     public SafrasController() {
         safraDAO = new SafraDAO();
@@ -141,6 +144,8 @@ public class SafrasController {
         
         // NOVO: Configura o formatador de moeda
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+        // NOVO: Formatador decimal para produtividade
+        decimalFormatter = new DecimalFormat("#,##0.00");
     }
 
     @FXML
@@ -156,6 +161,23 @@ public class SafrasController {
         colSafraProdTotalKg.setCellValueFactory(new PropertyValueFactory<>("producaoTotalKg"));
         tabelaSafras.setItems(dadosTabelaSafras);
         
+        // --- NOVO: Formatação da coluna de produtividade (sc/ha) ---
+        colSafraProd.setCellFactory(col -> new TableCell<SafraInfo, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item == 0.0) {
+                    setText(null);
+                    setAlignment(Pos.CENTER_RIGHT);
+                } else {
+                    // Formata para 2 casas decimais
+                    setText(decimalFormatter.format(item));
+                    setAlignment(Pos.CENTER_RIGHT);
+                }
+            }
+        });
+        // --- FIM DA FORMATAÇÃO ---
+
         // Configura Tabela Talhões
         colTalhaoId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colTalhaoNome.setCellValueFactory(new PropertyValueFactory<>("nome"));
@@ -1298,4 +1320,3 @@ public class SafrasController {
         public double getCusto() { return custo; }
     }
 }
-

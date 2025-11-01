@@ -18,12 +18,17 @@ import javafx.scene.control.ListCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.TableCell; // NOVO
+import javafx.geometry.Pos; // NOVO
 
 import java.sql.SQLException;
+import java.text.DecimalFormat; // NOVO
+import java.text.NumberFormat; // NOVO
 import java.time.LocalDate; // NOVO
 import java.time.LocalDateTime; // NOVO
 import java.time.format.DateTimeFormatter; // NOVO
 import java.util.List;
+import java.util.Locale; // NOVO
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,6 +36,7 @@ import java.util.stream.Collectors;
  * NOVO: Controller para a tela de Histórico e Relatórios de Safras.
  * Esta classe foca em analisar dados de safras *colhidas*.
  * ATUALIZADO: Adicionado filtro de data.
+ * ATUALIZADO (initialize): Adicionada formatação decimal para coluna sc/ha.
  */
 public class HistoricoSafrasController {
 
@@ -46,6 +52,9 @@ public class HistoricoSafrasController {
     
     // NOVO: Formatador de data/hora do banco
     private final DateTimeFormatter dbTimestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    
+    // NOVO: Formatador decimal
+    private final NumberFormat decimalFormatter;
 
     // Componentes FXML
     @FXML
@@ -95,6 +104,9 @@ public class HistoricoSafrasController {
         dadosTabelaHistorico = FXCollections.observableArrayList();
         dadosChartCultura = FXCollections.observableArrayList();
         dadosChartProducaoMedia = FXCollections.observableArrayList();
+        
+        // NOVO: Formatador decimal para produtividade
+        decimalFormatter = new DecimalFormat("#,##0.00");
     }
 
     @FXML
@@ -109,6 +121,23 @@ public class HistoricoSafrasController {
         colProdSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos"));
         colProdScHa.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
         tabelaHistorico.setItems(dadosTabelaHistorico);
+
+        // --- NOVO: Formatação da coluna de produtividade (sc/ha) ---
+        colProdScHa.setCellFactory(col -> new TableCell<SafraInfo, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item == 0.0) {
+                    setText(null);
+                    setAlignment(Pos.CENTER_RIGHT);
+                } else {
+                    // Formata para 2 casas decimais
+                    setText(decimalFormatter.format(item));
+                    setAlignment(Pos.CENTER_RIGHT);
+                }
+            }
+        });
+        // --- FIM DA FORMATAÇÃO ---
 
         // 2. Configurar Gráficos
         chartProducaoCultura.setData(dadosChartCultura);
@@ -299,4 +328,3 @@ public class HistoricoSafrasController {
             });
     }
 }
-

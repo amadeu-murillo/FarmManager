@@ -16,6 +16,7 @@ import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.layout.HBox; // Import para o HBox de alerta
+import javafx.scene.layout.VBox; // NOVO: Import para os VBox dos cards
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -31,6 +32,8 @@ import java.util.Map;
  * - ATUALIZADO: `carregarAlertas()` e FXML IDs relacionados foram re-adicionados.
  * - ATUALIZADO: `carregarChartBalanco()` para usar `getBalancoPorDia()`.
  * - ATUALIZADO: Alertas agora separam Vencidas de A Vencer.
+ * - MELHORIA UX: Adicionado alerta de Estoque Baixo.
+ * - MELHORIA UX: Adicionados métodos de navegação (ex: navigateToSafras).
  */
 public class DashboardController {
 
@@ -45,6 +48,10 @@ public class DashboardController {
     private Label lblContasAVencerCount; // RENOMEADO
     @FXML
     private HBox alertaContasAVencerBox; // RENOMEADO
+    @FXML
+    private Label lblEstoqueBaixoCount; // NOVO
+    @FXML
+    private HBox alertaEstoqueBaixoBox; // NOVO
 
     // KPIs Financeiros
     @FXML
@@ -55,6 +62,16 @@ public class DashboardController {
     private Label lblValorPatrimonio;
     @FXML
     private Label lblContasPendentes; // NOVO
+    
+    // NOVO: IDs dos VBox (cards) para clique
+    @FXML
+    private VBox cardBalanco;
+    @FXML
+    private VBox cardEstoque;
+    @FXML
+    private VBox cardPatrimonio;
+    @FXML
+    private VBox cardContas;
 
     // KPIs Operacionais
     @FXML
@@ -65,6 +82,14 @@ public class DashboardController {
     private Label lblFuncionarios;
     @FXML
     private Label lblAreaTotal;
+
+    // NOVO: IDs dos VBox (cards) para clique
+    @FXML
+    private VBox cardSafras;
+    @FXML
+    private VBox cardFuncionarios;
+    @FXML
+    private VBox cardTalhoes;
 
     // Gráficos
     @FXML
@@ -85,6 +110,9 @@ public class DashboardController {
 
     // Formatador para Reais (R$)
     private final NumberFormat currencyFormatter;
+    
+    // NOVO: Referência ao MainViewController para navegação
+    private MainViewController mainViewController;
 
     public DashboardController() {
         // Instancia os DAOs
@@ -98,6 +126,14 @@ public class DashboardController {
         
         // Configura o formatador de moeda
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+    }
+
+    /**
+     * NOVO: Permite ao MainViewController injetar sua própria referência
+     * para que este controller possa chamar os métodos de navegação.
+     */
+    public void setMainViewController(MainViewController mainViewController) {
+        this.mainViewController = mainViewController;
     }
 
     /**
@@ -130,7 +166,7 @@ public class DashboardController {
     
     /**
      * ATUALIZADO: Carrega os cards de Alertas Operacionais
-     * (Contas Vencidas e Contas a Vencer).
+     * (Contas Vencidas, Contas a Vencer, Estoque Baixo).
      */
     private void carregarAlertas() {
         // 1. Alerta de Contas VENCIDAS (Perigo - Vermelho)
@@ -171,6 +207,26 @@ public class DashboardController {
             alertaContasAVencerBox.setVisible(true); // Mostra o card mesmo com erro
             alertaContasAVencerBox.setManaged(true);
             AlertUtil.showError("Dashboard", "Erro ao carregar alertas de contas a vencer.");
+            e.printStackTrace();
+        }
+
+        // 3. NOVO: Alerta de Estoque Baixo (Aviso - Amarelo)
+         try {
+            int totalEstoqueBaixo = estoqueDAO.getContagemItensEstoqueBaixo();
+            
+            if (totalEstoqueBaixo > 0) {
+                lblEstoqueBaixoCount.setText(String.valueOf(totalEstoqueBaixo));
+                alertaEstoqueBaixoBox.setVisible(true);
+                alertaEstoqueBaixoBox.setManaged(true);
+            } else {
+                alertaEstoqueBaixoBox.setVisible(false);
+                alertaEstoqueBaixoBox.setManaged(false);
+            }
+        } catch (SQLException e) {
+            lblEstoqueBaixoCount.setText("!");
+            alertaEstoqueBaixoBox.setVisible(true);
+            alertaEstoqueBaixoBox.setManaged(true);
+            AlertUtil.showError("Dashboard", "Erro ao carregar alertas de estoque baixo.");
             e.printStackTrace();
         }
     }
@@ -363,5 +419,48 @@ public class DashboardController {
             e.printStackTrace();
         }
     }
-}
 
+    // --- MÉTODOS DE NAVEGAÇÃO (NOVOS) ---
+
+    @FXML
+    private void navigateToFinanceiro() {
+        if (mainViewController != null) {
+            mainViewController.handleShowFinanceiro();
+        }
+    }
+
+    @FXML
+    private void navigateToEstoque() {
+        if (mainViewController != null) {
+            mainViewController.handleShowEstoque();
+        }
+    }
+
+    @FXML
+    private void navigateToPatrimonio() {
+        if (mainViewController != null) {
+            mainViewController.handleShowPatrimonio();
+        }
+    }
+
+    @FXML
+    private void navigateToContas() {
+        if (mainViewController != null) {
+            mainViewController.handleShowContas();
+        }
+    }
+
+    @FXML
+    private void navigateToSafras() {
+        if (mainViewController != null) {
+            mainViewController.handleShowSafras();
+        }
+    }
+
+    @FXML
+    private void navigateToFuncionarios() {
+        if (mainViewController != null) {
+            mainViewController.handleShowFuncionarios();
+        }
+    }
+}
