@@ -20,6 +20,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox; 
+import javafx.geometry.Pos; // <-- IMPORTAÇÃO ADICIONADA
 import javafx.beans.value.ChangeListener; // <-- IMPORTAÇÃO ADICIONADA
 import javafx.beans.value.ObservableValue;
 import javafx.stage.FileChooser; 
@@ -45,6 +46,7 @@ import java.util.Locale;
  * - ATUALIZADO: Exportação CSV agora busca vendas reais e calcula o lucro.
  * - ATUALIZADO: Registro de colheita agora apenas adiciona ao estoque (ativo), não lança receita.
  * - ATUALIZADO: Painel de detalhes agora inclui resumo financeiro (Receita, Estoque, Lucro).
+ * - ATUALIZAÇÃO (handleLancarAtividade): Adicionado botão "MAX" para preencher a quantidade total.
  */
 public class SafrasController {
 
@@ -527,6 +529,7 @@ public class SafrasController {
      * NOVO: Manipulador para o botão "Lançar Atividade/Custo".
      * Implementa a Etapa 2 do plano.
      * ATUALIZADO: Agora também lança despesa no financeiro.
+     * ATUALIZADO: Adicionado botão "MAX".
      */
     @FXML
     private void handleLancarAtividade() {
@@ -578,6 +581,22 @@ public class SafrasController {
         TextField qtdField = new TextField("1.0");
         Label custoCalculadoLabel = new Label("Custo (R$): ---");
 
+        // --- INÍCIO DA MODIFICAÇÃO (Botão MAX) ---
+        Button maxButton = new Button("MAX");
+        maxButton.setOnAction(e -> {
+            EstoqueItem itemSelecionado = itemCombo.getSelectionModel().getSelectedItem();
+            if (itemSelecionado != null) {
+                // Preenche com a quantidade disponível, formatada
+                qtdField.setText(String.format(Locale.US, "%.2f", itemSelecionado.getQuantidade()));
+            }
+        });
+        // Desabilita o botão se nenhum item for selecionado
+        maxButton.disableProperty().bind(itemCombo.getSelectionModel().selectedItemProperty().isNull());
+
+        HBox qtdBox = new HBox(5, qtdField, maxButton); // 5 é o espaçamento
+        qtdBox.setAlignment(Pos.CENTER_LEFT);
+        // --- FIM DA MODIFICAÇÃO ---
+
         // Configura ComboBox para mostrar nome do item
         itemCombo.setCellFactory(lv -> new ListCell<EstoqueItem>() {
             @Override
@@ -613,7 +632,7 @@ public class SafrasController {
         grid.add(new Label("Insumo (do Estoque):"), 0, 2);
         grid.add(itemCombo, 1, 2);
         grid.add(new Label("Quantidade Usada:"), 0, 3);
-        grid.add(qtdField, 1, 3);
+        grid.add(qtdBox, 1, 3); // ATUALIZADO: Adiciona o HBox
         grid.add(custoCalculadoLabel, 1, 4);
 
         dialog.getDialogPane().setContent(grid);

@@ -15,15 +15,49 @@ public class FinanceiroDAO {
 
     public boolean addTransacao(Transacao transacao) throws SQLException {
         // NOVO: SQL atualizado com data_hora_criacao
-        String sql = "INSERT INTO financeiro(descricao, valor, data, tipo, data_hora_criacao) VALUES(?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO financeiro(descricao, valor, data, tipo, data_hora_criacao, data_modificacao) VALUES(?, ?, ?, ?, ?, ?)";
         try (Connection conn = Database.getConnection(); // CORRIGIDO
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            String now = DateTimeUtil.getCurrentTimestamp(); // NOVO
+            pstmt.setString(1, transacao.getDescricao());
+            pstmt.setDouble(2, transacao.getValor());
+            pstmt.setString(3, transacao.getData());
+            pstmt.setString(4, transacao.getTipo());
+            pstmt.setString(5, now); // NOVO: data_hora_criacao
+            pstmt.setString(6, now); // NOVO: data_modificacao
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * NOVO: Atualiza uma transação existente no banco de dados.
+     */
+    public boolean updateTransacao(Transacao transacao) throws SQLException {
+        String sql = "UPDATE financeiro SET descricao = ?, valor = ?, data = ?, tipo = ?, data_modificacao = ? WHERE id = ?";
+        try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, transacao.getDescricao());
             pstmt.setDouble(2, transacao.getValor());
             pstmt.setString(3, transacao.getData());
             pstmt.setString(4, transacao.getTipo());
-            pstmt.setString(5, DateTimeUtil.getCurrentTimestamp()); // NOVO
+            pstmt.setString(5, DateTimeUtil.getCurrentTimestamp()); // Atualiza o timestamp
+            pstmt.setInt(6, transacao.getId()); // Cláusula WHERE
+            
+            return pstmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * NOVO: Remove uma transação do banco de dados pelo ID.
+     */
+    public boolean removerTransacao(int id) throws SQLException {
+        String sql = "DELETE FROM financeiro WHERE id = ?";
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setInt(1, id);
             return pstmt.executeUpdate() > 0;
         }
     }
@@ -179,4 +213,3 @@ public class FinanceiroDAO {
         return balancoMensal;
     }
 }
-
