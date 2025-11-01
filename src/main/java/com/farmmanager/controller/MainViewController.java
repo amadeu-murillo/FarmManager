@@ -12,7 +12,7 @@ import java.net.URL;
 /**
  * Controller (Cérebro) para o "Shell" principal (MainView.fxml).
  * ATUALIZADO:
- * - Adicionado handler para a nova tela de Patrimônio.
+ * - Adicionado handler para a nova tela de Contas (Lançamentos Futuros).
  */
 public class MainViewController {
 
@@ -36,6 +36,14 @@ public class MainViewController {
     @FXML
     private void handleShowDashboard() {
         loadView("DashboardView.fxml");
+    }
+
+    /**
+     * NOVO: Handler para a tela de Contas (Lançamentos Futuros).
+     */
+    @FXML
+    private void handleShowContas() {
+        loadView("ContasView.fxml");
     }
 
     @FXML
