@@ -11,6 +11,7 @@
   MainView.fxml (O "Shell" da Aplicação)
   ATUALIZADO:
   - Adicionado novo botão "Contas" (Lançamentos Futuros).
+  - ADICIONADO NOVO BOTÃO "Histórico de Safras".
 -->
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
    <left>
@@ -56,6 +57,12 @@
             <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowSafras" prefHeight="40.0" prefWidth="200.0" text="Safras e Talhões">
                <graphic>
                   <FontAwesomeIconView glyphName="LEAF" size="1.2em" styleClass="sidebar-icon" />
+               </graphic>
+            </Button>
+            <!-- BOTÃO ADICIONADO -->
+            <Button alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowHistoricoSafras" prefHeight="40.0" prefWidth="200.0" text="Histórico de Safras">
+               <graphic>
+                  <FontAwesomeIconView glyphName="BAR_CHART" size="1.2em" styleClass="sidebar-icon" />
                </graphic>
             </Button>
          </children>
