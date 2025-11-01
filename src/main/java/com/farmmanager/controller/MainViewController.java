@@ -13,6 +13,7 @@ import java.net.URL;
  * Controller (Cérebro) para o "Shell" principal (MainView.fxml).
  * ATUALIZADO:
  * - Adicionado handler para a nova tela de Contas (Lançamentos Futuros).
+ * - ADICIONADO HANDLER para a nova tela de Histórico de Safras.
  */
 public class MainViewController {
 
@@ -72,6 +73,14 @@ public class MainViewController {
     @FXML
     private void handleShowSafras() {
         loadView("SafrasView.fxml");
+    }
+
+    /**
+     * NOVO: Handler para a tela de Histórico de Safras.
+     */
+    @FXML
+    private void handleShowHistoricoSafras() {
+        loadView("HistoricoSafrasView.fxml");
     }
 
     /**
