@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!-- 
+  IMPORTAÇÕES ATUALIZADAS:
+  - Adicionado StackPane (para sobrepor o loading)
+  - Adicionado ProgressIndicator (para o loading)
+-->
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.chart.BarChart?>
 <?import javafx.scene.chart.CategoryAxis?>
@@ -12,116 +17,132 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.DatePicker?> <!-- NOVO -->
+<?import javafx.scene.control.DatePicker?> 
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.ProgressIndicator?>
 
 <!-- 
   NOVA TELA: Histórico e Relatórios de Safras
-  Esta tela é dedicada à análise de safras *colhidas*, exibindo
-  gráficos de produtividade e um histórico filtrável.
-  ATUALIZADO: Adicionado filtro de data (início/fim).
+  ATUALIZADO: 
+  - Adicionado filtro de data (início/fim).
+  - O ScrollPane principal agora está dentro de um StackPane.
+  - Um ProgressIndicator foi adicionado ao StackPane.
 -->
-<ScrollPane fitToWidth="true" styleClass="scroll-pane-dashboard" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.HistoricoSafrasController">
-   <content>
-      <VBox spacing="15.0">
-         <children>
-            <Label styleClass="content-title" text="Histórico e Relatórios de Safras" />
-            
-            <!-- Painel de Filtros -->
-            <GridPane hgap="10.0" styleClass="filter-pane" vgap="10.0">
-               <columnConstraints>
-                  <ColumnConstraints hgrow="NEVER" />
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
-                  <ColumnConstraints hgrow="NEVER" />
-                  <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
-                  <ColumnConstraints hgrow="ALWAYS" />
-                  <ColumnConstraints hgrow="NEVER" />
-               </columnConstraints>
-               <rowConstraints>
-                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" /> <!-- NOVO -->
-               </rowConstraints>
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.HistoricoSafrasController">
+   <children>
+      <!-- ScrollPane principal que contém todo o conteúdo da página -->
+      <!-- fx:id="contentScrollPane" permite ao controller desabilitá-lo durante o carregamento -->
+      <ScrollPane fx:id="contentScrollPane" fitToWidth="true" styleClass="scroll-pane-dashboard">
+         <content>
+            <VBox spacing="15.0">
                <children>
-                  <Label style="-fx-font-weight: bold;" text="Filtrar por Cultura:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
-                  <ComboBox fx:id="filtroCultura" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
-                  <Label style="-fx-font-weight: bold;" text="Filtrar por Talhão:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
-                  <ComboBox fx:id="filtroTalhao" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="0" />
-                  <Button fx:id="btnAplicarFiltro" mnemonicParsing="false" onAction="#handleAplicarFiltro" styleClass="module-button" text="Aplicar Filtros" GridPane.columnIndex="5" GridPane.rowIndex="0" />
+                  <Label styleClass="content-title" text="Histórico e Relatórios de Safras" />
                   
-                  <!-- NOVO: Filtro de Data -->
-                  <Label style="-fx-font-weight: bold;" text="Data Colheita (Início):" GridPane.columnIndex="0" GridPane.rowIndex="1" />
-                  <DatePicker fx:id="filtroDataInicio" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-                  <Label style="-fx-font-weight: bold;" text="Data Colheita (Fim):" GridPane.columnIndex="2" GridPane.rowIndex="1" />
-                  <DatePicker fx:id="filtroDataFim" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
-                  <Button fx:id="btnLimparFiltro" mnemonicParsing="false" onAction="#handleLimparFiltro" text="Limpar" GridPane.columnIndex="5" GridPane.rowIndex="1" />
+                  <!-- Painel de Filtros -->
+                  <GridPane hgap="10.0" styleClass="filter-pane" vgap="10.0">
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="NEVER" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
+                        <ColumnConstraints hgrow="NEVER" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
+                        <ColumnConstraints hgrow="ALWAYS" />
+                        <ColumnConstraints hgrow="NEVER" />
+                     </columnConstraints>
+                     <rowConstraints>
+                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" /> 
+                     </rowConstraints>
+                     <children>
+                        <Label style="-fx-font-weight: bold;" text="Filtrar por Cultura:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                        <ComboBox fx:id="filtroCultura" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+                        <Label style="-fx-font-weight: bold;" text="Filtrar por Talhão:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
+                        <ComboBox fx:id="filtroTalhao" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="0" />
+                        <Button fx:id="btnAplicarFiltro" mnemonicParsing="false" onAction="#handleAplicarFiltro" styleClass="module-button" text="Aplicar Filtros" GridPane.columnIndex="5" GridPane.rowIndex="0" />
+                        
+                        <!-- Filtro de Data -->
+                        <Label style="-fx-font-weight: bold;" text="Data Colheita (Início):" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+                        <DatePicker fx:id="filtroDataInicio" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                        <Label style="-fx-font-weight: bold;" text="Data Colheita (Fim):" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                        <DatePicker fx:id="filtroDataFim" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
+                        <Button fx:id="btnLimparFiltro" mnemonicParsing="false" onAction="#handleLimparFiltro" text="Limpar" GridPane.columnIndex="5" GridPane.rowIndex="1" />
+                        
+                     </children>
+                     <VBox.margin>
+                        <Insets bottom="10.0" />
+                     </VBox.margin>
+                  </GridPane>
                   
-               </children>
-               <VBox.margin>
-                  <Insets bottom="10.0" />
-               </VBox.margin>
-            </GridPane>
-            
-            <!-- Seção de Gráficos -->
-            <HBox spacing="20.0" VBox.vgrow="ALWAYS">
-               <children>
-                  <!-- Gráfico: Produção Média por Safra (sc/ha) -->
-                  <VBox styleClass="card" HBox.hgrow="ALWAYS">
+                  <!-- Seção de Gráficos -->
+                  <HBox spacing="20.0" VBox.vgrow="ALWAYS">
                      <children>
-                        <Label styleClass="card-title" text="Produção Média por Safra (sc/ha)" />
-                        <LineChart fx:id="chartProducaoMedia" animated="false" VBox.vgrow="ALWAYS">
-                           <xAxis>
-                              <CategoryAxis label="Safra (Ano)" />
-                           </xAxis>
-                           <yAxis>
-                              <NumberAxis label="Produtividade (sc/ha)" />
-                           </yAxis>
-                        </LineChart>
+                        <!-- Gráfico: Produção Média por Safra (sc/ha) -->
+                        <VBox styleClass="card" HBox.hgrow="ALWAYS">
+                           <children>
+                              <Label styleClass="card-title" text="Produção Média por Safra (sc/ha)" />
+                              <LineChart fx:id="chartProducaoMedia" animated="false" VBox.vgrow="ALWAYS">
+                                 <xAxis>
+                                    <CategoryAxis label="Safra (Ano)" />
+                                 </xAxis>
+                                 <yAxis>
+                                    <NumberAxis label="Produtividade (sc/ha)" />
+                                 </yAxis>
+                              </LineChart>
+                           </children>
+                        </VBox>
+                        <!-- Gráfico: Produção Total por Cultura (Sacos) -->
+                        <VBox styleClass="card" HBox.hgrow="ALWAYS">
+                           <children>
+                              <Label styleClass="card-title" text="Produção Total por Cultura (Sacos)" />
+                              <PieChart fx:id="chartProducaoCultura" animated="false" VBox.vgrow="ALWAYS" />
+                           </children>
+                        </VBox>
                      </children>
-                  </VBox>
-                  <!-- Gráfico: Produção Total por Cultura (Sacos) -->
-                  <VBox styleClass="card" HBox.hgrow="ALWAYS">
+                  </HBox>
+                  
+                  <!-- Tabela de Histórico Detalhado -->
+                  <VBox styleClass="card" VBox.vgrow="ALWAYS">
                      <children>
-                        <Label styleClass="card-title" text="Produção Total por Cultura (Sacos)" />
-                        <PieChart fx:id="chartProducaoCultura" animated="false" VBox.vgrow="ALWAYS" />
+                        <Label styleClass="card-title" text="Histórico Detalhado (Safras Colhidas)" />
+                        <TableView fx:id="tabelaHistorico" VBox.vgrow="ALWAYS">
+                           <columns>
+                              <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
+                              <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Safra (Ano)" />
+                              <TableColumn fx:id="colCultura" prefWidth="150.0" text="Cultura" />
+                              <TableColumn fx:id="colTalhao" prefWidth="150.0" text="Talhão" />
+                              <TableColumn fx:id="colArea" prefWidth="100.0" text="Área (ha)" />
+                              <TableColumn fx:id="colDataColheita" prefWidth="160.0" text="Data Colheita" /> 
+                              <TableColumn fx:id="colProdSacos" prefWidth="150.0" text="Produção Total (Sacos)" />
+                              <TableColumn fx:id="colProdScHa" prefWidth="150.0" text="Produtividade (sc/ha)" />
+                           </columns>
+                           <VBox.margin>
+                              <Insets top="10.0" />
+                           </VBox.margin>
+                        </TableView>
                      </children>
-                  </VBox>
-               </children>
-            </HBox>
-            
-            <!-- Tabela de Histórico Detalhado -->
-            <VBox styleClass="card" VBox.vgrow="ALWAYS">
-               <children>
-                  <Label styleClass="card-title" text="Histórico Detalhado (Safras Colhidas)" />
-                  <TableView fx:id="tabelaHistorico" VBox.vgrow="ALWAYS">
-                     <columns>
-                        <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
-                        <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Safra (Ano)" />
-                        <TableColumn fx:id="colCultura" prefWidth="150.0" text="Cultura" />
-                        <TableColumn fx:id="colTalhao" prefWidth="150.0" text="Talhão" />
-                        <TableColumn fx:id="colArea" prefWidth="100.0" text="Área (ha)" />
-                        <TableColumn fx:id="colDataColheita" prefWidth="160.0" text="Data Colheita" /> <!-- NOVO -->
-                        <TableColumn fx:id="colProdSacos" prefWidth="150.0" text="Produção Total (Sacos)" />
-                        <TableColumn fx:id="colProdScHa" prefWidth="150.0" text="Produtividade (sc/ha)" />
-                     </columns>
                      <VBox.margin>
                         <Insets top="10.0" />
                      </VBox.margin>
-                  </TableView>
+                  </VBox>
+                  
                </children>
-               <VBox.margin>
-                  <Insets top="10.0" />
-               </VBox.margin>
+               <padding>
+                  <Insets bottom="25.0" left="25.0" right="25.0" top="25.0" />
+               </padding>
             </VBox>
-            
-         </children>
-         <padding>
-            <Insets bottom="25.0" left="25.0" right="25.0" top="25.0" />
-         </padding>
-      </VBox>
-   </content>
-</ScrollPane>
-
+         </content>
+      </ScrollPane>
+      
+      <!-- 
+        NOVO: Indicador de Carregamento 
+        - Fica centralizado dentro do StackPane, acima do ScrollPane.
+        - managed="false" e visible="false" por padrão.
+      -->
+      <ProgressIndicator fx:id="loadingIndicator" maxHeight="60.0" maxWidth="60.0" managed="false" visible="false" />
+      
+   </children>
+</StackPane>

@@ -6,17 +6,19 @@ import com.farmmanager.util.AlertUtil;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
-import javafx.stage.FileChooser; // NOVO
+import javafx.scene.layout.VBox; // NOVO: Import para o VBox
+import javafx.stage.FileChooser; 
 
-import java.io.File; // NOVO
-import java.io.IOException; // NOVO
-import java.io.PrintWriter; // NOVO
+import java.io.File; 
+import java.io.IOException; 
+import java.io.PrintWriter; 
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.time.LocalDate;
@@ -36,6 +38,8 @@ import java.util.stream.Collectors;
  * - NOVO: Adiciona coluna dataHoraCriacao e ajusta ordenação.
  * - NOVO: Adiciona funcionalidade de Editar e Remover transações.
  * - NOVO: Adiciona exportação de CSV filtrado.
+ * - MELHORIA CRÍTICA: Carregamento de dados (atualizarListaTransacoes)
+ * movido para uma Task em background para não congelar a UI.
  */
 public class FinanceiroController {
 
@@ -44,23 +48,18 @@ public class FinanceiroController {
     private TableView<Transacao> tabelaFinanceiro;
     @FXML
     private TableColumn<Transacao, Integer> colFinId;
-// ... (outras colunas FXML) ...
     @FXML
     private TableColumn<Transacao, String> colFinDesc;
     @FXML
     private TableColumn<Transacao, String> colFinData;
-    
-    // NOVO: Coluna de Data de Lançamento
     @FXML
     private TableColumn<Transacao, String> colFinDataHoraCriacao;
-
-    // Colunas de valor atualizadas
     @FXML
     private TableColumn<Transacao, Double> colFinEntrada;
     @FXML
     private TableColumn<Transacao, Double> colFinSaida;
 
-    // Novos filtros
+    // Filtros
     @FXML
     private DatePicker filtroDataInicio;
     @FXML
@@ -70,7 +69,7 @@ public class FinanceiroController {
     @FXML
     private TextField filtroDescricao;
 
-    // Novos labels de resumo
+    // Resumo
     @FXML
     private Label lblTotalReceitasPeriodo;
     @FXML
@@ -78,26 +77,28 @@ public class FinanceiroController {
     @FXML
     private Label lblBalancoPeriodo;
 
-    // NOVO: Botões de Editar/Remover
+    // Botões
     @FXML
     private Button btnEditar;
     @FXML
     private Button btnRemover;
-
-    // NOVO: Botão de Exportar
     @FXML
     private Button btnExportarCsv;
+    
+    // NOVO: Componentes para controle de carregamento
+    @FXML
+    private ProgressIndicator loadingIndicator; // Indicador de carregamento
+    @FXML
+    private VBox contentVBox; // Container principal (VBox do FXML)
 
     // --- Lógica Interna ---
     private final FinanceiroDAO financeiroDAO;
-// ... (resto dos campos) ...
     private final ObservableList<Transacao> dadosTabela; // O que está visível na tabela
     private List<Transacao> listaMestraTransacoes; // Lista completa do banco
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private final NumberFormat currencyFormatter;
 
     public FinanceiroController() {
-// ... (construtor) ...
         financeiroDAO = new FinanceiroDAO();
         dadosTabela = FXCollections.observableArrayList();
         listaMestraTransacoes = new ArrayList<>();
@@ -106,64 +107,55 @@ public class FinanceiroController {
 
     @FXML
     public void initialize() {
-// ... (inicialização das colunas) ...
         // Configura colunas
         colFinId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colFinData.setCellValueFactory(new PropertyValueFactory<>("data"));
-        colFinData.setText("Data Evento"); // Renomeia o label da coluna existente
+        colFinData.setText("Data Evento"); 
         colFinDesc.setCellValueFactory(new PropertyValueFactory<>("descricao"));
-        
-        // NOVO: Configura a nova coluna
         colFinDataHoraCriacao.setCellValueFactory(new PropertyValueFactory<>("dataHoraCriacao"));
-
-        // --- Configuração das colunas customizadas de Entrada/Saída ---
 
         // Coluna de Entrada
         colFinEntrada.setCellValueFactory(cellData -> {
             Transacao t = cellData.getValue();
-            // Retorna o valor apenas se for positivo (receita)
             return new SimpleObjectProperty<>(t.getValor() > 0 ? t.getValor() : null);
         });
         
         // Coluna de Saída
         colFinSaida.setCellValueFactory(cellData -> {
             Transacao t = cellData.getValue();
-            // Retorna o valor (absoluto) apenas se for negativo (despesa)
             return new SimpleObjectProperty<>(t.getValor() < 0 ? -t.getValor() : null);
         });
 
-        // Formatação de célula para Entrada (verde, alinhado à direita)
+        // Formatação de célula para Entrada
         colFinEntrada.setCellFactory(col -> new TableCell<Transacao, Double>() {
             @Override
             protected void updateItem(Double item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null || item == 0) {
                     setText(null);
-                    // Limpa o estilo para não vazar para outras células
                     getStyleClass().removeAll("positivo-text", "negativo-text");
                 } else {
                     setText(currencyFormatter.format(item));
                     setAlignment(Pos.CENTER_RIGHT);
-                    getStyleClass().removeAll("negativo-text"); // Garante que não tenha a classe errada
-                    getStyleClass().add("positivo-text"); // Adiciona classe CSS
+                    getStyleClass().removeAll("negativo-text"); 
+                    getStyleClass().add("positivo-text"); 
                 }
             }
         });
 
-        // Formatação de célula para Saída (vermelho, alinhado à direita)
+        // Formatação de célula para Saída
         colFinSaida.setCellFactory(col -> new TableCell<Transacao, Double>() {
             @Override
             protected void updateItem(Double item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null || item == 0) {
                     setText(null);
-                    // Limpa o estilo para não vazar para outras células
                     getStyleClass().removeAll("positivo-text", "negativo-text");
                 } else {
                     setText(currencyFormatter.format(item));
                     setAlignment(Pos.CENTER_RIGHT);
-                    getStyleClass().removeAll("positivo-text"); // Garante que não tenha a classe errada
-                    getStyleClass().add("negativo-text"); // Adiciona classe CSS
+                    getStyleClass().removeAll("positivo-text"); 
+                    getStyleClass().add("negativo-text"); 
                 }
             }
         });
@@ -171,7 +163,6 @@ public class FinanceiroController {
         tabelaFinanceiro.setItems(dadosTabela);
         
         // Configura Filtros
-// ... (configuração dos filtros) ...
         filtroTipo.setItems(FXCollections.observableArrayList("Todos", "Receitas", "Despesas"));
         filtroTipo.getSelectionModel().select("Todos");
 
@@ -181,56 +172,99 @@ public class FinanceiroController {
         filtroTipo.valueProperty().addListener((o, ov, nv) -> handleAplicarFiltro());
         filtroDescricao.textProperty().addListener((o, ov, nv) -> handleAplicarFiltro());
 
-        // NOVO: Desabilita botões de editar/remover se nada estiver selecionado
+        // Desabilita botões de editar/remover se nada estiver selecionado
         btnEditar.disableProperty().bind(tabelaFinanceiro.getSelectionModel().selectedItemProperty().isNull());
         btnRemover.disableProperty().bind(tabelaFinanceiro.getSelectionModel().selectedItemProperty().isNull());
 
-        // Carrega os dados iniciais
+        // Carrega os dados iniciais (agora assíncrono)
         atualizarListaTransacoes();
     }
 
     /**
-     * Busca todos os dados do banco para a lista mestra e, em seguida, aplica o filtro.
+     * NOVO: Controla a visibilidade do indicador de carregamento e
+     * desabilita/habilita o conteúdo principal.
      */
-// ... (atualizarListaTransacoes) ...
-    private void atualizarListaTransacoes() {
-        try {
-            listaMestraTransacoes.clear();
-            listaMestraTransacoes.addAll(financeiroDAO.listTransacoes());
-            handleAplicarFiltro(); // Aplica o filtro (que atualiza a tabela e o resumo)
-        } catch (SQLException e) {
-            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as transações.");
-        }
+    private void showLoading(boolean isLoading) {
+        loadingIndicator.setVisible(isLoading);
+        loadingIndicator.setManaged(isLoading);
+        
+        contentVBox.setDisable(isLoading);
+        // Opcional: diminui a opacidade para feedback visual
+        contentVBox.setOpacity(isLoading ? 0.5 : 1.0); 
     }
+
+    /**
+     * ATUALIZADO:
+     * Busca todos os dados do banco em uma Task (background thread).
+     * Após sucesso, atualiza a lista mestra e aplica o filtro na thread do JavaFX.
+     */
+    private void atualizarListaTransacoes() {
+        // 1. Cria a Task para buscar dados em background
+        Task<List<Transacao>> carregarTask = new Task<List<Transacao>>() {
+            @Override
+            protected List<Transacao> call() throws Exception {
+                // Esta é a chamada de banco de dados demorada
+                return financeiroDAO.listTransacoes();
+            }
+        };
+
+        // 2. Define o que fazer quando a Task for bem-sucedida (na JavaFX Thread)
+        carregarTask.setOnSucceeded(e -> {
+            // Pega o resultado da Task
+            listaMestraTransacoes.clear();
+            listaMestraTransacoes.addAll(carregarTask.getValue());
+            
+            // Aplica os filtros (isso é rápido e mexe na UI)
+            handleAplicarFiltro();
+            
+            // Esconde o indicador de carregamento
+            showLoading(false);
+        });
+
+        // 3. Define o que fazer se a Task falhar (na JavaFX Thread)
+        carregarTask.setOnFailed(e -> {
+            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as transações.");
+            carregarTask.getException().printStackTrace();
+            // Esconde o indicador de carregamento
+            showLoading(false);
+        });
+
+        // 4. Mostra o indicador de carregamento ANTES de iniciar a Task
+        showLoading(true);
+
+        // 5. Inicia a Task em uma nova Thread
+        new Thread(carregarTask).start();
+    }
+
 
     /**
      * NOVO: Limpa os filtros e recarrega os dados.
      */
     @FXML
-// ... (handleLimparFiltro) ...
     private void handleLimparFiltro() {
-        // Limpa os campos. A mudança de valor nos listeners vai disparar a atualização.
         filtroDataInicio.setValue(null);
         filtroDataFim.setValue(null);
         filtroDescricao.clear();
-        filtroTipo.getSelectionModel().select("Todos"); // Isso deve disparar o handleAplicarFiltro
+        filtroTipo.getSelectionModel().select("Todos");
+        
+        // handleAplicarFiltro() é chamado automaticamente pelos listeners
     }
 
     /**
-     * NOVO: Filtra a lista mestra com base nos filtros e atualiza a tabela e o resumo.
+     * NOVO: Filtra a lista mestra (em memória) e atualiza a tabela e o resumo.
+     * Esta operação é rápida e pode ser executada na JavaFX Thread.
      */
     @FXML
-// ... (handleAplicarFiltro) ...
     private void handleAplicarFiltro() {
         LocalDate dataInicio = filtroDataInicio.getValue();
         LocalDate dataFim = filtroDataFim.getValue();
         String tipo = filtroTipo.getSelectionModel().getSelectedItem();
         String descricao = filtroDescricao.getText().toLowerCase().trim();
 
-        // 1. Filtra a lista
+        // 1. Filtra a lista (em memória)
         List<Transacao> filtrada = listaMestraTransacoes.stream()
             .filter(t -> {
-                // Filtro por Data (usa a data do evento, não a de criação)
+                // Filtro por Data (usa a data do evento)
                 LocalDate dataTransacao = LocalDate.parse(t.getData(), dateFormatter);
                 if (dataInicio != null && dataTransacao.isBefore(dataInicio)) {
                     return false;
@@ -255,7 +289,7 @@ public class FinanceiroController {
             })
             .collect(Collectors.toList());
 
-        // 2. Atualiza a tabela
+        // 2. Atualiza a tabela (visível)
         dadosTabela.setAll(filtrada);
 
         // 3. Atualiza o resumo
@@ -265,7 +299,6 @@ public class FinanceiroController {
     /**
      * NOVO: Calcula e exibe o resumo financeiro para a lista filtrada.
      */
-// ... (atualizarResumo) ...
     private void atualizarResumo(List<Transacao> transacoesFiltradas) {
         double totalReceitas = 0.0;
         double totalDespesas = 0.0;
@@ -295,28 +328,16 @@ public class FinanceiroController {
     }
 
 
-    /**
-     * NOVO: Manipulador para o botão "+ Nova Receita".
-     */
-// ... (handleNovaReceita) ...
     @FXML
     private void handleNovaReceita() {
         abrirDialogoTransacao("receita");
     }
 
-    /**
-     * NOVO: Manipulador para o botão "- Nova Despesa".
-     */
-// ... (handleNovaDespesa) ...
     @FXML
     private void handleNovaDespesa() {
         abrirDialogoTransacao("despesa");
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Editar Lançamento".
-     */
-// ... (handleEditarTransacao) ...
     @FXML
     private void handleEditarTransacao() {
         Transacao selecionada = tabelaFinanceiro.getSelectionModel().getSelectedItem();
@@ -324,15 +345,9 @@ public class FinanceiroController {
             AlertUtil.showError("Nenhuma Seleção", "Selecione uma transação para editar.");
             return;
         }
-        
-        // Chamar o novo método de diálogo
         abrirDialogoEdicao(selecionada);
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Remover Lançamento".
-     */
-// ... (handleRemoverTransacao) ...
     @FXML
     private void handleRemoverTransacao() {
         Transacao selecionada = tabelaFinanceiro.getSelectionModel().getSelectedItem();
@@ -346,6 +361,10 @@ public class FinanceiroController {
 
         if (confirmado) {
             try {
+                // ATENÇÃO: Esta é uma operação de escrita no DB.
+                // Para uma performance ideal, isso também deveria
+                // ser uma Task. Por simplicidade (é uma operação rápida),
+                // mantemos na thread principal por enquanto.
                 financeiroDAO.removerTransacao(selecionada.getId());
                 AlertUtil.showInfo("Sucesso", "Transação removida.");
                 atualizarListaTransacoes(); // Recarrega a lista
@@ -355,9 +374,6 @@ public class FinanceiroController {
         }
     }
 
-    /**
-     * NOVO: Manipulador para exportar os dados filtrados para CSV.
-     */
     @FXML
     private void handleExportarCsv() {
         if (dadosTabela.isEmpty()) {
@@ -416,10 +432,9 @@ public class FinanceiroController {
 
 
     /**
-     * NOVO: Método auxiliar para abrir um diálogo de transação (Receita ou Despesa).
+     * Método auxiliar para abrir um diálogo de transação (Receita ou Despesa).
      * @param tipo "receita" ou "despesa"
      */
-// ... (abrirDialogoTransacao) ...
     private void abrirDialogoTransacao(String tipo) {
         boolean isReceita = tipo.equals("receita");
         
@@ -439,14 +454,14 @@ public class FinanceiroController {
         descField.setPromptText(isReceita ? "Ex: Venda de Soja" : "Ex: Compra de Diesel");
         TextField valorField = new TextField();
         valorField.setPromptText("Ex: 5000.00");
-        DatePicker dataPicker = new DatePicker(LocalDate.now()); // NOVO: Data selecionável
+        DatePicker dataPicker = new DatePicker(LocalDate.now()); 
 
         grid.add(new Label("Descrição:"), 0, 0);
         grid.add(descField, 1, 0);
         grid.add(new Label("Valor (R$):"), 0, 1);
         grid.add(valorField, 1, 1);
-        grid.add(new Label("Data Evento:"), 0, 2); // NOVO
-        grid.add(dataPicker, 1, 2); // NOVO
+        grid.add(new Label("Data Evento:"), 0, 2); 
+        grid.add(dataPicker, 1, 2); 
 
         dialog.getDialogPane().setContent(grid);
 
@@ -455,13 +470,13 @@ public class FinanceiroController {
                 try {
                     String desc = descField.getText();
                     double valor = Double.parseDouble(valorField.getText().replace(",", "."));
-                    LocalDate data = dataPicker.getValue(); // NOVO
+                    LocalDate data = dataPicker.getValue(); 
 
                     if (desc.isEmpty()) {
                         AlertUtil.showError("Erro de Validação", "A descrição é obrigatória.");
                         return null;
                     }
-                     if (data == null) { // NOVO
+                     if (data == null) { 
                         AlertUtil.showError("Erro de Validação", "A data é obrigatória.");
                         return null;
                     }
@@ -470,12 +485,8 @@ public class FinanceiroController {
                          return null;
                     }
 
-                    // Se for despesa, inverte o valor para negativo
                     double valorFinal = isReceita ? valor : -valor;
                     
-                    // USA O CONSTRUTOR SEM dataHoraCriacao (será nulo no objeto)
-                    // O DAO irá preencher no banco, e o atualizarListaTransacoes() irá reler
-                    // o objeto completo, incluindo o dataHoraCriacao.
                     return new Transacao(desc, valorFinal, data.format(dateFormatter), tipo); // Data formatada
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valor inválido.");
@@ -489,8 +500,9 @@ public class FinanceiroController {
 
         result.ifPresent(transacao -> {
             try {
+                // Operação de escrita - idealmente também uma Task, mas rápida.
                 financeiroDAO.addTransacao(transacao);
-                atualizarListaTransacoes(); // ATUALIZADO: Recarrega a lista mestra e aplica o filtro
+                atualizarListaTransacoes(); // Recarrega a lista
                 AlertUtil.showInfo("Sucesso", "Transação adicionada com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar a transação: " + e.getMessage());
@@ -501,7 +513,6 @@ public class FinanceiroController {
     /**
      * NOVO: Método auxiliar para abrir um diálogo de EDIÇÃO de transação.
      */
-// ... (abrirDialogoEdicao) ...
     private void abrirDialogoEdicao(Transacao transacao) {
         Dialog<Transacao> dialog = new Dialog<>();
         dialog.setTitle("Editar Lançamento");
@@ -515,17 +526,9 @@ public class FinanceiroController {
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Preenche os campos com os dados existentes
         TextField descField = new TextField(transacao.getDescricao());
-        
-        // O valor no DB é negativo para despesa, mas o usuário edita o valor absoluto (positivo)
         TextField valorField = new TextField(String.format(Locale.US, "%.2f", Math.abs(transacao.getValor()))); 
-        
         DatePicker dataPicker = new DatePicker(LocalDate.parse(transacao.getData(), dateFormatter));
-
-        // O tipo (receita/despesa) não será editável aqui.
-        // Se o usuário errou o tipo, ele deve remover e adicionar novamente.
-        // Isso simplifica a lógica de edição do valor.
 
         grid.add(new Label("Descrição:"), 0, 0);
         grid.add(descField, 1, 0);
@@ -543,30 +546,20 @@ public class FinanceiroController {
                     double valorAbsoluto = Double.parseDouble(valorField.getText().replace(",", "."));
                     LocalDate data = dataPicker.getValue();
 
-                    if (desc.isEmpty()) {
-                        AlertUtil.showError("Erro de Validação", "A descrição é obrigatória.");
-                        return null;
-                    }
-                     if (data == null) {
-                        AlertUtil.showError("Erro de Validação", "A data é obrigatória.");
-                        return null;
-                    }
-                    if (valorAbsoluto <= 0) {
-                         AlertUtil.showError("Erro de Validação", "O valor deve ser positivo.");
+                    if (desc.isEmpty() || data == null || valorAbsoluto <= 0) {
+                         AlertUtil.showError("Erro de Validação", "Todos os campos são obrigatórios e o valor deve ser positivo.");
                          return null;
                     }
 
-                    // Mantém o sinal original (receita > 0, despesa < 0)
                     double valorFinal = transacao.getTipo().equals("receita") ? valorAbsoluto : -valorAbsoluto;
 
-                    // Retorna uma *nova* instância de Transacao com o ID original
                     return new Transacao(
                         transacao.getId(),
                         desc,
                         valorFinal,
                         data.format(dateFormatter),
-                        transacao.getTipo(), // Mantém o tipo original
-                        transacao.getDataHoraCriacao() // Passa o valor antigo (não será usado pelo DAO de update)
+                        transacao.getTipo(), 
+                        transacao.getDataHoraCriacao()
                     );
                     
                 } catch (NumberFormatException e) {
@@ -581,6 +574,7 @@ public class FinanceiroController {
 
         result.ifPresent(transacaoEditada -> {
             try {
+                // Operação de escrita
                 financeiroDAO.updateTransacao(transacaoEditada);
                 atualizarListaTransacoes(); // Recarrega a lista
                 AlertUtil.showInfo("Sucesso", "Transação atualizada com sucesso.");
@@ -590,4 +584,3 @@ public class FinanceiroController {
         });
     }
 }
-
