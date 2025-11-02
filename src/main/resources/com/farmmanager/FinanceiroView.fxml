@@ -94,7 +94,7 @@
                   <Button mnemonicParsing="false" onAction="#handleNovaDespesa" styleClass="module-button, danger" text="- Nova Despesa" />
                   <Button fx:id="btnEditar" mnemonicParsing="false" onAction="#handleEditarTransacao" styleClass="module-button" text="Editar Lançamento" />
                   <Button fx:id="btnRemover" mnemonicParsing="false" onAction="#handleRemoverTransacao" styleClass="module-button, danger" text="Remover Lançamento" />
-                  <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar CSV (Filtrado)" />
+                  <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar CSV" />
                </children>
             </HBox>
 

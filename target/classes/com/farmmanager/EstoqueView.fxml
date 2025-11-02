@@ -65,7 +65,8 @@
             <!-- Toolbar de Ações -->
             <HBox styleClass="module-toolbar" style="-fx-padding-bottom: 0;">
                <children>
-                  <Button mnemonicParsing="false" onAction="#handleComprarItem" styleClass="module-button" text="+ Comprar Item" />
+                  <!-- ATUALIZADO: onAction e text -->
+                  <Button mnemonicParsing="false" onAction="#handleAdicionarItem" styleClass="module-button" text="+ Adicionar Item" />
                   <Button mnemonicParsing="false" onAction="#handleVenderItem" styleClass="module-button, success" text="Vender Item" />
                   <Button mnemonicParsing="false" onAction="#handleConsumirItem" styleClass="module-button, warning" text="Consumir Item (Uso Interno)" />
                   <Button mnemonicParsing="false" onAction="#handleEditarItem" styleClass="module-button" text="Editar Item" />

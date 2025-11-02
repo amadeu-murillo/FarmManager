@@ -253,6 +253,7 @@ public class FuncionariosController {
         grid.add(enderecoField, 1, 6); // NOVO
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         // 4. Converter o resultado para um objeto Funcionario
         dialog.setResultConverter(dialogButton -> {
@@ -404,6 +405,7 @@ public class FuncionariosController {
         grid.add(dataPicker, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         // 4. Converter o resultado para um objeto Transacao
         dialog.setResultConverter(dialogButton -> {
