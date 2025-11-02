@@ -56,7 +56,7 @@
                 </configuration>
             </plugin>
             
-            <!-- Novo Plugin do JavaFX -->
+            <!-- Plugin do JavaFX (para 'mvn javafx:run') -->
             <plugin>
                 <groupId>org.openjfx</groupId>
                 <artifactId>javafx-maven-plugin</artifactId>
@@ -71,6 +71,73 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- 
+              NOVO PLUGIN (jpackage): Copia as dependências (JARs) 
+              para a pasta target/app-libs 
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/app-libs</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- 
+              NOVO PLUGIN (jpackage): Cria o instalador nativo 
+            -->
+            <plugin>
+                <groupId>org.panteleyev</groupId>
+                <artifactId>jpackage-maven-plugin</artifactId>
+                <version>1.4.0</version>
+                <configuration>
+                    <name>FarmManager</name>
+                    <appVersion>${project.version}</appVersion>
+                    <vendor>FarmManager</vendor>
+                    <destination>${project.build.directory}/jpackage</destination>
+                    <module>${javafx.main.class}</module>
+                    <mainJar>${project.build.finalName}.jar</mainJar>
+                    <mainClass>${javafx.main.class}</mainClass>
+                    
+                    <!-- Define o caminho para as dependências copiadas pelo plugin anterior -->
+                    <input>${project.build.directory}/app-libs</input>
+                    
+                    <!-- Define o caminho para o ícone (ex: .ico no Windows, .icns no macOS) -->
+                    <!-- O jpackage é inteligente e pegará o formato correto para o SO -->
+                    <icon>src/main/resources/com/farmmanager/logo.ico</icon>
+                    
+                    <!-- Opções específicas do Windows -->
+                    <winMenu>true</winMenu>
+                    <winShortcut>true</winShortcut>
+                    <winUpgradeUuid>YOUR-UNIQUE-GUID-HERE</winUpgradeUuid> 
+                    <!-- (Pode gerar um UUID online e colar aqui) -->
+                    
+                    <!-- Opções específicas do macOS -->
+                    <macSign>false</macSign> 
+                    <macPackageName>${project.name}</macPackageName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>jpackage</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jpackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
 
         <!-- Garante que os FXML e CSS sejam copiados para o build -->
@@ -82,3 +149,4 @@
         </resources>
     </build>
 </project>
+

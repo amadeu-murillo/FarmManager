@@ -62,14 +62,32 @@
     -fx-fill: white;
 }
 
-/* Estado de foco (quando clicado/selecionado) */
+/* Estado de foco (quando clicado/selecionado) - ATUALIZADO */
 .sidebar .button:focused {
+    /* NOVO: Remove o anel de foco visual padrão, pois vamos gerenciá-lo manualmente */
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+    /* Mantém o estado de hover se também estiver focado */
+    -fx-background-color: #4A5568; 
+}
+.sidebar .button:focused:hover {
+     -fx-background-color: #4A5568;
+}
+
+
+/* NOVO: Estado de SELECIONADO (Botão Ativo) */
+.sidebar-button-selected {
     -fx-background-color: #4299E1; /* Azul de destaque */
     -fx-text-fill: white;
-    -fx-border-width: 0;
 }
-.sidebar .button:focused .sidebar-icon {
+.sidebar-button-selected .sidebar-icon {
     -fx-fill: white;
+}
+/* Garante que o hover não mude a cor do botão selecionado */
+.sidebar-button-selected:hover {
+    -fx-background-color: #4299E1;
 }
 
 

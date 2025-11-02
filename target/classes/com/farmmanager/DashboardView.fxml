@@ -14,32 +14,21 @@
 <?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.StackPane?>
-<?import javafx.scene.control.ProgressIndicator?> <!-- NOVO: Import -->
+<?import javafx.scene.control.ProgressIndicator?>
 
-<!-- 
-  Tela do Dashboard 
-  ATUALIZADO (Refatorado):
-  - Root element alterado para StackPane.
-  - O ScrollPane original agora está *dentro* do StackPane.
-  - Adicionado ProgressIndicator sobreposto.
-  - fx:controller movido para o StackPane (novo root).
--->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.DashboardController">
    <children>
-      <!-- ScrollPane principal que contém todo o conteúdo da página -->
-      <!-- fx:id="contentScrollPane" permite ao controller desabilitá-lo durante o carregamento -->
       <ScrollPane fx:id="contentScrollPane" fitToWidth="true" styleClass="scroll-pane-dashboard">
          <content>
-            <!-- O VBox original agora está dentro do ScrollPane -->
             <VBox spacing="15.0">
                <children>
                   <Label styleClass="content-title" text="Dashboard - Resumo da Fazenda" />
                   
-                  <!-- Seção de Alertas -->
+                  <Label fx:id="lblWelcomeDate" styleClass="summary-label" text="Carregando data..." style="-fx-font-size: 14px; -fx-text-fill: #718096; -fx-padding-top: -10px; -fx-padding-bottom: 5px;" />
+                  
                   <Label text="Alertas" styleClass="content-subtitle" />
                   <HBox spacing="25.0" style="-fx-padding-top: 5px;">
                      <children>
-                        <!-- Alerta 1: Contas VENCIDAS (Perigo) -->
                         <HBox fx:id="alertaContasVencidasBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
                               <VBox styleClass="card, card-alerta-danger" HBox.hgrow="ALWAYS">
@@ -63,7 +52,6 @@
                               </VBox>
                            </children>
                         </HBox>
-                        <!-- Alerta 2: Contas A VENCER (Aviso) -->
                         <HBox fx:id="alertaContasAVencerBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
                               <VBox styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
@@ -87,7 +75,6 @@
                               </VBox>
                            </children>
                         </HBox>
-                        <!-- Alerta 3: Estoque Baixo (Aviso) -->
                         <HBox fx:id="alertaEstoqueBaixoBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
                               <VBox styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
@@ -117,7 +104,6 @@
                      </VBox.margin>
                   </HBox>
 
-                  <!-- Resumo Financeiro -->
                   <Label text="Resumo Financeiro" styleClass="content-subtitle" />
                   <GridPane styleClass="dashboard-grid">
                      <columnConstraints>
@@ -130,7 +116,6 @@
                         <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
                      </rowConstraints>
                      <children>
-                        <!-- Card 1: Balanço Financeiro -->
                         <VBox fx:id="cardBalanco" onMouseClicked="#navigateToFinanceiro" styleClass="card" GridPane.columnIndex="0">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -150,7 +135,6 @@
                               </HBox>
                            </children>
                         </VBox>
-                        <!-- Card 2: Valor em Estoque -->
                         <VBox fx:id="cardEstoque" onMouseClicked="#navigateToEstoque" styleClass="card" GridPane.columnIndex="1">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -170,7 +154,6 @@
                               </HBox>
                            </children>
                         </VBox>
-                        <!-- Card 3: Valor do Patrimônio -->
                         <VBox fx:id="cardPatrimonio" onMouseClicked="#navigateToPatrimonio" styleClass="card" GridPane.columnIndex="2">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -190,7 +173,6 @@
                               </HBox>
                            </children>
                         </VBox>
-                        <!-- Card 4: Contas Pendentes -->
                         <VBox fx:id="cardContas" onMouseClicked="#navigateToContas" styleClass="card" GridPane.columnIndex="3">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -216,10 +198,10 @@
                      </VBox.margin>
                   </GridPane>
                   
-                  <!-- Resumo Operacional -->
                   <Label text="Resumo Operacional" styleClass="content-subtitle" />
                   <GridPane styleClass="dashboard-grid">
                      <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
@@ -228,7 +210,6 @@
                         <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
                      </rowConstraints>
                      <children>
-                        <!-- Card 5: Safras Ativas -->
                         <VBox fx:id="cardSafras" onMouseClicked="#navigateToSafras" styleClass="card" GridPane.columnIndex="0">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -248,7 +229,6 @@
                               </HBox>
                            </children>
                         </VBox>
-                        <!-- Card 6: Funcionários -->
                         <VBox fx:id="cardFuncionarios" onMouseClicked="#navigateToFuncionarios" styleClass="card" GridPane.columnIndex="1">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -268,7 +248,6 @@
                               </HBox>
                            </children>
                         </VBox>
-                        <!-- Card 7: Talhões & Área (Combinado) -->
                         <VBox fx:id="cardTalhoes" onMouseClicked="#navigateToSafras" styleClass="card" GridPane.columnIndex="2">
                            <children>
                               <HBox alignment="CENTER_LEFT" spacing="15.0">
@@ -289,15 +268,34 @@
                               <Label fx:id="lblAreaTotal" styleClass="summary-value" text="(Carregando...)" style="-fx-font-size: 16px; -fx-text-fill: #4A5568; -fx-padding-top: 10px;" />
                            </children>
                         </VBox>
+                        
+                        <VBox fx:id="cardPatrimonioOperacional" onMouseClicked="#navigateToPatrimonio" styleClass="card" GridPane.columnIndex="3">
+                           <children>
+                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                                 <children>
+                                    <StackPane styleClass="kpi-icon-container">
+                                       <children>
+                                          <FontAwesomeIconView glyphName="WRENCH" size="2.5em" styleClass="kpi-icon" />
+                                       </children>
+                                    </StackPane>
+                                    <VBox>
+                                       <children>
+                                          <Label styleClass="card-title" text="Em Manutenção" />
+                                          <Label fx:id="lblPatrimonioManutencao" styleClass="card-content-texto" text="Carregando..." />
+                                       </children>
+                                    </VBox>
+                                 </children>
+                              </HBox>
+                           </children>
+                        </VBox>
+                        
                      </children>
                      <VBox.margin>
                         <Insets top="5.0" />
                      </VBox.margin>
                   </GridPane>
                   
-                  <!-- Seção de Gráficos -->
                   <Label text="Análise Gráfica" styleClass="content-subtitle" />
-                  <!-- Gráfico de Linha (Largura Total) -->
                   <VBox styleClass="card" VBox.vgrow="ALWAYS">
                      <children>
                         <Label styleClass="card-title" text="Histórico Financeiro (Diário)" />
@@ -315,7 +313,6 @@
                      </VBox.margin>
                   </VBox>
                   
-                  <!-- Gráficos de Pizza (Lado a Lado) -->
                   <HBox spacing="20.0" VBox.vgrow="ALWAYS">
                      <children>
                         <VBox styleClass="card" HBox.hgrow="ALWAYS">
@@ -337,7 +334,6 @@
                   </HBox>
                   
                </children>
-               <!-- Adiciona padding interno ao VBox para manter o espaçamento da "content-area" -->
                <padding>
                   <Insets top="25" right="25" bottom="25" left="25" />
                </padding>
@@ -345,12 +341,8 @@
          </content>
       </ScrollPane>
       
-      <!-- 
-        NOVO: Indicador de Carregamento 
-        - Fica centralizado dentro do StackPane, acima do ScrollPane.
-        - managed="false" e visible="false" por padrão.
-      -->
       <ProgressIndicator fx:id="loadingIndicator" maxHeight="60.0" maxWidth="60.0" managed="false" visible="false" />
       
    </children>
 </StackPane>
+

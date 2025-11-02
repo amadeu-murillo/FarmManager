@@ -4,6 +4,7 @@ import com.farmmanager.util.AlertUtil;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
+import javafx.scene.control.Button; // NOVO: Import para Button
 import javafx.scene.layout.StackPane;
 
 import java.io.IOException;
@@ -15,11 +16,34 @@ import java.net.URL;
  * - Adicionado handler para a nova tela de Contas (Lançamentos Futuros).
  * - ADICIONADO HANDLER para a nova tela de Histórico de Safras.
  * - ATUALIZADO: loadView agora injeta referência do MainViewController no DashboardController.
+ * - ATUALIZADO: Adicionada lógica para gerenciar o estado "ativo" dos botões da barra lateral.
  */
 public class MainViewController {
 
     @FXML
     private StackPane contentArea;
+
+    // --- NOVO: Referências aos botões da barra lateral ---
+    @FXML
+    private Button btnDashboard;
+    @FXML
+    private Button btnContas;
+    @FXML
+    private Button btnFinanceiro;
+    @FXML
+    private Button btnSafras;
+    @FXML
+    private Button btnEstoque;
+    @FXML
+    private Button btnPatrimonio;
+    @FXML
+    private Button btnFuncionarios;
+    @FXML
+    private Button btnHistorico;
+
+    // NOVO: Rastreia o botão atualmente ativo
+    private Button botaoAtivoAtual;
+    private static final String CLASSE_BOTAO_ATIVO = "sidebar-button-selected";
 
     /**
      * Método especial do JavaFX.
@@ -28,15 +52,41 @@ public class MainViewController {
      */
     @FXML
     public void initialize() {
-        // Carrega o Dashboard como tela inicial
-        handleShowDashboard();
+        // Carrega o Dashboard como tela inicial e define o botão como ativo
+        // Define o btnDashboard como ativo inicial (sem chamar loadView novamente)
+        setBotaoAtivo(btnDashboard);
+        loadView("DashboardView.fxml");
+    }
+    
+    // --- NOVO: Método para gerenciar o estado visual dos botões ---
+    /**
+     * Remove a classe de estilo "ativo" do botão anterior e a aplica ao novo.
+     * Isso garante que apenas um botão pareça selecionado por vez.
+     *
+     * @param novoBotaoAtivo O botão que acabou de ser clicado.
+     */
+    private void setBotaoAtivo(Button novoBotaoAtivo) {
+        // 1. Remove o estilo do botão antigo (se houver um)
+        if (botaoAtivoAtual != null) {
+            botaoAtivoAtual.getStyleClass().remove(CLASSE_BOTAO_ATIVO);
+        }
+
+        // 2. Adiciona o estilo ao novo botão
+        if (novoBotaoAtivo != null) {
+            novoBotaoAtivo.getStyleClass().add(CLASSE_BOTAO_ATIVO);
+        }
+
+        // 3. Atualiza a referência
+        botaoAtivoAtual = novoBotaoAtivo;
     }
 
-    // --- Handlers dos Botões (Menu) ---
-    // Cada handler agora chama o método loadView()
+
+    // --- Handlers dos Botões (Menu) ATUALIZADOS ---
+    // Cada handler agora chama setBotaoAtivo() e loadView()
 
     @FXML
     public void handleShowDashboard() {
+        setBotaoAtivo(btnDashboard);
         loadView("DashboardView.fxml");
     }
 
@@ -45,16 +95,19 @@ public class MainViewController {
      */
     @FXML
     public void handleShowContas() {
+        setBotaoAtivo(btnContas);
         loadView("ContasView.fxml");
     }
 
     @FXML
     public void handleShowFinanceiro() {
+        setBotaoAtivo(btnFinanceiro);
         loadView("FinanceiroView.fxml");
     }
 
     @FXML
     public void handleShowEstoque() {
+        setBotaoAtivo(btnEstoque);
         loadView("EstoqueView.fxml");
     }
 
@@ -63,16 +116,19 @@ public class MainViewController {
      */
     @FXML
     public void handleShowPatrimonio() {
+        setBotaoAtivo(btnPatrimonio);
         loadView("PatrimonioView.fxml");
     }
 
     @FXML
     public void handleShowFuncionarios() {
+        setBotaoAtivo(btnFuncionarios);
         loadView("FuncionariosView.fxml");
     }
 
     @FXML
     public void handleShowSafras() {
+        setBotaoAtivo(btnSafras);
         loadView("SafrasView.fxml");
     }
 
@@ -81,6 +137,7 @@ public class MainViewController {
      */
     @FXML
     public void handleShowHistoricoSafras() {
+        setBotaoAtivo(btnHistorico);
         loadView("HistoricoSafrasView.fxml");
     }
 
