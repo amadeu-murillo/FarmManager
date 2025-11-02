@@ -23,6 +23,7 @@
   ATUALIZADO: 
   - O VBox principal agora está dentro de um StackPane.
   - Um ProgressIndicator foi adicionado ao StackPane.
+  - ATUALIZADO: Adicionadas colunas de Fornecedor e Empresa.
 -->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.ContasController">
    <children>
@@ -81,6 +82,10 @@
                <columns>
                   <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
                   <TableColumn fx:id="colDescricao" prefWidth="300.0" text="Descrição" />
+                  <!-- NOVAS COLUNAS -->
+                  <TableColumn fx:id="colFornecedorNome" prefWidth="150.0" text="Fornecedor" />
+                  <TableColumn fx:id="colFornecedorEmpresa" prefWidth="150.0" text="Empresa" />
+                  <!-- FIM NOVAS COLUNAS -->
                   <TableColumn fx:id="colDataVencimento" prefWidth="120.0" text="Data Vencimento" />
                   <TableColumn fx:id="colTipo" prefWidth="120.0" text="Tipo" />
                   <TableColumn fx:id="colValor" prefWidth="150.0" text="Valor (R$)" />

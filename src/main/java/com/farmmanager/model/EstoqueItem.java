@@ -2,6 +2,7 @@ package com.farmmanager.model;
 
 /**
  * ATUALIZADO: Adicionado dataCriacao e dataModificacao.
+ * ATUALIZADO: Adicionado fornecedorNome e fornecedorEmpresa.
  */
 public class EstoqueItem {
     private int id;
@@ -10,29 +11,39 @@ public class EstoqueItem {
     private String unidade;
     private double valorUnitario; // NOVO
     private double valorTotal; // NOVO
+    private String fornecedorNome; // NOVO
+    private String fornecedorEmpresa; // NOVO
     private String dataCriacao; // NOVO
     private String dataModificacao; // NOVO
 
     // Construtor para Adicionar (sem ID) - usado principalmente pelo Controller
-    public EstoqueItem(String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal) {
+    public EstoqueItem(String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal, String fornecedorNome, String fornecedorEmpresa) {
         this.itemNome = itemNome;
         this.quantidade = quantidade;
         this.unidade = unidade;
         this.valorUnitario = valorUnitario;
         this.valorTotal = valorTotal;
+        this.fornecedorNome = fornecedorNome; // NOVO
+        this.fornecedorEmpresa = fornecedorEmpresa; // NOVO
     }
     
     // Construtor para Ler do Banco (com ID e datas)
-    public EstoqueItem(int id, String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal, String dataCriacao, String dataModificacao) {
-        this(itemNome, quantidade, unidade, valorUnitario, valorTotal);
+    public EstoqueItem(int id, String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal, String fornecedorNome, String fornecedorEmpresa, String dataCriacao, String dataModificacao) {
+        this(itemNome, quantidade, unidade, valorUnitario, valorTotal, fornecedorNome, fornecedorEmpresa);
         this.id = id;
         this.dataCriacao = dataCriacao;
         this.dataModificacao = dataModificacao;
     }
 
     // Construtor antigo (mantido para compatibilidade onde as datas não são lidas)
+    // ATUALIZADO: Este construtor agora é menos usado, mas mantido.
     public EstoqueItem(int id, String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal) {
-        this(id, itemNome, quantidade, unidade, valorUnitario, valorTotal, null, null);
+        this(id, itemNome, quantidade, unidade, valorUnitario, valorTotal, null, null, null, null);
+    }
+    
+    // Construtor para o DAO (antes da migração dos campos fornecedor)
+    public EstoqueItem(int id, String itemNome, double quantidade, String unidade, double valorUnitario, double valorTotal, String dataCriacao, String dataModificacao) {
+        this(id, itemNome, quantidade, unidade, valorUnitario, valorTotal, null, null, dataCriacao, dataModificacao);
     }
 
 
@@ -43,6 +54,8 @@ public class EstoqueItem {
     public String getUnidade() { return unidade; }
     public double getValorUnitario() { return valorUnitario; }
     public double getValorTotal() { return valorTotal; }
+    public String getFornecedorNome() { return fornecedorNome; } // NOVO
+    public String getFornecedorEmpresa() { return fornecedorEmpresa; } // NOVO
     public String getDataCriacao() { return dataCriacao; } // NOVO
     public String getDataModificacao() { return dataModificacao; } // NOVO
 }

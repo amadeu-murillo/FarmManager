@@ -40,6 +40,8 @@ import java.util.stream.Collectors;
  * - NOVO: Adiciona exportação de CSV filtrado.
  * - MELHORIA CRÍTICA: Carregamento de dados (atualizarListaTransacoes)
  * movido para uma Task em background para não congelar a UI.
+ * - CORREÇÃO (handleExportarCsv): Adicionado BOM UTF-8 para corrigir acentuação no Excel.
+ * - ATUALIZADO: Adicionadas colunas de Fornecedor/Empresa (parseadas da descrição).
  */
 public class FinanceiroController {
 
@@ -50,6 +52,10 @@ public class FinanceiroController {
     private TableColumn<Transacao, Integer> colFinId;
     @FXML
     private TableColumn<Transacao, String> colFinDesc;
+    @FXML
+    private TableColumn<Transacao, String> colFinFornecedorNome; // NOVO
+    @FXML
+    private TableColumn<Transacao, String> colFinFornecedorEmpresa; // NOVO
     @FXML
     private TableColumn<Transacao, String> colFinData;
     @FXML
@@ -112,6 +118,21 @@ public class FinanceiroController {
         colFinData.setCellValueFactory(new PropertyValueFactory<>("data"));
         colFinData.setText("Data Evento"); 
         colFinDesc.setCellValueFactory(new PropertyValueFactory<>("descricao"));
+        
+        // NOVO: Coluna Fornecedor Nome (derivada da descrição)
+        colFinFornecedorNome.setCellValueFactory(cellData -> {
+            String desc = cellData.getValue().getDescricao();
+            String nome = parseInfoFromDesc(desc, "(Fornec:");
+            return new SimpleObjectProperty<>(nome);
+        });
+
+        // NOVO: Coluna Fornecedor Empresa (derivada da descrição)
+        colFinFornecedorEmpresa.setCellValueFactory(cellData -> {
+            String desc = cellData.getValue().getDescricao();
+            String empresa = parseInfoFromDesc(desc, "(Empresa:");
+            return new SimpleObjectProperty<>(empresa);
+        });
+        
         colFinDataHoraCriacao.setCellValueFactory(new PropertyValueFactory<>("dataHoraCriacao"));
 
         // Coluna de Entrada
@@ -179,6 +200,28 @@ public class FinanceiroController {
         // Carrega os dados iniciais (agora assíncrono)
         atualizarListaTransacoes();
     }
+    
+    /**
+     * NOVO: Helper para extrair informação da descrição.
+     * Ex: "Compra (Fornec: Nome)" -> "Nome"
+     * Ex: "Compra (Empresa: EmpresaX)" -> "EmpresaX"
+     */
+    private String parseInfoFromDesc(String descricao, String prefix) {
+        if (descricao == null || !descricao.contains(prefix)) {
+            return null;
+        }
+        try {
+            int startIndex = descricao.indexOf(prefix) + prefix.length();
+            int endIndex = descricao.indexOf(")", startIndex);
+            if (endIndex == -1) {
+                endIndex = descricao.length(); // Se não fechar parênteses
+            }
+            return descricao.substring(startIndex, endIndex).trim();
+        } catch (Exception e) {
+            return null; // Erro de parsing
+        }
+    }
+
 
     /**
      * NOVO: Controla a visibilidade do indicador de carregamento e
@@ -394,21 +437,31 @@ public class FinanceiroController {
 
         // Tenta escrever o arquivo
         try (PrintWriter writer = new PrintWriter(file, "UTF-8")) {
+            
+            writer.write("\uFEFF"); // NOVO: Adiciona o BOM do UTF-8
+            
             StringBuilder sb = new StringBuilder();
             
-            // Cabeçalho do CSV
-            sb.append("ID;Data Evento;Data Lancamento;Descricao;Tipo;Entrada (R$);Saida (R$)\n");
+            // Cabeçalho do CSV ATUALIZADO
+            sb.append("ID;Data Evento;Data Lancamento;Descricao;Fornecedor;Empresa;Tipo;Entrada (R$);Saida (R$)\n");
 
             // Escreve os dados (usando a lista filtrada 'dadosTabela')
             for (Transacao t : dadosTabela) {
                 double entrada = t.getValor() > 0 ? t.getValor() : 0.0;
                 double saida = t.getValor() < 0 ? -t.getValor() : 0.0; // Valor absoluto
+                
+                // NOVO: Extrair fornecedor
+                String nomeFornec = parseInfoFromDesc(t.getDescricao(), "(Fornec:");
+                String empFornec = parseInfoFromDesc(t.getDescricao(), "(Empresa:");
 
-                sb.append(String.format(Locale.US, "%d;%s;%s;\"%s\";%s;%.2f;%.2f\n",
+                // ATUALIZADO: String.format com novos campos
+                sb.append(String.format(Locale.US, "%d;%s;%s;\"%s\";\"%s\";\"%s\";%s;%.2f;%.2f\n",
                     t.getId(),
                     t.getData(),
                     t.getDataHoraCriacao(),
                     t.getDescricao().replace("\"", "\"\""), // Escapa aspas
+                    nomeFornec != null ? nomeFornec.replace("\"", "\"\"") : "", // NOVO
+                    empFornec != null ? empFornec.replace("\"", "\"\"") : "", // NOVO
                     t.getTipo(),
                     entrada,
                     saida
@@ -586,3 +639,4 @@ public class FinanceiroController {
         });
     }
 }
+

@@ -55,6 +55,8 @@ import java.util.Locale;
  * - ATUALIZAÇÃO (initialize): Adicionada formatação decimal para coluna sc/ha.
  * - MELHORIA CRÍTICA: Carregamento de dados (Safras e Talhões)
  * movido para uma Task em background para não congelar a UI.
+ * - CORREÇÃO (handleRegistrarColheita): Corrigida chamada ao construtor de EstoqueItem.
+ * - CORREÇÃO (handleExportarCsv): Adicionado BOM UTF-8 para corrigir acentuação no Excel.
  */
 public class SafrasController {
 
@@ -959,12 +961,15 @@ public class SafrasController {
                 String nomeItem = safraSelecionada.getCultura() + " (Colheita " + safraSelecionada.getAnoInicio() + ")";
                 String unidadeItem = "sacos"; 
 
+                // CORREÇÃO: Chamar o construtor correto de 7 argumentos
                 EstoqueItem itemColheita = new EstoqueItem(
                     nomeItem,
                     colheitaData.producaoSacos, 
                     unidadeItem,
                     colheitaData.valorPorSaco, 
-                    colheitaData.valorTotal
+                    colheitaData.valorTotal,
+                    null, // fornecedorNome (produto interno)
+                    null  // fornecedorEmpresa (produto interno)
                 );
 
                 estoqueDAO.addEstoque(itemColheita);
@@ -1008,6 +1013,8 @@ public class SafrasController {
         // ATENÇÃO: Esta operação é de leitura e pode ser lenta
         // Idealmente, seria uma Task, mas por simplicidade:
         try (PrintWriter writer = new PrintWriter(file, "UTF-8")) { 
+            
+            writer.write("\uFEFF"); // NOVO: Adiciona o BOM do UTF-8
             
             StringBuilder sb = new StringBuilder();
             

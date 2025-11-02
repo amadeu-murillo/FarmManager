@@ -47,6 +47,7 @@ import java.util.stream.Collectors;
  * - MELHORIA CRÍTICA: Carregamento de dados (carregarDadosMestres)
  * movido para uma Task em background para não congelar a UI.
  * - MELHORIA USABILIDADE: 'handleAdicionarItem' agora permite adicionar item sem registro financeiro (ajuste).
+ * - ATUALIZADO: Adicionados campos de fornecedor.
  */
 public class EstoqueController {
 
@@ -69,6 +70,10 @@ public class EstoqueController {
     private TableColumn<EstoqueItem, Double> colItemValorUnit; 
     @FXML
     private TableColumn<EstoqueItem, Double> colItemValorTotal; 
+    @FXML
+    private TableColumn<EstoqueItem, String> colItemFornecedorNome; // NOVO
+    @FXML
+    private TableColumn<EstoqueItem, String> colItemFornecedorEmpresa; // NOVO
     @FXML
     private TableColumn<EstoqueItem, String> colDataCriacao; 
     @FXML
@@ -127,6 +132,8 @@ public class EstoqueController {
         colItemUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
         colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); 
         colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); 
+        colItemFornecedorNome.setCellValueFactory(new PropertyValueFactory<>("fornecedorNome")); // NOVO
+        colItemFornecedorEmpresa.setCellValueFactory(new PropertyValueFactory<>("fornecedorEmpresa")); // NOVO
         colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); 
         colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); 
 
@@ -270,6 +277,12 @@ public class EstoqueController {
         TextField valorTotalField = new TextField();
         valorTotalField.setPromptText("Ex: 7500.00");
 
+        // NOVOS CAMPOS
+        TextField fornecedorNomeField = new TextField();
+        fornecedorNomeField.setPromptText("Ex: João da Silva");
+        TextField fornecedorEmpresaField = new TextField();
+        fornecedorEmpresaField.setPromptText("Ex: Agropecuária XYZ");
+
 
         grid.add(new Label("Nome:"), 0, 0);
         grid.add(nomeField, 1, 0);
@@ -281,6 +294,13 @@ public class EstoqueController {
         grid.add(valorUnitarioField, 1, 3);
         grid.add(new Label("Valor Total (R$):"), 0, 4);
         grid.add(valorTotalField, 1, 4);
+        
+        // NOVOS LABELS E FIELDS
+        grid.add(new Label("Fornecedor (Nome):"), 0, 5);
+        grid.add(fornecedorNomeField, 1, 5);
+        grid.add(new Label("Fornecedor (Empresa):"), 0, 6);
+        grid.add(fornecedorEmpresaField, 1, 6);
+        
         
         // --- INÍCIO DA MELHORIA DE USABILIDADE ---
         CheckBox registrarFinanceiroCheck = new CheckBox("Registrar no financeiro (como compra)?");
@@ -295,11 +315,11 @@ public class EstoqueController {
         Label vencimentoLabel = new Label("Data Vencimento:");
         DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
 
-        grid.add(registrarFinanceiroCheck, 0, 5, 2, 1); // Checkbox
-        grid.add(tipoPagLabel, 0, 6); // Linha movida
-        grid.add(tipoPagCombo, 1, 6); // Linha movida
-        grid.add(vencimentoLabel, 0, 7); // Linha movida
-        grid.add(vencimentoPicker, 1, 7); // Linha movida
+        grid.add(registrarFinanceiroCheck, 0, 7, 2, 1); // Checkbox (índice atualizado)
+        grid.add(tipoPagLabel, 0, 8); // Linha movida
+        grid.add(tipoPagCombo, 1, 8); // Linha movida
+        grid.add(vencimentoLabel, 0, 9); // Linha movida
+        grid.add(vencimentoPicker, 1, 9); // Linha movida
         // --- FIM DA MELHORIA DE USABILIDADE ---
 
 
@@ -388,6 +408,8 @@ public class EstoqueController {
                     double qtd = parseDouble(qtdField.getText());
                     double valorUnitario = parseDouble(valorUnitarioField.getText());
                     double valorTotal = parseDouble(valorTotalField.getText());
+                    String fornecedorNome = fornecedorNomeField.getText(); // NOVO
+                    String fornecedorEmpresa = fornecedorEmpresaField.getText(); // NOVO
                     boolean deveRegistrar = registrarFinanceiroCheck.isSelected();
 
                     // Validações (já cobertas pelos listeners, mas mantidas por segurança)
@@ -404,7 +426,7 @@ public class EstoqueController {
                         return null;
                     }
                     
-                    EstoqueItem item = new EstoqueItem(nome, qtd, unidade, valorUnitario, valorTotal);
+                    EstoqueItem item = new EstoqueItem(nome, qtd, unidade, valorUnitario, valorTotal, fornecedorNome, fornecedorEmpresa);
 
                     String tipoPagamento = tipoPagCombo.getSelectionModel().getSelectedItem();
                     LocalDate dataVencimento = vencimentoPicker.getValue();
@@ -455,7 +477,9 @@ public class EstoqueController {
                             compraInfo.item.getValorTotal(), 
                             compraInfo.dataVencimento.toString(),
                             "pagar", 
-                            "pendente"
+                            "pendente",
+                            compraInfo.item.getFornecedorNome(), // NOVO
+                            compraInfo.item.getFornecedorEmpresa() // NOVO
                         );
                         contaDAO.addConta(conta); 
                         AlertUtil.showInfo("Sucesso", "Item comprado (a prazo) e 'Conta a Pagar' registrada com sucesso.");
@@ -659,7 +683,9 @@ public class EstoqueController {
                         valorReceita, 
                         vendaInfo.dataVencimento.toString(),
                         "receber", 
-                        "pendente" 
+                        "pendente",
+                        null, // Venda não tem "fornecedor"
+                        null
                     );
                     contaDAO.addConta(conta);
                     AlertUtil.showInfo("Sucesso", "Venda (a prazo) registrada. Estoque atualizado e 'Conta a Receber' criada.");
@@ -771,7 +797,7 @@ public class EstoqueController {
             return;
         }
 
-        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        Dialog<EstoqueItem> dialog = new Dialog<>(); // ATUALIZADO
         dialog.setTitle("Editar Item");
         dialog.setHeaderText("Editar dados de: " + selecionado.getItemNome());
 
@@ -785,11 +811,17 @@ public class EstoqueController {
 
         TextField nomeField = new TextField(selecionado.getItemNome());
         TextField unidadeField = new TextField(selecionado.getUnidade());
+        TextField fornecedorNomeField = new TextField(selecionado.getFornecedorNome()); // NOVO
+        TextField fornecedorEmpresaField = new TextField(selecionado.getFornecedorEmpresa()); // NOVO
 
         grid.add(new Label("Nome:"), 0, 0);
         grid.add(nomeField, 1, 0);
         grid.add(new Label("Unidade:"), 0, 1);
         grid.add(unidadeField, 1, 1);
+        grid.add(new Label("Fornecedor (Nome):"), 0, 2); // NOVO
+        grid.add(fornecedorNomeField, 1, 2); // NOVO
+        grid.add(new Label("Fornecedor (Empresa):"), 0, 3); // NOVO
+        grid.add(fornecedorEmpresaField, 1, 3); // NOVO
 
         dialog.getDialogPane().setContent(grid);
         AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
@@ -799,25 +831,32 @@ public class EstoqueController {
             if (dialogButton == salvarButtonType) {
                 String nome = nomeField.getText().trim();
                 String unidade = unidadeField.getText().trim();
+                String fornNome = fornecedorNomeField.getText().trim(); // NOVO
+                String fornEmpresa = fornecedorEmpresaField.getText().trim(); // NOVO
 
                 if (nome.isEmpty() || unidade.isEmpty()) {
                     AlertUtil.showError("Erro de Validação", "Nome e Unidade são obrigatórios.");
                     return null;
                 }
-                return new Pair<>(nome, unidade);
+                // Retorna um novo objeto EstoqueItem apenas com os dados atualizados
+                // O ID será pego do 'selecionado'
+                return new EstoqueItem(nome, 0, unidade, 0, 0, fornNome, fornEmpresa);
             }
             return null;
         });
 
-        Optional<Pair<String, String>> result = dialog.showAndWait();
+        Optional<EstoqueItem> result = dialog.showAndWait(); // ATUALIZADO
 
-        result.ifPresent(pair -> {
+        result.ifPresent(itemEditado -> { // ATUALIZADO
             try {
-                String novoNome = pair.getKey();
-                String novaUnidade = pair.getValue();
-
                 // Operação de escrita (rápida)
-                estoqueDAO.updateEstoqueItem(selecionado.getId(), novoNome, novaUnidade);
+                estoqueDAO.updateEstoqueItem(
+                    selecionado.getId(), 
+                    itemEditado.getItemNome(), 
+                    itemEditado.getUnidade(),
+                    itemEditado.getFornecedorNome(), // NOVO
+                    itemEditado.getFornecedorEmpresa() // NOVO
+                );
                 
                 AlertUtil.showInfo("Sucesso", "Item atualizado com sucesso.");
                 carregarDadosMestres(); // Recarrega (assíncrono)
@@ -888,4 +927,3 @@ public class EstoqueController {
         }
     }
 }
-

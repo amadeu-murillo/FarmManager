@@ -9,6 +9,12 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * ATUALIZADO:
+ * - addEstoque (INSERT e UPDATE) agora inclui fornecedor_nome e fornecedor_empresa.
+ * - updateEstoqueItem agora inclui fornecedor_nome e fornecedor_empresa.
+ * - listEstoque, getItemById, getEstoqueItemPorNome agora leem os novos campos.
+ */
 public class EstoqueDAO {
 
     // NOVO: Limite para alerta de estoque baixo (replicado do EstoqueController)
@@ -20,12 +26,15 @@ public class EstoqueDAO {
      * o valor total e recalcula o valor unitário (custo médio ponderado).
      * Se for um novo item, insere.
      * NOVO: Atualiza data_modificacao ou insere data_criacao/data_modificacao.
+     * ATUALIZADO: Atualiza dados do fornecedor no INSERT e UPDATE.
      */
     public boolean addEstoque(EstoqueItem item) throws SQLException {
         String sqlSelect = "SELECT id, quantidade, valor_total FROM estoque WHERE item_nome = ?";
         // NOVO: SQLs atualizados
-        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, valor_unitario = ?, data_modificacao = ? WHERE id = ?";
-        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        String sqlUpdate = "UPDATE estoque SET quantidade = ?, valor_total = ?, valor_unitario = ?, "
+                         + "fornecedor_nome = ?, fornecedor_empresa = ?, data_modificacao = ? WHERE id = ?";
+        String sqlInsert = "INSERT INTO estoque (item_nome, quantidade, unidade, valor_unitario, valor_total, "
+                         + "fornecedor_nome, fornecedor_empresa, data_criacao, data_modificacao) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = Database.getConnection()) {
             conn.setAutoCommit(false); // Inicia transação
@@ -51,8 +60,10 @@ public class EstoqueDAO {
                             pstmtUpdate.setDouble(1, newQty);
                             pstmtUpdate.setDouble(2, newTotalVal);
                             pstmtUpdate.setDouble(3, newUnitVal);
-                            pstmtUpdate.setString(4, now); // NOVO
-                            pstmtUpdate.setInt(5, id); // NOVO (índice mudou)
+                            pstmtUpdate.setString(4, item.getFornecedorNome()); // NOVO
+                            pstmtUpdate.setString(5, item.getFornecedorEmpresa()); // NOVO
+                            pstmtUpdate.setString(6, now); // NOVO
+                            pstmtUpdate.setInt(7, id); // NOVO (índice mudou)
                             pstmtUpdate.executeUpdate();
                         }
                     } else {
@@ -63,8 +74,10 @@ public class EstoqueDAO {
                             pstmtInsert.setString(3, item.getUnidade());
                             pstmtInsert.setDouble(4, item.getValorUnitario());
                             pstmtInsert.setDouble(5, item.getValorTotal());
-                            pstmtInsert.setString(6, now); // NOVO
-                            pstmtInsert.setString(7, now); // NOVO
+                            pstmtInsert.setString(6, item.getFornecedorNome()); // NOVO
+                            pstmtInsert.setString(7, item.getFornecedorEmpresa()); // NOVO
+                            pstmtInsert.setString(8, now); // NOVO
+                            pstmtInsert.setString(9, now); // NOVO
                             pstmtInsert.executeUpdate();
                         }
                     }
@@ -82,17 +95,19 @@ public class EstoqueDAO {
 
     /**
      * NOVO: Atualiza os dados básicos (nome, unidade) de um item.
-     * Não mexe em valores ou quantidades.
+     * ATUALIZADO: Inclui fornecedor.
      */
-    public boolean updateEstoqueItem(int id, String nome, String unidade) throws SQLException {
-        String sql = "UPDATE estoque SET item_nome = ?, unidade = ?, data_modificacao = ? WHERE id = ?";
+    public boolean updateEstoqueItem(int id, String nome, String unidade, String fornecedorNome, String fornecedorEmpresa) throws SQLException {
+        String sql = "UPDATE estoque SET item_nome = ?, unidade = ?, fornecedor_nome = ?, fornecedor_empresa = ?, data_modificacao = ? WHERE id = ?";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
             pstmt.setString(1, nome);
             pstmt.setString(2, unidade);
-            pstmt.setString(3, DateTimeUtil.getCurrentTimestamp());
-            pstmt.setInt(4, id);
+            pstmt.setString(3, fornecedorNome); // NOVO
+            pstmt.setString(4, fornecedorEmpresa); // NOVO
+            pstmt.setString(5, DateTimeUtil.getCurrentTimestamp());
+            pstmt.setInt(6, id);
             
             return pstmt.executeUpdate() > 0;
         }
@@ -172,7 +187,7 @@ public class EstoqueDAO {
 
     /**
      * NOVO: Busca um item de estoque específico pelo seu ID.
-     * ATUALIZADO: Inclui datas.
+     * ATUALIZADO: Inclui datas e fornecedor.
      */
     public EstoqueItem getItemById(int id) throws SQLException {
         String sql = "SELECT * FROM estoque WHERE id = ?";
@@ -191,6 +206,8 @@ public class EstoqueDAO {
                         rs.getString("unidade"),
                         rs.getDouble("valor_unitario"),
                         rs.getDouble("valor_total"),
+                        rs.getString("fornecedor_nome"), // NOVO
+                        rs.getString("fornecedor_empresa"), // NOVO
                         rs.getString("data_criacao"), // NOVO
                         rs.getString("data_modificacao") // NOVO
                     );
@@ -202,7 +219,7 @@ public class EstoqueDAO {
 
     /**
      * NOVO: Busca um item de estoque específico pelo seu NOME.
-     * ATUALIZADO: Inclui datas.
+     * ATUALIZADO: Inclui datas e fornecedor.
      */
     public EstoqueItem getEstoqueItemPorNome(String nome) throws SQLException {
         String sql = "SELECT * FROM estoque WHERE item_nome = ?";
@@ -221,6 +238,8 @@ public class EstoqueDAO {
                         rs.getString("unidade"),
                         rs.getDouble("valor_unitario"),
                         rs.getDouble("valor_total"),
+                        rs.getString("fornecedor_nome"), // NOVO
+                        rs.getString("fornecedor_empresa"), // NOVO
                         rs.getString("data_criacao"), // NOVO
                         rs.getString("data_modificacao") // NOVO
                     );
@@ -231,13 +250,13 @@ public class EstoqueDAO {
     }
 
     /**
-     * ATUALIZADO: Seleciona e popula os novos campos de data.
+     * ATUALIZADO: Seleciona e popula os novos campos de data e fornecedor.
      * NOVO: Lista apenas itens com quantidade > 0.
      */
     public List<EstoqueItem> listEstoque() throws SQLException {
         List<EstoqueItem> items = new ArrayList<>();
         // ATUALIZADO: Seleciona novos campos e filtra por quantidade > 0
-        String sql = "SELECT id, item_nome, quantidade, unidade, valor_unitario, valor_total, data_criacao, data_modificacao FROM estoque WHERE quantidade > 0";
+        String sql = "SELECT * FROM estoque WHERE quantidade > 0";
         
         try (Connection conn = Database.getConnection();
              Statement stmt = conn.createStatement();
@@ -251,6 +270,8 @@ public class EstoqueDAO {
                     rs.getString("unidade"),
                     rs.getDouble("valor_unitario"), // NOVO
                     rs.getDouble("valor_total"), // NOVO
+                    rs.getString("fornecedor_nome"), // NOVO
+                    rs.getString("fornecedor_empresa"), // NOVO
                     rs.getString("data_criacao"), // NOVO
                     rs.getString("data_modificacao") // NOVO
                 );

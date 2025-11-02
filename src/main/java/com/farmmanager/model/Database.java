@@ -14,6 +14,7 @@ import java.sql.Statement;
  *
  * ATUALIZADO:
  * - Adicionada nova tabela 'contas' para Contas a Pagar/Receber.
+ * - ATUALIZADO: Adicionados campos de fornecedor em 'estoque' e 'contas'.
  */
 public class Database {
 
@@ -74,6 +75,7 @@ public class Database {
             + "FOREIGN KEY (talhao_id) REFERENCES talhoes(id)"
             + ");";
             
+        // ATUALIZADO: Adicionado fornecedor_nome e fornecedor_empresa
         String sqlEstoque = "CREATE TABLE IF NOT EXISTS estoque ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "item_nome TEXT NOT NULL UNIQUE,"
@@ -81,6 +83,8 @@ public class Database {
             + "unidade TEXT NOT NULL,"
             + "valor_unitario REAL DEFAULT 0,"
             + "valor_total REAL DEFAULT 0,"
+            + "fornecedor_nome TEXT," // NOVO
+            + "fornecedor_empresa TEXT," // NOVO
             + "data_criacao TEXT,"
             + "data_modificacao TEXT"
             + ");";
@@ -134,6 +138,7 @@ public class Database {
             + ");";
 
         // NOVO: Tabela para Contas a Pagar/Receber
+        // ATUALIZADO: Adicionado fornecedor_nome e fornecedor_empresa
         String sqlContas = "CREATE TABLE IF NOT EXISTS contas ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
             + "descricao TEXT NOT NULL,"
@@ -141,6 +146,8 @@ public class Database {
             + "data_vencimento TEXT NOT NULL,"
             + "tipo TEXT NOT NULL," // "pagar" ou "receber"
             + "status TEXT NOT NULL," // "pendente" ou "pago"
+            + "fornecedor_nome TEXT," // NOVO
+            + "fornecedor_empresa TEXT," // NOVO
             + "data_criacao TEXT"
             + ");";
 
@@ -218,6 +225,9 @@ public class Database {
         
         runTimestampMigration(conn, "estoque", "data_criacao");
         runTimestampMigration(conn, "estoque", "data_modificacao");
+        // NOVO: Migração campos fornecedor estoque
+        runTimestampMigration(conn, "estoque", "fornecedor_nome");
+        runTimestampMigration(conn, "estoque", "fornecedor_empresa");
         
         runTimestampMigration(conn, "safras", "data_criacao");
         runTimestampMigration(conn, "safras", "data_modificacao");
@@ -236,6 +246,9 @@ public class Database {
 
         // NOVO: Migrações para 'contas'
         runTimestampMigration(conn, "contas", "data_criacao");
+        // NOVO: Migração campos fornecedor contas
+        runTimestampMigration(conn, "contas", "fornecedor_nome");
+        runTimestampMigration(conn, "contas", "fornecedor_empresa");
     }
 
     /**
@@ -287,4 +300,3 @@ public class Database {
         return false;
     }
 }
-
