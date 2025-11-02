@@ -52,6 +52,7 @@
                         <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="200.0" />
                         <ColumnConstraints hgrow="ALWAYS" />
                         <ColumnConstraints hgrow="NEVER" />
+                        <ColumnConstraints hgrow="NEVER" /> <!-- ATUALIZADO: Nova coluna -->
                      </columnConstraints>
                      <rowConstraints>
                         <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
@@ -70,6 +71,9 @@
                         <Label style="-fx-font-weight: bold;" text="Data Colheita (Fim):" GridPane.columnIndex="2" GridPane.rowIndex="1" />
                         <DatePicker fx:id="filtroDataFim" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
                         <Button fx:id="btnLimparFiltro" mnemonicParsing="false" onAction="#handleLimparFiltro" text="Limpar" GridPane.columnIndex="5" GridPane.rowIndex="1" />
+                        
+                        <!-- NOVO: Botão Exportar CSV -->
+                        <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar CSV" GridPane.columnIndex="6" GridPane.rowIndex="1" />
                         
                      </children>
                      <VBox.margin>
@@ -146,3 +150,4 @@
       
    </children>
 </StackPane>
+
