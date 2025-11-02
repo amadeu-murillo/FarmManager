@@ -1,14 +1,14 @@
 package com.farmmanager;
 
 import javafx.application.Application;
+import javafx.application.Platform; // NOVO IMPORT
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-// NOVO: Imports necessários para obter o tamanho da tela
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
-import com.farmmanager.util.AlertUtil; // NOVO IMPORT
+import com.farmmanager.util.AlertUtil;
 import javafx.scene.image.Image;
 
 import java.io.IOException;
@@ -19,11 +19,19 @@ import java.net.URL;
  * Configura e exibe a cena principal (Stage).
  * ATUALIZADO: Agora define a janela para ser maximizada ao iniciar.
  * ATUALIZADO: Adiciona o ícone da aplicação na barra de título da janela.
+ * ATUALIZADO: Armazena a instância do Stage principal (primaryStage)
+ * para referência global e permite focar a janela.
  */
 public class App extends Application {
 
+    // NOVO: Instância estática para o Stage principal
+    private static Stage primaryStage;
+
     @Override
     public void start(Stage stage) throws IOException {
+        // NOVO: Armazena a referência ao Stage principal
+        primaryStage = stage; 
+        
         // NOVO: Carrega o ícone para ser usado nos diálogos
         AlertUtil.loadAppIcon();
 
@@ -71,6 +79,27 @@ public class App extends Application {
         stage.setMaximized(true);
         
         stage.show();
+    }
+
+    /**
+     * NOVO: Método de acesso global ao Stage principal.
+     * @return O Stage principal da aplicação.
+     */
+    public static Stage getPrimaryStage() {
+        return primaryStage;
+    }
+
+    /**
+     * NOVO: Traz a janela principal para a frente e a foca.
+     * Deve ser chamado usando Platform.runLater().
+     */
+    public static void focusStage() {
+        if (primaryStage != null) {
+            Platform.runLater(() -> {
+                primaryStage.toFront();
+                primaryStage.requestFocus();
+            });
+        }
     }
 
     public static void main(String[] args) {

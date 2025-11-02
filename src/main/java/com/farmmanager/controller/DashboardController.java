@@ -23,6 +23,8 @@ import javafx.scene.layout.VBox;
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
+import java.time.LocalDate; // NOVO: Import para data
+import java.time.format.DateTimeFormatter; // NOVO: Import para formatar data
 import java.util.Locale;
 import java.util.Map;
 
@@ -39,10 +41,18 @@ import java.util.Map;
  * - MELHORIA UX: Adicionados métodos de navegação (ex: navigateToSafras).
  * - MELHORIA CRÍTICA: Todo o carregamento de dados do initialize()
  * movido para uma Task em background para não congelar a UI.
+ * * --- MELHORIAS DE UX (NOVAS) ---
+ * - Adicionado `lblWelcomeDate` para exibir a data atual.
+ * - Adicionado KPI `lblPatrimonioManutencao` para "Patrimônio em Manutenção".
+ * - Layout de KPIs operacionais ajustado para 4 colunas.
  */
 public class DashboardController {
 
     // --- Componentes FXML ---
+
+    // NOVO: Label de boas-vindas/data
+    @FXML
+    private Label lblWelcomeDate;
 
     // Alertas (Topo)
     @FXML
@@ -87,6 +97,10 @@ public class DashboardController {
     private Label lblFuncionarios;
     @FXML
     private Label lblAreaTotal;
+    
+    // NOVO: KPI de Patrimônio em Manutenção
+    @FXML
+    private Label lblPatrimonioManutencao;
 
     // IDs dos VBox (cards) para clique
     @FXML
@@ -95,6 +109,7 @@ public class DashboardController {
     private VBox cardFuncionarios;
     @FXML
     private VBox cardTalhoes;
+    // (O novo card de manutenção também usará o navigateToPatrimonio)
 
     // Gráficos
     @FXML
@@ -126,6 +141,7 @@ public class DashboardController {
     /**
      * NOVO: Classe interna para agrupar todos os dados
      * buscados na Task de background.
+     * ATUALIZADO: Adicionado `totalPatrimonioManutencao`.
      */
     private static class DashboardData {
         int totalVencidas;
@@ -140,6 +156,7 @@ public class DashboardController {
         int totalFuncionarios;
         int totalTalhoes;
         double totalArea;
+        int totalPatrimonioManutencao; // NOVO
         Map<String, Double> totaisReceitaDespesa;
         Map<String, Double> balancoPorDia;
         Map<String, Integer> contagemCulturas;
@@ -166,9 +183,20 @@ public class DashboardController {
     /**
      * ATUALIZADO: Chamado automaticamente ao carregar o FXML.
      * Apenas configura o estado inicial e chama o carregador assíncrono.
+     * NOVO: Adiciona a data atual ao `lblWelcomeDate`.
      */
     @FXML
     public void initialize() {
+        // NOVO: Define a data atual (rápido, executa imediatamente)
+        try {
+            LocalDate hoje = LocalDate.now();
+            // Formata a data para o padrão brasileiro
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("'Hoje é' EEEE, dd 'de' MMMM 'de' yyyy", new Locale("pt", "BR"));
+            lblWelcomeDate.setText(dtf.format(hoje));
+        } catch (Exception e) {
+            lblWelcomeDate.setText("Bem-vindo!"); // Fallback
+        }
+
         // Garante que os HBox de alerta não ocupem espaço antes do carregamento
         alertaContasVencidasBox.setVisible(false);
         alertaContasVencidasBox.setManaged(false);
@@ -196,6 +224,7 @@ public class DashboardController {
     /**
      * NOVO: Cria uma Task para carregar todos os dados do dashboard
      * em uma thread de background.
+     * ATUALIZADO: Busca também `totalPatrimonioManutencao`.
      */
     private void carregarDadosDashboardAssincrono() {
         Task<DashboardData> carregarTask = new Task<DashboardData>() {
@@ -222,6 +251,7 @@ public class DashboardController {
                 data.totalFuncionarios = funcionarioDAO.getContagemFuncionarios();
                 data.totalTalhoes = talhaoDAO.getContagemTalhoes();
                 data.totalArea = talhaoDAO.getTotalAreaHectares();
+                data.totalPatrimonioManutencao = patrimonioDAO.getContagemPatrimonioPorStatus("Em Manutenção"); // NOVO
 
                 // Gráficos
                 data.totaisReceitaDespesa = financeiroDAO.getTotaisReceitaDespesa();
@@ -241,7 +271,8 @@ public class DashboardController {
             try {
                 atualizarAlertas(data.totalVencidas, data.totalAVencer, data.totalEstoqueBaixo);
                 atualizarKPIsFinanceiros(data.balanco, data.valorEstoque, data.valorPatrimonio, data.contasAReceber, data.contasAPagar);
-                atualizarKPIsOperacionais(data.totalSafras, data.totalFuncionarios, data.totalTalhoes, data.totalArea);
+                // ATUALIZADO: Passa o novo dado
+                atualizarKPIsOperacionais(data.totalSafras, data.totalFuncionarios, data.totalTalhoes, data.totalArea, data.totalPatrimonioManutencao);
                 atualizarGraficos(data.totaisReceitaDespesa, data.balancoPorDia, data.contagemCulturas);
             } catch (Exception ex) {
                 AlertUtil.showError("Erro de UI", "Erro ao exibir dados do dashboard: " + ex.getMessage());
@@ -322,12 +353,14 @@ public class DashboardController {
 
     /**
      * NOVO: Método unificado para atualizar KPIs operacionais com dados pré-buscados.
+     * ATUALIZADO: Recebe e define `totalManutencao`.
      */
-    private void atualizarKPIsOperacionais(int totalSafras, int totalFuncionarios, int totalTalhoes, double totalArea) {
+    private void atualizarKPIsOperacionais(int totalSafras, int totalFuncionarios, int totalTalhoes, double totalArea, int totalManutencao) {
         lblSafras.setText(String.valueOf(totalSafras));
         lblFuncionarios.setText(String.valueOf(totalFuncionarios));
         lblTalhoes.setText(String.valueOf(totalTalhoes));
         lblAreaTotal.setText(String.format(Locale.forLanguageTag("pt-BR"), "(%.1f ha)", totalArea));
+        lblPatrimonioManutencao.setText(String.valueOf(totalManutencao)); // NOVO
     }
 
     /**
