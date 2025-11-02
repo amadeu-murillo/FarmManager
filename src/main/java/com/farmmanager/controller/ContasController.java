@@ -308,6 +308,7 @@ public class ContasController {
         grid.add(dataVencimentoPicker, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
@@ -383,6 +384,7 @@ public class ContasController {
         grid.add(tipoCombo, 1, 3);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == salvarButtonType) {
@@ -439,6 +441,7 @@ public class ContasController {
         }
 
         DatePickerDialog dialog = new DatePickerDialog();
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
         Optional<LocalDate> result = dialog.showAndWait();
 
         if (result.isPresent()) {
@@ -503,3 +506,4 @@ public class ContasController {
         }
     }
 }
+

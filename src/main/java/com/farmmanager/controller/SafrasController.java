@@ -467,6 +467,7 @@ public class SafrasController {
         grid.add(areaField, 1, 1);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
@@ -570,6 +571,7 @@ public class SafrasController {
         grid.add(statusCombo, 1, 3); 
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
@@ -732,6 +734,7 @@ public class SafrasController {
         grid.add(custoManualField, 1, 6); 
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         // Converter resultado
         dialog.setResultConverter(dialogButton -> {
@@ -919,6 +922,7 @@ public class SafrasController {
         );
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
@@ -1122,6 +1126,7 @@ public class SafrasController {
         dialog.setTitle("Atualizar Status da Safra");
         dialog.setHeaderText("Selecione o novo status para:\n" + safraSelecionada.getCultura() + " (" + safraSelecionada.getAnoInicio() + ")");
         dialog.setContentText("Status:");
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         Optional<String> result = dialog.showAndWait();
 
@@ -1270,3 +1275,4 @@ public class SafrasController {
         public double getCusto() { return custo; }
     }
 }
+

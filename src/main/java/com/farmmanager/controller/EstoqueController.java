@@ -13,6 +13,7 @@ import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.beans.value.ChangeListener;
+import javafx.scene.Node; // NOVO IMPORT
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
@@ -34,17 +35,18 @@ import java.util.stream.Collectors;
 /**
  * Controller para o EstoqueView.fxml.
  * ATUALIZADO:
- * - 'handleAdicionarItem' renomeado para 'handleComprarItem' e agora lança despesa.
+ * - 'handleAdicionarItem' é usado para adicionar itens ao estoque (com ou sem registro financeiro).
  * - 'handleConsumirItem' agora lança uma despesa baseada no custo médio.
  * - NOVO: 'handleVenderItem' para remover estoque e lançar receita.
  * - NOVO: 'handleConsumirItem' agora pede uma descrição de uso.
  * - NOVO: Adicionadas colunas de data na tabela.
  * - NOVO: Adicionado filtro de busca, resumo de valor total, alerta de baixo estoque e função de editar.
  * - ATUALIZAÇÃO (handleVenderItem): Adicionado botão "MAX" para preencher a quantidade total.
- * - ATUALIZAÇÃO (handleComprarItem): Adicionada lógica de "Compra a Prazo" (PASSO 1 a 4).
+ * - ATUALIZAÇÃO (handleAdicionarItem): Adicionada lógica de "Compra a Prazo" (PASSO 1 a 4).
  * - ATUALIZAÇÃO (handleVenderItem): Adicionada lógica de "Venda a Prazo".
  * - MELHORIA CRÍTICA: Carregamento de dados (carregarDadosMestres)
  * movido para uma Task em background para não congelar a UI.
+ * - MELHORIA USABILIDADE: 'handleAdicionarItem' agora permite adicionar item sem registro financeiro (ajuste).
  */
 public class EstoqueController {
 
@@ -242,12 +244,13 @@ public class EstoqueController {
 
 
     @FXML
-    private void handleComprarItem() {
-        Dialog<CompraInfo> dialog = new Dialog<>(); 
-        dialog.setTitle("Comprar Item para Estoque");
-        dialog.setHeaderText("Preencha os dados da compra.\nSe o item já existir, os valores serão somados (custo médio).");
+    private void handleAdicionarItem() { // ATUALIZADO: Nome do método
+        // ATUALIZADO: Retorna Pair<CompraInfo, Boolean>
+        Dialog<Pair<CompraInfo, Boolean>> dialog = new Dialog<>(); 
+        dialog.setTitle("Adicionar Item ao Estoque"); // Texto ATUALIZADO
+        dialog.setHeaderText("Preencha os dados da entrada.\nSe o item já existir, os valores serão somados (custo médio).");
 
-        ButtonType adicionarButtonType = new ButtonType("Comprar", ButtonBar.ButtonData.OK_DONE);
+        ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE); // Texto atualizado
         dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
 
         GridPane grid = new GridPane();
@@ -279,6 +282,10 @@ public class EstoqueController {
         grid.add(new Label("Valor Total (R$):"), 0, 4);
         grid.add(valorTotalField, 1, 4);
         
+        // --- INÍCIO DA MELHORIA DE USABILIDADE ---
+        CheckBox registrarFinanceiroCheck = new CheckBox("Registrar no financeiro (como compra)?");
+        registrarFinanceiroCheck.setSelected(true);
+        
         Label tipoPagLabel = new Label("Tipo de Pagamento:");
         ComboBox<String> tipoPagCombo = new ComboBox<>(
                 FXCollections.observableArrayList("À Vista", "A Prazo")
@@ -288,10 +295,12 @@ public class EstoqueController {
         Label vencimentoLabel = new Label("Data Vencimento:");
         DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
 
-        grid.add(tipoPagLabel, 0, 5);
-        grid.add(tipoPagCombo, 1, 5);
-        grid.add(vencimentoLabel, 0, 6);
-        grid.add(vencimentoPicker, 1, 6);
+        grid.add(registrarFinanceiroCheck, 0, 5, 2, 1); // Checkbox
+        grid.add(tipoPagLabel, 0, 6); // Linha movida
+        grid.add(tipoPagCombo, 1, 6); // Linha movida
+        grid.add(vencimentoLabel, 0, 7); // Linha movida
+        grid.add(vencimentoPicker, 1, 7); // Linha movida
+        // --- FIM DA MELHORIA DE USABILIDADE ---
 
 
         // --- Lógica de Cálculo Automático ---
@@ -305,15 +314,71 @@ public class EstoqueController {
         vencimentoLabel.setManaged(false);
         vencimentoPicker.setManaged(false);
 
+        // Esconde campos de pagamento se o financeiro não for registrado
+        registrarFinanceiroCheck.selectedProperty().addListener((obs, oldVal, newVal) -> {
+            boolean registrar = newVal;
+            tipoPagLabel.setVisible(registrar);
+            tipoPagCombo.setVisible(registrar);
+            tipoPagLabel.setManaged(registrar);
+            tipoPagCombo.setManaged(registrar);
+
+            // Só mostra vencimento se for A Prazo E for registrar
+            boolean aPrazo = tipoPagCombo.getSelectionModel().getSelectedItem().equals("A Prazo");
+            vencimentoLabel.setVisible(registrar && aPrazo);
+            vencimentoPicker.setVisible(registrar && aPrazo);
+            vencimentoLabel.setManaged(registrar && aPrazo);
+            vencimentoPicker.setManaged(registrar && aPrazo);
+        });
+
         tipoPagCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
             boolean aPrazo = newVal.equals("A Prazo");
-            vencimentoLabel.setVisible(aPrazo);
-            vencimentoPicker.setVisible(aPrazo);
-            vencimentoLabel.setManaged(aPrazo);
-            vencimentoPicker.setManaged(aPrazo);
+            boolean registrar = registrarFinanceiroCheck.isSelected();
+            vencimentoLabel.setVisible(registrar && aPrazo);
+            vencimentoPicker.setVisible(registrar && aPrazo);
+            vencimentoLabel.setManaged(registrar && aPrazo);
+            vencimentoPicker.setManaged(registrar && aPrazo);
         });
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
+        
+        // --- Validação em Tempo Real (similar ao PatrimonioController) ---
+        Node adicionarButtonNode = dialog.getDialogPane().lookupButton(adicionarButtonType);
+        adicionarButtonNode.setDisable(true); // Começa desabilitado
+
+        Runnable validadorEstoque = () -> {
+            boolean nomeOk = !nomeField.getText().trim().isEmpty();
+            boolean unidadeOk = !unidadeField.getText().trim().isEmpty();
+            boolean qtdOk = false;
+            boolean valorTotalOk = false;
+            boolean registrar = registrarFinanceiroCheck.isSelected();
+
+            try {
+                double qtd = parseDouble(qtdField.getText());
+                qtdOk = qtd > 0; // Quantidade deve ser sempre positiva
+            } catch (NumberFormatException e) {
+                qtdOk = false;
+            }
+            
+            try {
+                double valorTotal = parseDouble(valorTotalField.getText());
+                // Se for registrar, valor > 0. Se for ajuste, valor >= 0 (permite 0).
+                valorTotalOk = registrar ? valorTotal > 0 : valorTotal >= 0;
+            } catch (NumberFormatException e) {
+                 valorTotalOk = false;
+            }
+
+            adicionarButtonNode.setDisable(!nomeOk || !unidadeOk || !qtdOk || !valorTotalOk);
+        };
+        
+        nomeField.textProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        unidadeField.textProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        qtdField.textProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        valorTotalField.textProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        valorUnitarioField.textProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        registrarFinanceiroCheck.selectedProperty().addListener((obs, o, n) -> validadorEstoque.run());
+        validadorEstoque.run(); // Validação inicial
+        // --- Fim da Validação ---
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
@@ -323,10 +388,20 @@ public class EstoqueController {
                     double qtd = parseDouble(qtdField.getText());
                     double valorUnitario = parseDouble(valorUnitarioField.getText());
                     double valorTotal = parseDouble(valorTotalField.getText());
+                    boolean deveRegistrar = registrarFinanceiroCheck.isSelected();
 
-                    if (nome.isEmpty() || unidade.isEmpty() || qtd <= 0 || valorTotal <= 0) {
-                         AlertUtil.showError("Erro de Validação", "Todos os campos de item são obrigatórios e valores devem ser positivos.");
+                    // Validações (já cobertas pelos listeners, mas mantidas por segurança)
+                    if (nome.isEmpty() || unidade.isEmpty() || qtd <= 0) {
+                         AlertUtil.showError("Erro de Validação", "Nome, Unidade e Quantidade (> 0) são obrigatórios.");
                          return null;
+                    }
+                    if (deveRegistrar && valorTotal <= 0) {
+                         AlertUtil.showError("Erro de Validação", "O Valor Total deve ser positivo ao registrar no financeiro.");
+                         return null;
+                    }
+                    if (!deveRegistrar && valorTotal < 0) {
+                        AlertUtil.showError("Erro de Validação", "O Valor Total não pode ser negativo.");
+                        return null;
                     }
                     
                     EstoqueItem item = new EstoqueItem(nome, qtd, unidade, valorUnitario, valorTotal);
@@ -334,12 +409,12 @@ public class EstoqueController {
                     String tipoPagamento = tipoPagCombo.getSelectionModel().getSelectedItem();
                     LocalDate dataVencimento = vencimentoPicker.getValue();
 
-                    if (tipoPagamento.equals("A Prazo") && dataVencimento == null) {
+                    if (deveRegistrar && tipoPagamento.equals("A Prazo") && dataVencimento == null) {
                         AlertUtil.showError("Erro de Validação", "A Data de Vencimento é obrigatória para compras 'A Prazo'.");
                         return null;
                     }
 
-                    return new CompraInfo(item, tipoPagamento, dataVencimento);
+                    return new Pair<>(new CompraInfo(item, tipoPagamento, dataVencimento), deveRegistrar);
 
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
@@ -349,41 +424,52 @@ public class EstoqueController {
             return null;
         });
 
-        Optional<CompraInfo> result = dialog.showAndWait(); 
+        // ATUALIZADO: Espera um Pair
+        Optional<Pair<CompraInfo, Boolean>> result = dialog.showAndWait(); 
 
-        result.ifPresent(compraInfo -> {
+        // ATUALIZADO: Processa o Pair
+        result.ifPresent(pair -> {
             try {
-                // Operação de escrita (rápida)
+                CompraInfo compraInfo = pair.getKey();
+                boolean deveRegistrar = pair.getValue();
+
+                // 1. Adiciona ao estoque (SEMPRE)
                 estoqueDAO.addEstoque(compraInfo.item);
 
-                if (compraInfo.tipoPagamento.equals("À Vista")) {
-                    String data = LocalDate.now().format(dateFormatter);
-                    String desc = "Compra (à vista): " + compraInfo.item.getItemNome();
-                    double valor = -compraInfo.item.getValorTotal(); 
-                    
-                    Transacao transacao = new Transacao(desc, valor, data, "despesa");
-                    financeiroDAO.addTransacao(transacao);
-                    
-                    AlertUtil.showInfo("Sucesso", "Item comprado (à vista) e despesa registrada no financeiro.");
+                // 2. Lógica financeira (CONDICIONAL)
+                if (deveRegistrar) {
+                    if (compraInfo.tipoPagamento.equals("À Vista")) {
+                        String data = LocalDate.now().format(dateFormatter);
+                        String desc = "Compra (à vista): " + compraInfo.item.getItemNome();
+                        double valor = -compraInfo.item.getValorTotal(); 
+                        
+                        Transacao transacao = new Transacao(desc, valor, data, "despesa");
+                        financeiroDAO.addTransacao(transacao);
+                        
+                        AlertUtil.showInfo("Sucesso", "Item comprado (à vista) e despesa registrada no financeiro.");
 
+                    } else { // A Prazo
+                        String desc = "Compra (a prazo): " + compraInfo.item.getItemNome();
+                        Conta conta = new Conta(
+                            desc,
+                            compraInfo.item.getValorTotal(), 
+                            compraInfo.dataVencimento.toString(),
+                            "pagar", 
+                            "pendente"
+                        );
+                        contaDAO.addConta(conta); 
+                        AlertUtil.showInfo("Sucesso", "Item comprado (a prazo) e 'Conta a Pagar' registrada com sucesso.");
+                    }
                 } else {
-                    String desc = "Compra (a prazo): " + compraInfo.item.getItemNome();
-                    Conta conta = new Conta(
-                        desc,
-                        compraInfo.item.getValorTotal(), 
-                        compraInfo.dataVencimento.toString(),
-                        "pagar", 
-                        "pendente"
-                    );
-                    contaDAO.addConta(conta); 
-                    AlertUtil.showInfo("Sucesso", "Item comprado (a prazo) e 'Conta a Pagar' registrada com sucesso.");
+                    // Mensagem para ajuste de estoque
+                    AlertUtil.showInfo("Sucesso", "Item adicionado/atualizado no estoque (ajuste manual).");
                 }
 
-                // Recarrega os dados (assíncrono)
+                // Recarrega os dados (assíncrono), independentemente do tipo
                 carregarDadosMestres(); 
 
             } catch (SQLException e) {
-                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a compra: " + e.getMessage());
+                AlertUtil.showError("Erro de Banco de Dados", "Não foi possível registrar a entrada: " + e.getMessage());
             }
         });
     }
@@ -518,6 +604,7 @@ public class EstoqueController {
         listener.changed(null, null, null); 
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
@@ -622,6 +709,7 @@ public class EstoqueController {
         grid.add(descField, 1, 1);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
@@ -704,6 +792,7 @@ public class EstoqueController {
         grid.add(unidadeField, 1, 1);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
@@ -799,3 +888,4 @@ public class EstoqueController {
         }
     }
 }
+

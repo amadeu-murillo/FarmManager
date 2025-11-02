@@ -7,13 +7,17 @@ import com.farmmanager.model.ManutencaoDAO; // NOVO
 import com.farmmanager.model.FinanceiroDAO; // NOVO
 import com.farmmanager.model.Transacao; // NOVO
 import com.farmmanager.util.AlertUtil;
+import javafx.beans.binding.Bindings; // NOVO IMPORT
+import javafx.beans.value.ChangeListener; // NOVO IMPORT
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
+import javafx.scene.Node; // NOVO IMPORT
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.util.Pair; // NOVO IMPORT
 
 import java.sql.SQLException;
 import java.text.NumberFormat; // NOVO
@@ -27,6 +31,7 @@ import java.util.Optional;
  * ATUALIZADO:
  * - Adicionada integração total com Financeiro (Aquisição, Manutenção, Venda).
  * - Adicionado painel de detalhes com histórico de manutenção.
+ * - MELHORIA USABILIDADE: 'handleAdicionar' agora permite adicionar ativo sem registro financeiro (ajuste).
  */
 public class PatrimonioController {
 
@@ -77,6 +82,10 @@ public class PatrimonioController {
     private final ObservableList<Patrimonio> dadosTabela;
     private final ObservableList<Manutencao> dadosTabelaManutencao; // NOVO
     private final NumberFormat currencyFormatter; // NOVO
+    
+    // NOVO: Variável para validação de diálogo (Evita loops)
+    private boolean validadorEstoque = false;
+
 
     public PatrimonioController() {
         patrimonioDAO = new PatrimonioDAO();
@@ -165,10 +174,13 @@ public class PatrimonioController {
 
     /**
      * ATUALIZADO: Agora também lança uma despesa no financeiro.
+     * ATUALIZADO: Adiciona CheckBox para registro financeiro.
+     * ATUALIZADO: Adiciona validação em tempo real (listeners) e usa Pair no resultado.
      */
     @FXML
     private void handleAdicionar() {
-        Dialog<Patrimonio> dialog = new Dialog<>();
+        // 1. Criar o diálogo
+        Dialog<Pair<Patrimonio, Boolean>> dialog = new Dialog<>(); // ATUALIZADO
         dialog.setTitle("Adicionar Novo Ativo");
         dialog.setHeaderText("Preencha os dados do ativo (máquina, implemento, etc.)");
 
@@ -191,6 +203,11 @@ public class PatrimonioController {
                 FXCollections.observableArrayList("Operacional", "Em Manutenção", "Inativo")
         );
         statusCombo.getSelectionModel().selectFirst();
+        
+        // NOVO: Checkbox para controle financeiro
+        CheckBox registrarFinanceiroCheck = new CheckBox("Registrar aquisição no financeiro?");
+        registrarFinanceiroCheck.setSelected(true);
+
 
         grid.add(new Label("Nome/Descrição:"), 0, 0);
         grid.add(nomeField, 1, 0);
@@ -202,28 +219,74 @@ public class PatrimonioController {
         grid.add(valorAquisicaoField, 1, 3);
         grid.add(new Label("Status:"), 0, 4);
         grid.add(statusCombo, 1, 4);
-
+        grid.add(registrarFinanceiroCheck, 0, 5, 2, 1);
+        
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
+        // 4. Habilitar/Desabilitar botão Adicionar (Validação)
+        Node adicionarButtonNode = dialog.getDialogPane().lookupButton(adicionarButtonType);
+        adicionarButtonNode.setDisable(true); // Começa desabilitado
+
+        // Listener para validar
+        Runnable validador = () -> {
+            boolean nomeOk = !nomeField.getText().trim().isEmpty();
+            boolean tipoOk = !tipoField.getText().trim().isEmpty();
+            boolean valorOk = false;
+            boolean registrar = registrarFinanceiroCheck.isSelected();
+            
+            try {
+                // Remove o R$ e formatação regional, aceita , e .
+                String valorLimpo = valorAquisicaoField.getText().replace("R$", "").trim().replace(".", "").replace(",", ".");
+                double valor = Double.parseDouble(valorLimpo);
+                
+                // Se for registrar, valor > 0. Se for ajuste, valor >= 0 (permite 0).
+                valorOk = registrar ? valor > 0 : valor >= 0;
+            } catch (NumberFormatException e) {
+                valorOk = false;
+            }
+            
+            adicionarButtonNode.setDisable(!nomeOk || !tipoOk || !valorOk);
+        };
+        
+
+        // Adiciona listeners
+        nomeField.textProperty().addListener((obs, o, n) -> validador.run());
+        tipoField.textProperty().addListener((obs, o, n) -> validador.run());
+        valorAquisicaoField.textProperty().addListener((obs, o, n) -> validador.run());
+        registrarFinanceiroCheck.selectedProperty().addListener((obs, o, n) -> validador.run());
+        validador.run(); // Validação inicial
+
+
+        // 5. Converter o resultado
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String nome = nomeField.getText();
                     String tipo = tipoField.getText();
                     LocalDate data = dataAquisicaoPicker.getValue();
-                    double valor = Double.parseDouble(valorAquisicaoField.getText().replace(",", ".")); // Helper
+                    // Garante que a conversão use o mesmo método da validação
+                    String valorLimpo = valorAquisicaoField.getText().replace("R$", "").trim().replace(".", "").replace(",", ".");
+                    double valor = Double.parseDouble(valorLimpo);
                     String status = statusCombo.getSelectionModel().getSelectedItem();
+                    boolean deveRegistrar = registrarFinanceiroCheck.isSelected();
 
+                    // Validações (já cobertas pelos listeners, mas mantidas por segurança)
                     if (nome.isEmpty() || tipo.isEmpty() || data == null || status.isEmpty()) {
                         AlertUtil.showError("Erro de Validação", "Todos os campos são obrigatórios.");
                         return null;
                     }
-                    if (valor <= 0) {
-                        AlertUtil.showError("Erro de Validação", "O valor deve ser positivo.");
+                    if (deveRegistrar && valor <= 0) {
+                        AlertUtil.showError("Erro de Validação", "O valor deve ser positivo para registrar no financeiro.");
+                        return null;
+                    }
+                     if (valor < 0) { // Valor 0 é permitido para ajuste
+                        AlertUtil.showError("Erro de Validação", "O valor não pode ser negativo.");
                         return null;
                     }
                     
-                    return new Patrimonio(nome, tipo, data.toString(), valor, status);
+                    Patrimonio p = new Patrimonio(nome, tipo, data.toString(), valor, status);
+                    return new Pair<>(p, deveRegistrar); // ATUALIZADO: Retorna o Pair
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valor de aquisição inválido.");
                     return null;
@@ -232,21 +295,29 @@ public class PatrimonioController {
             return null;
         });
 
-        Optional<Patrimonio> result = dialog.showAndWait();
+        // 6. Exibir o diálogo e processar o resultado
+        Optional<Pair<Patrimonio, Boolean>> result = dialog.showAndWait(); // ATUALIZADO
 
-        result.ifPresent(patrimonio -> {
+        result.ifPresent(pair -> { // ATUALIZADO
             try {
-                // 1. Adiciona ao patrimônio
+                Patrimonio patrimonio = pair.getKey();
+                boolean deveRegistrar = pair.getValue();
+
+                // 1. Adiciona ao patrimônio (SEMPRE)
                 patrimonioDAO.addPatrimonio(patrimonio);
                 
-                // 2. NOVO: Lança a despesa no financeiro
-                String desc = "Aquisição Ativo: " + patrimonio.getNome();
-                double valor = -patrimonio.getValorAquisicao(); // Despesa é negativa
-                Transacao transacao = new Transacao(desc, valor, patrimonio.getDataAquisicao(), "despesa");
-                financeiroDAO.addTransacao(transacao);
+                // 2. Lança a despesa no financeiro (CONDICIONAL)
+                if (deveRegistrar) {
+                    String desc = "Aquisição Ativo: " + patrimonio.getNome();
+                    double valor = -patrimonio.getValorAquisicao(); // Despesa é negativa
+                    Transacao transacao = new Transacao(desc, valor, patrimonio.getDataAquisicao(), "despesa");
+                    financeiroDAO.addTransacao(transacao);
+                    AlertUtil.showInfo("Sucesso", "Ativo adicionado e despesa registrada no financeiro.");
+                } else {
+                     AlertUtil.showInfo("Sucesso", "Ativo adicionado (ajuste manual, sem lançamento financeiro).");
+                }
 
                 carregarDadosDaTabela(); // Atualiza a tabela
-                AlertUtil.showInfo("Sucesso", "Ativo adicionado e despesa registrada no financeiro.");
                 
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar o ativo: " + e.getMessage());
@@ -288,13 +359,15 @@ public class PatrimonioController {
         grid.add(custoField, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String desc = descField.getText();
                     LocalDate data = dataPicker.getValue();
-                    double custo = Double.parseDouble(custoField.getText().replace(",", "."));
+                    String valorLimpo = custoField.getText().replace("R$", "").trim().replace(".", "").replace(",", ".");
+                    double custo = Double.parseDouble(valorLimpo);
 
                     if (desc.isEmpty() || data == null) {
                         AlertUtil.showError("Erro de Validação", "Data e Descrição são obrigatórios.");
@@ -354,6 +427,7 @@ public class PatrimonioController {
         dialog.setTitle("Atualizar Status");
         dialog.setHeaderText("Ativo: " + selecionado.getNome());
         dialog.setContentText("Novo Status:");
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         Optional<String> result = dialog.showAndWait();
 
@@ -380,12 +454,14 @@ public class PatrimonioController {
         dialog.setTitle("Vender Ativo");
         dialog.setHeaderText("Venda de: " + selecionado.getNome());
         dialog.setContentText("Valor da Venda (R$):");
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         Optional<String> result = dialog.showAndWait();
 
         result.ifPresent(valorStr -> {
             try {
-                double valorVenda = Double.parseDouble(valorStr.replace(",", "."));
+                String valorLimpo = valorStr.replace("R$", "").trim().replace(".", "").replace(",", ".");
+                double valorVenda = Double.parseDouble(valorLimpo);
                 if (valorVenda < 0) {
                     AlertUtil.showError("Erro de Validação", "O valor da venda não pode ser negativo.");
                     return;

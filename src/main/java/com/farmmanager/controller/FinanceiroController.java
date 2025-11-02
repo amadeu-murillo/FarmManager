@@ -464,6 +464,7 @@ public class FinanceiroController {
         grid.add(dataPicker, 1, 2); 
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
@@ -538,6 +539,7 @@ public class FinanceiroController {
         grid.add(dataPicker, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
+        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == salvarButtonType) {

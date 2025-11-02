@@ -8,7 +8,7 @@ import javafx.stage.Stage;
 // NOVO: Imports necessários para obter o tamanho da tela
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
-// NOVO: Import para imagem (ícone da janela)
+import com.farmmanager.util.AlertUtil; // NOVO IMPORT
 import javafx.scene.image.Image;
 
 import java.io.IOException;
@@ -24,6 +24,9 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) throws IOException {
+        // NOVO: Carrega o ícone para ser usado nos diálogos
+        AlertUtil.loadAppIcon();
+
         // Constrói o caminho para o arquivo FXML dentro do pacote de resources
         URL fxmlUrl = getClass().getResource("/com/farmmanager/MainView.fxml");
         if (fxmlUrl == null) {
@@ -74,3 +77,4 @@ public class App extends Application {
         launch(args);
     }
 }
+
