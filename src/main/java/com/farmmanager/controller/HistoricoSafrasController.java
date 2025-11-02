@@ -24,6 +24,10 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.control.TableCell; 
 import javafx.geometry.Pos; 
+import javafx.stage.FileChooser; // NOVO: Import para FileChooser
+import java.io.File; // NOVO: Import para File
+import java.io.IOException; // NOVO: Import para IOException
+import java.io.PrintWriter; // NOVO: Import para PrintWriter
 
 import java.sql.SQLException;
 import java.text.DecimalFormat; 
@@ -43,6 +47,7 @@ import java.util.stream.Collectors;
  * ATUALIZADO (initialize): Adicionada formatação decimal para coluna sc/ha.
  * - MELHORIA CRÍTICA: Carregamento de dados (Safras e Talhões)
  * movido para uma Task em background para não congelar a UI.
+ * - ATUALIZADO: Adicionada função de exportar CSV filtrado.
  */
 public class HistoricoSafrasController {
 
@@ -68,6 +73,8 @@ public class HistoricoSafrasController {
     private Button btnAplicarFiltro;
     @FXML
     private Button btnLimparFiltro; 
+    @FXML
+    private Button btnExportarCsv; // NOVO: FXML para o botão
     @FXML
     private DatePicker filtroDataInicio; 
     @FXML
@@ -226,13 +233,6 @@ public class HistoricoSafrasController {
 
 
     /**
-     * ATUALIZADO: Este método foi removido pois sua lógica
-     * foi incorporada em carregarDadosPaginaAssincrono().
-     */
-    // private void carregarDadosMestresEAtualizarTudo() { ... }
-
-
-    /**
      * ATUALIZADO: Renomeado de carregarFiltros().
      * Agora popula os ComboBoxes usando dados (listas) já carregados,
      * sem fazer novas chamadas ao DAO.
@@ -347,11 +347,65 @@ public class HistoricoSafrasController {
         atualizarChartProducaoMedia(safrasFiltradas);
         atualizarChartProducaoCultura(safrasFiltradas);
     }
+    
+    /**
+     * NOVO: Exporta os dados atualmente visíveis na tabela (filtrados) para um arquivo CSV.
+     */
+    @FXML
+    private void handleExportarCsv() {
+        if (dadosTabelaHistorico.isEmpty()) {
+            AlertUtil.showInfo("Nada para Exportar", "A tabela está vazia. Não há dados para exportar.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Relatório de Histórico de Safras");
+        fileChooser.setInitialFileName("Relatorio_Historico_Safras.csv");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+
+        File file = fileChooser.showSaveDialog(tabelaHistorico.getScene().getWindow());
+
+        if (file == null) {
+            return; // Usuário cancelou
+        }
+
+        // Tenta escrever o arquivo
+        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) {
+            
+            writer.write("\uFEFF"); // Adiciona o BOM do UTF-8 para Excel
+            
+            StringBuilder sb = new StringBuilder();
+            
+            // Cabeçalho do CSV
+            sb.append("ID;Safra (Ano);Cultura;Talhão;Área (ha);Data Colheita;Produção Total (Sacos);Produtividade (sc/ha)\n");
+
+            // Escreve os dados (usando a lista filtrada 'dadosTabelaHistorico')
+            for (SafraInfo safra : dadosTabelaHistorico) {
+                sb.append(String.format(Locale.US, "%d;%s;\"%s\";\"%s\";%.2f;%s;%.2f;%.2f\n",
+                    safra.getId(),
+                    safra.getAnoInicio(),
+                    safra.getCultura().replace("\"", "\"\""),
+                    safra.getTalhaoNome().replace("\"", "\"\""),
+                    safra.getAreaHectares(),
+                    safra.getDataModificacao(), // Data da colheita
+                    safra.getProducaoTotalSacos(),
+                    safra.getProducaoSacosPorHectare()
+                ));
+            }
+
+            writer.write(sb.toString());
+            AlertUtil.showInfo("Sucesso", "Relatório CSV (Filtrado) exportado com sucesso para:\n" + file.getAbsolutePath());
+
+        } catch (IOException e) {
+            AlertUtil.showError("Erro ao Exportar", "Não foi possível gerar o arquivo CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
 
     /**
      * Atualiza o gráfico de linha (Produção Média por Safra)
      */
-// ... (código existente) ...
     private void atualizarChartProducaoMedia(List<SafraInfo> safras) {
         // Agrupa por Ano/Safra e calcula a média de sc/ha
         Map<String, Double> mediaPorSafra = safras.stream()
@@ -376,7 +430,6 @@ public class HistoricoSafrasController {
     /**
      * Atualiza o gráfico de pizza (Produção Total por Cultura)
      */
-// ... (código existente) ...
     private void atualizarChartProducaoCultura(List<SafraInfo> safras) {
         // Agrupa por Cultura e soma a produção total (em sacos)
         Map<String, Double> producaoPorCultura = safras.stream()
@@ -394,3 +447,4 @@ public class HistoricoSafrasController {
             });
     }
 }
+

@@ -14,6 +14,10 @@ import javafx.geometry.Pos; // NOVO
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.stage.FileChooser; // NOVO: Import para FileChooser
+import java.io.File; // NOVO: Import para File
+import java.io.IOException; // NOVO: Import para IOException
+import java.io.PrintWriter; // NOVO: Import para PrintWriter
 
 import java.sql.SQLException;
 import java.text.NumberFormat; // NOVO
@@ -32,6 +36,7 @@ import java.util.Optional;
  * - ATUALIZADO: Adicionados campos cpf, telefone, endereco.
  * - ATUALIZADO: Adicionado "handleLancarOutroPagamento" para pagamentos customizados.
  * - ATUALIZADO: Adicionado painel de detalhes (SplitPane) com histórico de pagamentos.
+ * - ATUALIZADO: Adicionada função de exportar CSV do funcionário.
  */
 public class FuncionariosController {
 
@@ -58,6 +63,8 @@ public class FuncionariosController {
     private Button btnPagarSalario; // NOVO
     @FXML
     private Button btnLancarOutroPagamento; // NOVO
+    @FXML
+    private Button btnExportarCsv; // NOVO
     
     // --- NOVO: Painel de Detalhes ---
     @FXML
@@ -108,6 +115,7 @@ public class FuncionariosController {
         // NOVO: Desabilita botões se nada estiver selecionado
         btnPagarSalario.disableProperty().bind(tabelaFuncionarios.getSelectionModel().selectedItemProperty().isNull());
         btnLancarOutroPagamento.disableProperty().bind(tabelaFuncionarios.getSelectionModel().selectedItemProperty().isNull()); // NOVO
+        btnExportarCsv.disableProperty().bind(tabelaFuncionarios.getSelectionModel().selectedItemProperty().isNull()); // NOVO
 
         // --- NOVO: Configura painel de detalhes ---
         colPagData.setCellValueFactory(new PropertyValueFactory<>("data"));
@@ -456,6 +464,74 @@ public class FuncionariosController {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível lançar o pagamento: " + e.getMessage());
             }
         });
+    }
+    
+    /**
+     * NOVO: Exporta os dados do funcionário selecionado e seu histórico de pagamentos.
+     */
+    @FXML
+    private void handleExportarCsv() {
+        Funcionario selecionado = tabelaFuncionarios.getSelectionModel().getSelectedItem();
+        if (selecionado == null) {
+            AlertUtil.showError("Nenhuma Seleção", "Selecione um funcionário para exportar o relatório.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Relatório do Funcionário");
+        fileChooser.setInitialFileName("Relatorio_Funcionario_" + selecionado.getNome().replace(" ", "_") + ".csv");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+
+        File file = fileChooser.showSaveDialog(tabelaFuncionarios.getScene().getWindow());
+
+        if (file == null) {
+            return; // Usuário cancelou
+        }
+
+        // Tenta escrever o arquivo
+        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) {
+            
+            writer.write("\uFEFF"); // Adiciona o BOM do UTF-8 para Excel
+            
+            StringBuilder sb = new StringBuilder();
+            
+            // 1. Dados do Funcionário
+            sb.append("Relatório do Funcionário\n");
+            sb.append("ID;").append(selecionado.getId()).append("\n");
+            sb.append("Nome;\"").append(selecionado.getNome()).append("\"\n");
+            sb.append("Cargo;\"").append(selecionado.getCargo()).append("\"\n");
+            sb.append("Salário (R$);").append(String.format(Locale.US, "%.2f", selecionado.getSalario())).append("\n");
+            sb.append("Data de Início;").append(selecionado.getDataInicio()).append("\n");
+            sb.append("CPF;").append(selecionado.getCpf()).append("\n");
+            sb.append("Telefone;\"").append(selecionado.getTelefone()).append("\"\n");
+            sb.append("Endereço;\"").append(selecionado.getEndereco()).append("\"\n");
+            sb.append("\n");
+
+            // 2. Histórico de Pagamentos
+            sb.append("Histórico de Pagamentos\n");
+            sb.append("Data;Descrição;Valor Pago (R$)\n");
+
+            // Usa a lista 'dadosTabelaPagamentos' que já está preenchida no painel de detalhes
+            for (Transacao pgto : dadosTabelaPagamentos) {
+                sb.append(String.format(Locale.US, "%s;\"%s\";%.2f\n",
+                    pgto.getData(),
+                    pgto.getDescricao().replace("\"", "\"\""), // Escapa aspas
+                    Math.abs(pgto.getValor()) // Pega o valor absoluto (saída)
+                ));
+            }
+
+            // 3. Total
+            // Reutiliza o texto do label que já está formatado
+            sb.append("\nTotal Pago;").append(lblTotalPagamentos.getText().replace("Total Pago: ", "")).append("\n");
+
+            writer.write(sb.toString());
+            AlertUtil.showInfo("Sucesso", "Relatório do funcionário exportado com sucesso para:\n" + file.getAbsolutePath());
+
+        } catch (IOException e) {
+            // CORREÇÃO: Concatenação de string corrigida
+            AlertUtil.showError("Erro ao Exportar", "Não foi possível gerar o arquivo CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 }
 

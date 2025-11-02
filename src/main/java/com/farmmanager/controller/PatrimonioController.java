@@ -6,6 +6,8 @@ import com.farmmanager.model.Manutencao; // NOVO
 import com.farmmanager.model.ManutencaoDAO; // NOVO
 import com.farmmanager.model.FinanceiroDAO; // NOVO
 import com.farmmanager.model.Transacao; // NOVO
+import com.farmmanager.model.Conta; // NOVO: Import para Contas
+import com.farmmanager.model.ContaDAO; // NOVO: Import para ContasDAO
 import com.farmmanager.util.AlertUtil;
 import javafx.beans.binding.Bindings; // NOVO IMPORT
 import javafx.beans.value.ChangeListener; // NOVO IMPORT
@@ -18,6 +20,7 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.util.Pair; // NOVO IMPORT
+import javafx.scene.control.ScrollPane; // NOVO: Import para ScrollPane
 
 import java.sql.SQLException;
 import java.text.NumberFormat; // NOVO
@@ -32,6 +35,9 @@ import java.util.Optional;
  * - Adicionada integração total com Financeiro (Aquisição, Manutenção, Venda).
  * - Adicionado painel de detalhes com histórico de manutenção.
  * - MELHORIA USABILIDADE: 'handleAdicionar' agora permite adicionar ativo sem registro financeiro (ajuste).
+ * - ATUALIZAÇÃO (handleRegistrarManutencao): Agora permite lançar manutenção "À Vista" (Financeiro)
+ * ou "A Prazo" (Contas a Pagar) e coletar dados do fornecedor.
+ * - ATUALIZADO (handleRegistrarManutencao): Conteúdo do diálogo agora está em um ScrollPane.
  */
 public class PatrimonioController {
 
@@ -79,6 +85,7 @@ public class PatrimonioController {
     private final PatrimonioDAO patrimonioDAO;
     private final ManutencaoDAO manutencaoDAO; // NOVO
     private final FinanceiroDAO financeiroDAO; // NOVO
+    private final ContaDAO contaDAO; // NOVO
     private final ObservableList<Patrimonio> dadosTabela;
     private final ObservableList<Manutencao> dadosTabelaManutencao; // NOVO
     private final NumberFormat currencyFormatter; // NOVO
@@ -87,10 +94,32 @@ public class PatrimonioController {
     private boolean validadorEstoque = false;
 
 
+    /**
+     * NOVO: Classe interna para encapsular o resultado complexo
+     * do diálogo de registro de manutenção.
+     */
+    private static class ManutencaoDialogInfo {
+        final Manutencao manutencao;
+        final String tipoPagamento; // "À Vista" ou "A Prazo"
+        final LocalDate dataVencimento; // Nulo se for "À Vista"
+        final String fornecedorNome;
+        final String fornecedorEmpresa;
+
+        ManutencaoDialogInfo(Manutencao manutencao, String tipoPagamento, LocalDate dataVencimento, String fornecedorNome, String fornecedorEmpresa) {
+            this.manutencao = manutencao;
+            this.tipoPagamento = tipoPagamento;
+            this.dataVencimento = dataVencimento;
+            this.fornecedorNome = fornecedorNome;
+            this.fornecedorEmpresa = fornecedorEmpresa;
+        }
+    }
+
+
     public PatrimonioController() {
         patrimonioDAO = new PatrimonioDAO();
         manutencaoDAO = new ManutencaoDAO(); // NOVO
         financeiroDAO = new FinanceiroDAO(); // NOVO
+        contaDAO = new ContaDAO(); // NOVO
         dadosTabela = FXCollections.observableArrayList();
         dadosTabelaManutencao = FXCollections.observableArrayList(); // NOVO
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); // NOVO
@@ -327,15 +356,18 @@ public class PatrimonioController {
 
     /**
      * NOVO: Registra um custo de manutenção para o ativo selecionado.
+     * ATUALIZADO: Permite registro "À Vista" ou "A Prazo".
+     * ATUALIZADO: Conteúdo do diálogo agora está em um ScrollPane.
      */
     @FXML
     private void handleRegistrarManutencao() {
         Patrimonio selecionado = tabelaPatrimonio.getSelectionModel().getSelectedItem();
         if (selecionado == null) return; // Botão deve estar desabilitado, mas é uma segurança
 
-        Dialog<Manutencao> dialog = new Dialog<>();
+        Dialog<ManutencaoDialogInfo> dialog = new Dialog<>(); // ATUALIZADO
         dialog.setTitle("Registrar Manutenção");
         dialog.setHeaderText("Ativo: " + selecionado.getNome());
+        dialog.setResizable(true); // Mantém redimensionável
 
         ButtonType adicionarButtonType = new ButtonType("Registrar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
@@ -343,7 +375,7 @@ public class PatrimonioController {
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
-        grid.setPadding(new Insets(20, 150, 10, 10));
+        grid.setPadding(new Insets(20, 20, 20, 20)); // Padding ajustado
 
         DatePicker dataPicker = new DatePicker(LocalDate.now());
         TextField descField = new TextField();
@@ -351,16 +383,95 @@ public class PatrimonioController {
         TextField custoField = new TextField();
         custoField.setPromptText("Ex: 1500.00");
 
+        // --- NOVOS CAMPOS ---
+        TextField fornecedorNomeField = new TextField();
+        fornecedorNomeField.setPromptText("Ex: Oficina do Zé (Opcional)");
+        TextField fornecedorEmpresaField = new TextField();
+        fornecedorEmpresaField.setPromptText("Ex: Zé Peças LTDA (Opcional)");
+        
+        ComboBox<String> tipoPagCombo = new ComboBox<>(
+                FXCollections.observableArrayList("À Vista", "A Prazo")
+        );
+        tipoPagCombo.getSelectionModel().select("À Vista");
+
+        Label vencimentoLabel = new Label("Data Vencimento:");
+        DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
+        // --- FIM NOVOS CAMPOS ---
+
+
         grid.add(new Label("Data:"), 0, 0);
         grid.add(dataPicker, 1, 0);
         grid.add(new Label("Descrição:"), 0, 1);
         grid.add(descField, 1, 1);
         grid.add(new Label("Custo (R$):"), 0, 2);
         grid.add(custoField, 1, 2);
+        grid.add(new Label("Fornecedor (Nome):"), 0, 3);
+        grid.add(fornecedorNomeField, 1, 3);
+        grid.add(new Label("Fornecedor (Empresa):"), 0, 4);
+        grid.add(fornecedorEmpresaField, 1, 4);
+        grid.add(new Label("Tipo de Pagamento:"), 0, 5);
+        grid.add(tipoPagCombo, 1, 5);
+        grid.add(vencimentoLabel, 0, 6);
+        grid.add(vencimentoPicker, 1, 6);
 
-        dialog.getDialogPane().setContent(grid);
-        AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
+        // Lógica de Visibilidade
+        vencimentoLabel.setVisible(false);
+        vencimentoPicker.setVisible(false);
+        vencimentoLabel.setManaged(false);
+        vencimentoPicker.setManaged(false);
 
+        tipoPagCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            boolean aPrazo = newVal.equals("A Prazo");
+            vencimentoLabel.setVisible(aPrazo);
+            vencimentoPicker.setVisible(aPrazo);
+            vencimentoLabel.setManaged(aPrazo);
+            vencimentoPicker.setManaged(aPrazo);
+        });
+        
+        // Validação do botão
+        Node adicionarButtonNode = dialog.getDialogPane().lookupButton(adicionarButtonType);
+        adicionarButtonNode.setDisable(true);
+
+        Runnable validadorManutencao = () -> {
+            boolean descOk = !descField.getText().trim().isEmpty();
+            boolean custoOk = false;
+            boolean dataVencOk = true; // Assume OK se não for "A Prazo"
+
+            try {
+                double custo = Double.parseDouble(custoField.getText().replace(",", "."));
+                custoOk = custo > 0;
+            } catch (NumberFormatException e) {
+                custoOk = false;
+            }
+
+            if (tipoPagCombo.getSelectionModel().getSelectedItem().equals("A Prazo")) {
+                dataVencOk = vencimentoPicker.getValue() != null;
+            }
+            
+            adicionarButtonNode.setDisable(!descOk || !custoOk || !dataVencOk);
+        };
+        
+        descField.textProperty().addListener((obs, o, n) -> validadorManutencao.run());
+        custoField.textProperty().addListener((obs, o, n) -> validadorManutencao.run());
+        tipoPagCombo.valueProperty().addListener((obs, o, n) -> validadorManutencao.run());
+        vencimentoPicker.valueProperty().addListener((obs, o, n) -> validadorManutencao.run());
+        validadorManutencao.run(); // Run inicial
+        
+        // --- FIM VALIDAÇÃO ---
+
+        // NOVO: Coloca o GridPane dentro de um ScrollPane
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(grid);
+        scrollPane.setFitToWidth(true);
+        // Remove fundo e borda do scrollpane para integrar com o diálogo
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+        // Define uma altura preferencial para o scrollpane, para evitar que o diálogo fique gigante
+        scrollPane.setPrefHeight(400); 
+
+        dialog.getDialogPane().setContent(scrollPane); // ATUALIZADO: Define o ScrollPane como conteúdo
+        AlertUtil.setDialogIcon(dialog);
+
+        // ATUALIZADO: Converte para ManutencaoDialogInfo
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
                 try {
@@ -368,6 +479,11 @@ public class PatrimonioController {
                     LocalDate data = dataPicker.getValue();
                     String valorLimpo = custoField.getText().replace("R$", "").trim().replace(".", "").replace(",", ".");
                     double custo = Double.parseDouble(valorLimpo);
+                    
+                    String fornNome = fornecedorNomeField.getText();
+                    String fornEmpresa = fornecedorEmpresaField.getText();
+                    String tipoPag = tipoPagCombo.getValue();
+                    LocalDate dataVenc = vencimentoPicker.getValue();
 
                     if (desc.isEmpty() || data == null) {
                         AlertUtil.showError("Erro de Validação", "Data e Descrição são obrigatórios.");
@@ -377,8 +493,14 @@ public class PatrimonioController {
                         AlertUtil.showError("Erro de Validação", "O custo deve ser positivo.");
                         return null;
                     }
+                    if (tipoPag.equals("A Prazo") && dataVenc == null) {
+                        AlertUtil.showError("Erro de Validação", "Data de Vencimento é obrigatória para pagamento 'A Prazo'.");
+                        return null;
+                    }
                     
-                    return new Manutencao(selecionado.getId(), data.toString(), desc, custo);
+                    Manutencao m = new Manutencao(selecionado.getId(), data.toString(), desc, custo);
+                    return new ManutencaoDialogInfo(m, tipoPag, dataVenc, fornNome, fornEmpresa);
+
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Custo inválido.");
                     return null;
@@ -387,22 +509,54 @@ public class PatrimonioController {
             return null;
         });
 
-        Optional<Manutencao> result = dialog.showAndWait();
+        // ATUALIZADO: Processa ManutencaoDialogInfo
+        Optional<ManutencaoDialogInfo> result = dialog.showAndWait();
 
-        result.ifPresent(manutencao -> {
+        result.ifPresent(info -> {
             try {
-                // 1. Adiciona ao histórico de manutenção
-                manutencaoDAO.addManutencao(manutencao);
+                // 1. Adiciona ao histórico de manutenção (SEMPRE)
+                manutencaoDAO.addManutencao(info.manutencao);
 
-                // 2. Lança a despesa no financeiro
-                String descFin = "Manutenção: " + selecionado.getNome() + " (" + manutencao.getDescricao() + ")";
-                Transacao transacao = new Transacao(descFin, -manutencao.getCusto(), manutencao.getData(), "despesa");
-                financeiroDAO.addTransacao(transacao);
+                // 2. Lança a despesa (CONDICIONAL)
+                String descFin = "Manutenção: " + selecionado.getNome() + " (" + info.manutencao.getDescricao() + ")";
+                
+                // Adiciona info do fornecedor na descrição do financeiro (se preenchido)
+                if (info.fornecedorNome != null && !info.fornecedorNome.isEmpty()) {
+                    descFin += " (Fornec: " + info.fornecedorNome + ")";
+                }
+                 if (info.fornecedorEmpresa != null && !info.fornecedorEmpresa.isEmpty()) {
+                    descFin += " (Empresa: " + info.fornecedorEmpresa + ")";
+                }
+
+                if ("À Vista".equals(info.tipoPagamento)) {
+                    // Lança no Financeiro (Caixa)
+                    Transacao transacao = new Transacao(
+                        descFin, 
+                        -info.manutencao.getCusto(), 
+                        info.manutencao.getData(), 
+                        "despesa"
+                    );
+                    financeiroDAO.addTransacao(transacao);
+                    AlertUtil.showInfo("Sucesso", "Manutenção registrada e despesa (à vista) lançada no financeiro.");
+                    
+                } else {
+                    // Lança em Contas a Pagar
+                    Conta conta = new Conta(
+                        descFin,
+                        info.manutencao.getCusto(), // Valor positivo
+                        info.dataVencimento.toString(),
+                        "pagar",
+                        "pendente",
+                        info.fornecedorNome,
+                        info.fornecedorEmpresa
+                    );
+                    contaDAO.addConta(conta);
+                    AlertUtil.showInfo("Sucesso", "Manutenção registrada e 'Conta a Pagar' (a prazo) criada.");
+                }
+
 
                 // 3. Atualiza o status do ativo para "Em Manutenção"
                 patrimonioDAO.updateStatus(selecionado.getId(), "Em Manutenção");
-
-                AlertUtil.showInfo("Sucesso", "Manutenção registrada, despesa lançada e status do ativo atualizado.");
                 
                 carregarDadosDaTabela(); // Atualiza a tabela principal (para o status)
                 handlePatrimonioSelectionChanged(selecionado); // Atualiza o painel de detalhes

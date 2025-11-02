@@ -17,6 +17,7 @@
   - ADICIONADAS COLUNAS CPF, Telefone, Endereço.
   - ATUALIZADO: Botão de pagamento dividido em "Lançar Salário" e "Lançar Outro Pagamento".
   - ATUALIZADO: Convertido para SplitPane com painel de detalhes (histórico de pagamento).
+  - ATUALIZADO: Adicionado botão de exportar CSV no painel de detalhes.
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.FuncionariosController">
    <children>
@@ -69,10 +70,17 @@
                      </columns>
                   </TableView>
                   <Label fx:id="lblTotalPagamentos" style="-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #D32F2F;" text="Total Pago: R$ 0,00" />
+                  
+                  <!-- NOVO BOTÃO DE EXPORTAR -->
+                  <HBox alignment="CENTER_RIGHT" style="-fx-padding-top: 10px;">
+                     <children>
+                        <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar Relatório (CSV)" />
+                     </children>
+                  </HBox>
+                          
                </children>
             </VBox>
          </items>
       </SplitPane>
    </children>
 </VBox>
-
