@@ -2,27 +2,29 @@ package com.farmmanager.controller;
 
 import com.farmmanager.model.EstoqueItem;
 import com.farmmanager.model.EstoqueDAO;
-import com.farmmanager.model.FinanceiroDAO; // NOVO
-import com.farmmanager.model.Transacao; // NOVO
-import com.farmmanager.model.Conta; // NOVO - PASSO 1
-import com.farmmanager.model.ContaDAO; // NOVO - PASSO 1
+import com.farmmanager.model.FinanceiroDAO; 
+import com.farmmanager.model.Transacao; 
+import com.farmmanager.model.Conta; 
+import com.farmmanager.model.ContaDAO; 
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.beans.value.ChangeListener;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox; // <-- IMPORTAÇÃO ADICIONADA
-import javafx.geometry.Pos; // <-- IMPORTAÇÃO ADICIONADA
-import javafx.util.Pair; // NOVO
+import javafx.scene.layout.HBox; 
+import javafx.scene.layout.VBox; // NOVO: Import para o VBox
+import javafx.geometry.Pos; 
+import javafx.util.Pair; 
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
-import java.time.LocalDate; // NOVO
-import java.time.format.DateTimeFormatter; // NOVO
+import java.time.LocalDate; 
+import java.time.format.DateTimeFormatter; 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +43,8 @@ import java.util.stream.Collectors;
  * - ATUALIZAÇÃO (handleVenderItem): Adicionado botão "MAX" para preencher a quantidade total.
  * - ATUALIZAÇÃO (handleComprarItem): Adicionada lógica de "Compra a Prazo" (PASSO 1 a 4).
  * - ATUALIZAÇÃO (handleVenderItem): Adicionada lógica de "Venda a Prazo".
+ * - MELHORIA CRÍTICA: Carregamento de dados (carregarDadosMestres)
+ * movido para uma Task em background para não congelar a UI.
  */
 public class EstoqueController {
 
@@ -52,6 +56,7 @@ public class EstoqueController {
     private TableView<EstoqueItem> tabelaEstoque;
     @FXML
     private TableColumn<EstoqueItem, Integer> colItemId;
+    // ... (outras colunas)
     @FXML
     private TableColumn<EstoqueItem, String> colItemNome;
     @FXML
@@ -59,39 +64,57 @@ public class EstoqueController {
     @FXML
     private TableColumn<EstoqueItem, String> colItemUnidade;
     @FXML
-    private TableColumn<EstoqueItem, Double> colItemValorUnit; // NOVO
+    private TableColumn<EstoqueItem, Double> colItemValorUnit; 
     @FXML
-    private TableColumn<EstoqueItem, Double> colItemValorTotal; // NOVO
+    private TableColumn<EstoqueItem, Double> colItemValorTotal; 
     @FXML
-    private TableColumn<EstoqueItem, String> colDataCriacao; // NOVO
+    private TableColumn<EstoqueItem, String> colDataCriacao; 
     @FXML
-    private TableColumn<EstoqueItem, String> colDataModificacao; // NOVO
+    private TableColumn<EstoqueItem, String> colDataModificacao; 
 
-    // NOVO: Componentes de Filtro e Resumo
+    // Filtro e Resumo
     @FXML
     private Label lblValorTotalEstoque;
     @FXML
     private TextField filtroNome;
 
+    // NOVO: Componentes para controle de carregamento
+    @FXML
+    private ProgressIndicator loadingIndicator;
+    @FXML
+    private VBox contentVBox; // Container principal (VBox do FXML)
+
     // --- Lógica Interna ---
     private final EstoqueDAO estoqueDAO;
-    private final FinanceiroDAO financeiroDAO; // NOVO
-    private final ContaDAO contaDAO; // NOVO - PASSO 1
-    private final ObservableList<EstoqueItem> dadosTabelaFiltrada; // O que está visível na tabela
-    private List<EstoqueItem> listaMestraEstoque; // Lista completa do banco
-    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); // NOVO
-    private final NumberFormat currencyFormatter; // NOVO
+    private final FinanceiroDAO financeiroDAO; 
+    private final ContaDAO contaDAO; 
+    private final ObservableList<EstoqueItem> dadosTabelaFiltrada; 
+    private List<EstoqueItem> listaMestraEstoque; 
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); 
+    private final NumberFormat currencyFormatter; 
 
-    // Flag para evitar loops nos listeners
     private boolean isUpdating = false;
+
+    /**
+     * NOVO: Classe interna para agrupar os resultados da Task
+     */
+    private static class EstoqueData {
+        final List<EstoqueItem> items;
+        final double valorTotal;
+
+        EstoqueData(List<EstoqueItem> items, double valorTotal) {
+            this.items = items;
+            this.valorTotal = valorTotal;
+        }
+    }
 
     public EstoqueController() {
         estoqueDAO = new EstoqueDAO();
-        financeiroDAO = new FinanceiroDAO(); // NOVO
-        contaDAO = new ContaDAO(); // NOVO - PASSO 1
-        dadosTabelaFiltrada = FXCollections.observableArrayList(); // ATUALIZADO
-        listaMestraEstoque = new ArrayList<>(); // NOVO
-        currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); // NOVO
+        financeiroDAO = new FinanceiroDAO(); 
+        contaDAO = new ContaDAO(); 
+        dadosTabelaFiltrada = FXCollections.observableArrayList(); 
+        listaMestraEstoque = new ArrayList<>(); 
+        currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); 
     }
 
     @FXML
@@ -100,28 +123,27 @@ public class EstoqueController {
         colItemNome.setCellValueFactory(new PropertyValueFactory<>("itemNome"));
         colItemQtd.setCellValueFactory(new PropertyValueFactory<>("quantidade"));
         colItemUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
-        colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); // NOVO
-        colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); // NOVO
-        colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); // NOVO
-        colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); // NOVO
+        colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); 
+        colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); 
+        colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); 
+        colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); 
 
-        tabelaEstoque.setItems(dadosTabelaFiltrada); // ATUALIZADO
+        tabelaEstoque.setItems(dadosTabelaFiltrada); 
 
-        // NOVO: Adiciona listener para o campo de filtro
-        filtroNome.textProperty().addListener((obs, oldV, newV) -> aplicarFiltroEAtualizarResumo());
+        // Adiciona listener para o campo de filtro
+        // ATUALIZADO: Renomeado para aplicarFiltro()
+        filtroNome.textProperty().addListener((obs, oldV, newV) -> aplicarFiltro());
 
-        // NOVO: Adiciona RowFactory para destacar baixo estoque
+        // Adiciona RowFactory para destacar baixo estoque
         tabelaEstoque.setRowFactory(tv -> new TableRow<EstoqueItem>() {
             @Override
             protected void updateItem(EstoqueItem item, boolean empty) {
                 super.updateItem(item, empty);
-                // Limpa estilos anteriores
                 getStyleClass().remove("table-row-cell:warning");
 
                 if (empty || item == null) {
                     setStyle("");
                 } else if (item.getQuantidade() <= LIMITE_BAIXO_ESTOQUE) {
-                    // Aplica a classe CSS de aviso
                     if (!getStyleClass().contains("table-row-cell:warning")) {
                         getStyleClass().add("table-row-cell:warning");
                     }
@@ -129,26 +151,68 @@ public class EstoqueController {
             }
         });
 
-        carregarDadosMestres(); // ATUALIZADO
+        carregarDadosMestres(); 
     }
 
     /**
-     * NOVO: Carrega todos os dados do banco para a lista mestra e atualiza a tela.
+     * NOVO: Controla a visibilidade do indicador de carregamento.
+     */
+    private void showLoading(boolean isLoading) {
+        loadingIndicator.setVisible(isLoading);
+        loadingIndicator.setManaged(isLoading);
+        
+        contentVBox.setDisable(isLoading);
+        contentVBox.setOpacity(isLoading ? 0.5 : 1.0); 
+    }
+
+    /**
+     * ATUALIZADO: Carrega todos os dados do banco (Itens e Valor Total)
+     * em uma Task de background.
      */
     private void carregarDadosMestres() {
-        try {
+        Task<EstoqueData> carregarTask = new Task<EstoqueData>() {
+            @Override
+            protected EstoqueData call() throws Exception {
+                // Chamadas de banco de dados (demoradas)
+                List<EstoqueItem> items = estoqueDAO.listEstoque();
+                double valorTotal = estoqueDAO.getValorTotalEmEstoque();
+                return new EstoqueData(items, valorTotal);
+            }
+        };
+
+        carregarTask.setOnSucceeded(e -> {
+            EstoqueData data = carregarTask.getValue();
+
+            // 1. Atualiza a lista mestra
             listaMestraEstoque.clear();
-            listaMestraEstoque.addAll(estoqueDAO.listEstoque());
-            aplicarFiltroEAtualizarResumo(); // Aplica filtro (vazio) e atualiza resumo
-        } catch (SQLException e) {
+            listaMestraEstoque.addAll(data.items);
+
+            // 2. Atualiza o resumo (que agora vem da task)
+            lblValorTotalEstoque.setText(currencyFormatter.format(data.valorTotal));
+
+            // 3. Aplica o filtro (rápido, em memória)
+            aplicarFiltro();
+            
+            // 4. Esconde o loading
+            showLoading(false);
+        });
+
+        carregarTask.setOnFailed(e -> {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar o estoque.");
-        }
+            carregarTask.getException().printStackTrace();
+            showLoading(false);
+        });
+
+        showLoading(true);
+        new Thread(carregarTask).start();
     }
 
+
     /**
-     * NOVO: Filtra a lista mestra com base no campo de busca e atualiza a tabela.
+     * ATUALIZADO: Renomeado. Agora *apenas* filtra a lista mestra (em memória).
+     * Não faz mais chamadas ao DAO.
      */
-    private void aplicarFiltroEAtualizarResumo() {
+    private void aplicarFiltro() {
         String filtro = filtroNome.getText().toLowerCase().trim();
 
         // 1. Filtra a lista
@@ -163,32 +227,23 @@ public class EstoqueController {
 
         // 2. Atualiza a tabela
         dadosTabelaFiltrada.setAll(listaFiltrada);
-
-        // 3. Atualiza o resumo
-        atualizarResumoEstoque();
+        
+        // 3. O resumo (lblValorTotalEstoque) NÃO é mais atualizado aqui.
+        // Ele é atualizado apenas no carregarDadosMestres().
     }
 
     /**
-     * NOVO: Busca o valor total do DAO e atualiza o label.
+     * ATUALIZADO: Removido. A lógica foi movida para carregarDadosMestres().
      */
     private void atualizarResumoEstoque() {
-        try {
-            double valorTotal = estoqueDAO.getValorTotalEmEstoque();
-            lblValorTotalEstoque.setText(currencyFormatter.format(valorTotal));
-        } catch (SQLException e) {
-            lblValorTotalEstoque.setText("Erro ao carregar");
-            e.printStackTrace();
-        }
+       // Esta lógica foi movida para carregarDadosMestres()
+       // para ser executada na Task de background.
     }
 
 
-    /**
-     * Manipulador para o botão "+ Comprar Item" (antigo Adicionar Item).
-     * ATUALIZADO: Agora também lança uma despesa no financeiro.
-     */
     @FXML
     private void handleComprarItem() {
-        Dialog<CompraInfo> dialog = new Dialog<>(); // ALTERADO - PASSO 2
+        Dialog<CompraInfo> dialog = new Dialog<>(); 
         dialog.setTitle("Comprar Item para Estoque");
         dialog.setHeaderText("Preencha os dados da compra.\nSe o item já existir, os valores serão somados (custo médio).");
 
@@ -224,18 +279,15 @@ public class EstoqueController {
         grid.add(new Label("Valor Total (R$):"), 0, 4);
         grid.add(valorTotalField, 1, 4);
         
-        // NOVO: Tipo de Pagamento - PASSO 2
         Label tipoPagLabel = new Label("Tipo de Pagamento:");
         ComboBox<String> tipoPagCombo = new ComboBox<>(
                 FXCollections.observableArrayList("À Vista", "A Prazo")
         );
         tipoPagCombo.getSelectionModel().select("À Vista");
 
-        // NOVO: Data de Vencimento - PASSO 2
         Label vencimentoLabel = new Label("Data Vencimento:");
         DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
 
-        // Adiciona ao grid - PASSO 2
         grid.add(tipoPagLabel, 0, 5);
         grid.add(tipoPagCombo, 1, 5);
         grid.add(vencimentoLabel, 0, 6);
@@ -243,17 +295,11 @@ public class EstoqueController {
 
 
         // --- Lógica de Cálculo Automático ---
-
-        // Se Qtd ou Vlr. Unitário mudam, calcula o Vlr. Total
         qtdField.textProperty().addListener((obs, oldV, newV) -> calcularTotal(qtdField, valorUnitarioField, valorTotalField));
         valorUnitarioField.textProperty().addListener((obs, oldV, newV) -> calcularTotal(qtdField, valorUnitarioField, valorTotalField));
-
-        // Se Vlr. Total muda, calcula o Vlr. Unitário
         valorTotalField.textProperty().addListener((obs, oldV, newV) -> calcularUnitario(qtdField, valorUnitarioField, valorTotalField));
         
-        // --- Fim da Lógica ---
-
-        // NOVO: Lógica de Visibilidade - PASSO 2
+        // --- Lógica de Visibilidade ---
         vencimentoLabel.setVisible(false);
         vencimentoPicker.setVisible(false);
         vencimentoLabel.setManaged(false);
@@ -266,11 +312,9 @@ public class EstoqueController {
             vencimentoLabel.setManaged(aPrazo);
             vencimentoPicker.setManaged(aPrazo);
         });
-        // --- Fim da Lógica de Visibilidade ---
 
         dialog.getDialogPane().setContent(grid);
 
-        // ATUALIZADO - PASSO 3
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == adicionarButtonType) {
                 try {
@@ -287,7 +331,6 @@ public class EstoqueController {
                     
                     EstoqueItem item = new EstoqueItem(nome, qtd, unidade, valorUnitario, valorTotal);
 
-                    // Lógica dos novos campos
                     String tipoPagamento = tipoPagCombo.getSelectionModel().getSelectedItem();
                     LocalDate dataVencimento = vencimentoPicker.getValue();
 
@@ -306,20 +349,17 @@ public class EstoqueController {
             return null;
         });
 
-        Optional<CompraInfo> result = dialog.showAndWait(); // ALTERADO - PASSO 4
+        Optional<CompraInfo> result = dialog.showAndWait(); 
 
-        // ATUALIZADO - PASSO 4
         result.ifPresent(compraInfo -> {
             try {
-                // 1. Adicionar ao estoque (Isto acontece em ambos os casos)
+                // Operação de escrita (rápida)
                 estoqueDAO.addEstoque(compraInfo.item);
 
-                // 2. Lógica de Pagamento
                 if (compraInfo.tipoPagamento.equals("À Vista")) {
-                    // LÓGICA ANTIGA: Lançar despesa imediata
                     String data = LocalDate.now().format(dateFormatter);
                     String desc = "Compra (à vista): " + compraInfo.item.getItemNome();
-                    double valor = -compraInfo.item.getValorTotal(); // Despesa é negativa
+                    double valor = -compraInfo.item.getValorTotal(); 
                     
                     Transacao transacao = new Transacao(desc, valor, data, "despesa");
                     financeiroDAO.addTransacao(transacao);
@@ -327,23 +367,19 @@ public class EstoqueController {
                     AlertUtil.showInfo("Sucesso", "Item comprado (à vista) e despesa registrada no financeiro.");
 
                 } else {
-                    // LÓGICA NOVA: Lançar Conta a Pagar
                     String desc = "Compra (a prazo): " + compraInfo.item.getItemNome();
-                    
                     Conta conta = new Conta(
                         desc,
-                        compraInfo.item.getValorTotal(), // ContaDAO espera valor positivo
+                        compraInfo.item.getValorTotal(), 
                         compraInfo.dataVencimento.toString(),
-                        "pagar", // Tipo da conta
-                        "pendente" // Status inicial
+                        "pagar", 
+                        "pendente"
                     );
-                    
-                    contaDAO.addConta(conta); // Usa o DAO adicionado no Passo 1
-                    
+                    contaDAO.addConta(conta); 
                     AlertUtil.showInfo("Sucesso", "Item comprado (a prazo) e 'Conta a Pagar' registrada com sucesso.");
                 }
 
-                // 3. Atualizar a tela
+                // Recarrega os dados (assíncrono)
                 carregarDadosMestres(); 
 
             } catch (SQLException e) {
@@ -354,6 +390,7 @@ public class EstoqueController {
 
     // Helper para converter texto em double (aceita , e .)
     private double parseDouble(String text) throws NumberFormatException {
+// ... (código existente) ...
         if (text == null || text.isEmpty()) {
             return 0.0;
         }
@@ -362,13 +399,14 @@ public class EstoqueController {
 
     // Helper para formatar double para o campo de texto
     private String formatDouble(double value) {
-        // Usa Locale.US para garantir o ponto como separador decimal
+// ... (código existente) ...
         return String.format(Locale.US, "%.2f", value);
     }
 
     // Calcula Vlr. Total
     private void calcularTotal(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
-        if (isUpdating) return; // Evita loop
+// ... (código existente) ...
+        if (isUpdating) return; 
         isUpdating = true;
         try {
             double qtd = parseDouble(qtdField.getText());
@@ -384,7 +422,8 @@ public class EstoqueController {
 
     // Calcula Vlr. Unitário
     private void calcularUnitario(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
-        if (isUpdating) return; // Evita loop
+// ... (código existente) ...
+        if (isUpdating) return; 
         isUpdating = true;
         try {
             double qtd = parseDouble(qtdField.getText());
@@ -399,13 +438,9 @@ public class EstoqueController {
     }
 
 
-    /**
-     * NOVO: Manipulador para o botão "Vender Item".
-     * Lança uma receita no financeiro e dá baixa no estoque.
-     * ATUALIZADO: Adicionado botão "MAX".
-     */
     @FXML
     private void handleVenderItem() {
+// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -413,8 +448,7 @@ public class EstoqueController {
             return;
         }
 
-        // Dialog<Pair<Double, Double>> dialog = new Dialog<>(); // Antigo
-        Dialog<VendaInfo> dialog = new Dialog<>(); // NOVO
+        Dialog<VendaInfo> dialog = new Dialog<>(); 
         dialog.setTitle("Vender Item do Estoque");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + selecionado.getQuantidade() + " " + selecionado.getUnidade() + ")");
 
@@ -427,28 +461,16 @@ public class EstoqueController {
         grid.setPadding(new Insets(20, 150, 10, 10));
 
         TextField qtdField = new TextField("1.0");
-
-        // --- INÍCIO DA MODIFICAÇÃO ---
-        
-        // NOVO: Criar botão MAX
         Button maxButton = new Button("MAX");
         maxButton.setOnAction(e -> {
-            // Define o texto do qtdField para a quantidade total disponível
-            // Usando Locale.US para garantir o formato com ponto decimal
             qtdField.setText(String.format(Locale.US, "%.2f", selecionado.getQuantidade()));
         });
-
-        // NOVO: Criar HBox para agrupar TextField e Botão
-        HBox qtdBox = new HBox(5, qtdField, maxButton); // 5 é o espaçamento
+        HBox qtdBox = new HBox(5, qtdField, maxButton); 
         qtdBox.setAlignment(Pos.CENTER_LEFT);
 
-        // --- FIM DA MODIFICAÇÃO ---
-
-        // Sugere o preço de venda baseado no custo unitário (valor de estoque)
         TextField precoVendaField = new TextField(String.format(Locale.US, "%.2f", selecionado.getValorUnitario()));
         Label valorTotalVendaLabel = new Label("Total da Venda: R$ 0,00");
 
-        // --- NOVO: Campos para Venda a Prazo ---
         Label tipoPagLabel = new Label("Recebimento:");
         ComboBox<String> tipoPagCombo = new ComboBox<>(
                 FXCollections.observableArrayList("À Vista", "A Prazo")
@@ -470,23 +492,17 @@ public class EstoqueController {
             vencimentoLabel.setManaged(aPrazo);
             vencimentoPicker.setManaged(aPrazo);
         });
-        // --- Fim Venda a Prazo ---
 
         grid.add(new Label("Quantidade a Vender:"), 0, 0);
-        grid.add(qtdBox, 1, 0); // ATUALIZADO: Adiciona o HBox
+        grid.add(qtdBox, 1, 0); 
         grid.add(new Label("Preço de Venda (unitário):"), 0, 1);
         grid.add(precoVendaField, 1, 1);
-        
-        // --- NOVOS CAMPOS NO GRID ---
         grid.add(tipoPagLabel, 0, 2);
         grid.add(tipoPagCombo, 1, 2);
         grid.add(vencimentoLabel, 0, 3);
         grid.add(vencimentoPicker, 1, 3);
-        // --- FIM NOVOS CAMPOS ---
-        
-        grid.add(valorTotalVendaLabel, 1, 4); // Posição atualizada
+        grid.add(valorTotalVendaLabel, 1, 4); 
 
-        // Listener para atualizar o total da venda
         ChangeListener<String> listener = (obs, oldV, newV) -> {
             try {
                 double qtd = parseDouble(qtdField.getText());
@@ -499,18 +515,18 @@ public class EstoqueController {
 
         qtdField.textProperty().addListener(listener);
         precoVendaField.textProperty().addListener(listener);
-        listener.changed(null, null, null); // Calcula o valor inicial
+        listener.changed(null, null, null); 
 
         dialog.getDialogPane().setContent(grid);
 
-        // Converte o resultado para o objeto VendaInfo
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == venderButtonType) {
                 try {
                     double qtd = parseDouble(qtdField.getText());
                     double preco = parseDouble(precoVendaField.getText());
-                    String tipoRecebimento = tipoPagCombo.getSelectionModel().getSelectedItem(); // NOVO
-                    LocalDate dataVencimento = vencimentoPicker.getValue(); // NOVO
+                    String tipoRecebimento = tipoPagCombo.getSelectionModel().getSelectedItem(); 
+                    LocalDate dataVencimento = vencimentoPicker.getValue(); 
 
                     if (qtd <= 0 || preco < 0) {
                         AlertUtil.showError("Valor Inválido", "Quantidade deve ser positiva e preço não pode ser negativo.");
@@ -520,14 +536,12 @@ public class EstoqueController {
                          AlertUtil.showError("Estoque Insuficiente", "Disponível: " + selecionado.getQuantidade() + ". Solicitado: " + qtd);
                          return null;
                     }
-                    // NOVO: Validação da data a prazo
                     if (tipoRecebimento.equals("A Prazo") && dataVencimento == null) {
                         AlertUtil.showError("Erro de Validação", "A Data de Recebimento é obrigatória para vendas 'A Prazo'.");
                         return null;
                     }
                     
-                    // return new Pair<>(qtd, preco); // Antigo
-                    return new VendaInfo(qtd, preco, tipoRecebimento, dataVencimento); // NOVO
+                    return new VendaInfo(qtd, preco, tipoRecebimento, dataVencimento); 
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
                     return null;
@@ -536,42 +550,35 @@ public class EstoqueController {
             return null;
         });
 
-        // Optional<Pair<Double, Double>> result = dialog.showAndWait(); // Antigo
-        Optional<VendaInfo> result = dialog.showAndWait(); // NOVO
+        Optional<VendaInfo> result = dialog.showAndWait(); 
 
-        result.ifPresent(vendaInfo -> { // Atualizado
-            // double qtdAVender = par.getKey(); // Antigo
-            // double precoVendaUnitario = par.getValue(); // Antigo
-            
+        result.ifPresent(vendaInfo -> { 
             try {
-                // 1. Dá baixa no estoque (Sempre)
+                // Operação de escrita (rápida)
                 estoqueDAO.consumirEstoque(selecionado.getId(), vendaInfo.qtdAVender);
 
                 double valorReceita = vendaInfo.qtdAVender * vendaInfo.precoVendaUnitario;
                 String desc = "Venda de " + selecionado.getItemNome();
 
-                // 2. Lança a receita (À Vista ou A Prazo)
                 if (vendaInfo.tipoRecebimento.equals("À Vista")) {
-                    // Lógica antiga: Lança no financeiro
                     String data = LocalDate.now().format(dateFormatter);
-                    Transacao transacao = new Transacao(desc, valorReceita, data, "receita"); // Receita é positiva
+                    Transacao transacao = new Transacao(desc, valorReceita, data, "receita"); 
                     financeiroDAO.addTransacao(transacao);
                     AlertUtil.showInfo("Sucesso", "Venda (à vista) registrada. Estoque atualizado e receita lançada.");
 
                 } else {
-                    // Lógica nova: Lança em Contas a Receber
                     Conta conta = new Conta(
                         desc,
-                        valorReceita, // Valor positivo
+                        valorReceita, 
                         vendaInfo.dataVencimento.toString(),
-                        "receber", // Tipo
-                        "pendente" // Status
+                        "receber", 
+                        "pendente" 
                     );
                     contaDAO.addConta(conta);
                     AlertUtil.showInfo("Sucesso", "Venda (a prazo) registrada. Estoque atualizado e 'Conta a Receber' criada.");
                 }
 
-                carregarDadosMestres(); // ATUALIZADO
+                carregarDadosMestres(); // Recarrega (assíncrono)
 
             } catch (IllegalStateException e) {
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
@@ -581,13 +588,9 @@ public class EstoqueController {
         });
     }
 
-    /**
-     * Manipulador para o botão "Consumir Item" (Uso Interno).
-     * ATUALIZADO: Agora também lança uma despesa no financeiro.
-     * NOVO: Pede uma descrição de uso.
-     */
     @FXML
     private void handleConsumirItem() {
+// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -595,10 +598,8 @@ public class EstoqueController {
             return;
         }
 
-        // Formata a quantidade atual para exibir no diálogo
         String qtdAtualStr = String.format(Locale.US, "%.2f", selecionado.getQuantidade());
 
-        // NOVO: Diálogo customizado para quantidade e descrição
         Dialog<Pair<Double, String>> dialog = new Dialog<>();
         dialog.setTitle("Consumir Item do Estoque (Uso Interno)");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + qtdAtualStr + " " + selecionado.getUnidade() + ")");
@@ -622,8 +623,8 @@ public class EstoqueController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Converte o resultado para um Par (Qtd, Descricao)
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == consumirButtonType) {
                 try {
                     double qtd = parseDouble(qtdField.getText());
@@ -655,33 +656,16 @@ public class EstoqueController {
         result.ifPresent(pair -> {
             try {
                 double qtdAConsumir = pair.getKey();
-                String descricaoUso = pair.getValue();
+                // String descricaoUso = pair.getValue(); // Não usado mais para despesa
 
-                // 1. Dá baixa no estoque
+                // Operação de escrita (rápida)
                 estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
                 
-                // 2. NOVO: Lança a despesa <-- REMOVIDO
-                // O custo já foi registrado na COMPRA do insumo.
-                // double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
-                // if (custoConsumo > 0) {
-                //     String data = LocalDate.now().format(dateFormatter);
-                //     // NOVO: Usa a descrição do diálogo
-                //     String desc = "Consumo (" + descricaoUso + "): " + selecionado.getItemNome();
-                //     Transacao transacao = new Transacao(desc, -custoConsumo, data, "despesa");
-                //     financeiroDAO.addTransacao(transacao);
-                //     
-                //     AlertUtil.showInfo("Sucesso", "Estoque atualizado e despesa de consumo registrada.");
-                // } else {
-                //      AlertUtil.showInfo("Sucesso", "Estoque atualizado (item sem valor de custo).");
-                // }
-                
-                // Nova mensagem de sucesso (sem mencionar despesa)
                 AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
                 
-                carregarDadosMestres(); // ATUALIZADO
+                carregarDadosMestres(); // Recarrega (assíncrono)
 
             } catch (IllegalStateException e) {
-                // Captura a exceção de estoque insuficiente lançada pelo DAO
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível consumir o item: " + e.getMessage());
@@ -689,12 +673,9 @@ public class EstoqueController {
         });
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Editar Item".
-     * Permite alterar o nome e a unidade de um item.
-     */
     @FXML
     private void handleEditarItem() {
+// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -724,8 +705,8 @@ public class EstoqueController {
 
         dialog.getDialogPane().setContent(grid);
 
-        // Converte o resultado para um Par (Nome, Unidade)
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == salvarButtonType) {
                 String nome = nomeField.getText().trim();
                 String unidade = unidadeField.getText().trim();
@@ -746,10 +727,11 @@ public class EstoqueController {
                 String novoNome = pair.getKey();
                 String novaUnidade = pair.getValue();
 
+                // Operação de escrita (rápida)
                 estoqueDAO.updateEstoqueItem(selecionado.getId(), novoNome, novaUnidade);
                 
                 AlertUtil.showInfo("Sucesso", "Item atualizado com sucesso.");
-                carregarDadosMestres(); // ATUALIZADO
+                carregarDadosMestres(); // Recarrega (assíncrono)
 
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar o item: " + e.getMessage());
@@ -758,12 +740,9 @@ public class EstoqueController {
     }
 
 
-    /**
-     * Manipulador para o botão "- Remover Item" (Ajuste).
-     * Este botão NÃO gera transação financeira.
-     */
     @FXML
     private void handleRemoverItem() {
+// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -777,9 +756,10 @@ public class EstoqueController {
 
         if (confirmado) {
             try {
+                // Operação de escrita (rápida)
                 if (estoqueDAO.removerItemEstoque(selecionado.getId())) {
                     AlertUtil.showInfo("Removido", "Item removido do estoque com sucesso.");
-                    carregarDadosMestres(); // ATUALIZADO
+                    carregarDadosMestres(); // Recarrega (assíncrono)
                 } else {
                     AlertUtil.showError("Erro ao Remover", "O item não pôde ser removido.");
                 }
@@ -789,11 +769,12 @@ public class EstoqueController {
         }
     }
     
-    // NOVO - PASSO 2: Classe interna simples para guardar o resultado do diálogo
+    // Classe interna - CompraInfo
     private static class CompraInfo {
+// ... (código existente) ...
         final EstoqueItem item;
-        final String tipoPagamento; // "avista" ou "aprazo"
-        final LocalDate dataVencimento; // Pode ser nulo se for "avista"
+        final String tipoPagamento; 
+        final LocalDate dataVencimento; 
 
         CompraInfo(EstoqueItem item, String tipo, LocalDate data) {
             this.item = item;
@@ -802,12 +783,13 @@ public class EstoqueController {
         }
     }
     
-    // NOVO: Classe interna simples para guardar o resultado do diálogo de Venda
+    // Classe interna - VendaInfo
     private static class VendaInfo {
+// ... (código existente) ...
         final double qtdAVender;
         final double precoVendaUnitario;
-        final String tipoRecebimento; // "À Vista" ou "A Prazo"
-        final LocalDate dataVencimento; // Pode ser nulo se for "À Vista"
+        final String tipoRecebimento; 
+        final LocalDate dataVencimento; 
 
         VendaInfo(double qtd, double preco, String tipo, LocalDate data) {
             this.qtdAVender = qtd;

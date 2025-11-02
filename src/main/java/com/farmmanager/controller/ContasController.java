@@ -10,12 +10,14 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.VBox; // NOVO: Import para o VBox
 import javafx.scene.paint.Color;
 
 import java.sql.SQLException;
@@ -27,9 +29,11 @@ import java.util.Optional;
 
 /**
  * NOVO: Controller para a ContasView.fxml (Contas a Pagar/Receber).
- * ATUALIZADO: 
+ * ATUALIZADO:
  * - Adicionado destaque visual para contas vencidas.
  * - Adicionada funcionalidade de editar contas pendentes.
+ * - MELHORIA CRÍTICA: Carregamento de dados (carregarDados)
+ * movido para uma Task em background para não congelar a UI.
  */
 public class ContasController {
 
@@ -62,9 +66,14 @@ public class ContasController {
     private Button btnLiquidar;
     @FXML
     private Button btnRemover;
-    
     @FXML
-    private Button btnEditar; // NOVO
+    private Button btnEditar; 
+
+    // NOVO: Componentes para controle de carregamento
+    @FXML
+    private ProgressIndicator loadingIndicator;
+    @FXML
+    private VBox contentVBox; // Container principal (VBox do FXML)
 
     private final ContaDAO contaDAO;
     private final ObservableList<Conta> dadosTabela;
@@ -74,6 +83,22 @@ public class ContasController {
         contaDAO = new ContaDAO();
         dadosTabela = FXCollections.observableArrayList();
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
+    }
+
+    /**
+     * NOVO: Classe interna para agrupar os resultados da Task
+     * (pois precisamos buscar 3 informações do banco).
+     */
+    private static class ContasData {
+        final List<Conta> contas;
+        final double totalPagar;
+        final double totalReceber;
+
+        ContasData(List<Conta> contas, double totalPagar, double totalReceber) {
+            this.contas = contas;
+            this.totalPagar = totalPagar;
+            this.totalReceber = totalReceber;
+        }
     }
 
     @FXML
@@ -110,24 +135,23 @@ public class ContasController {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
                     setText(null);
-                    setTextFill(Color.BLACK); // Reseta a cor
+                    setTextFill(Color.BLACK); 
                 } else {
                     setText(item.equalsIgnoreCase("pagar") ? "A Pagar" : "A Receber");
                     if (item.equalsIgnoreCase("pagar")) {
-                        setTextFill(Color.web("#E53E3E")); // Vermelho (negativo-text)
+                        setTextFill(Color.web("#E53E3E")); // Vermelho
                     } else {
-                        setTextFill(Color.web("#38A169")); // Verde (positivo-text)
+                        setTextFill(Color.web("#38A169")); // Verde
                     }
                 }
             }
         });
 
-        // NOVO: Destaque visual para contas vencidas
+        // Destaque visual para contas vencidas
         tabelaContas.setRowFactory(tv -> new TableRow<Conta>() {
             @Override
             protected void updateItem(Conta item, boolean empty) {
                 super.updateItem(item, empty);
-                // Limpa estilos anteriores
                 getStyleClass().remove("table-row-cell:warning");
 
                 if (empty || item == null) {
@@ -135,7 +159,6 @@ public class ContasController {
                 } else if (item.getStatus().equalsIgnoreCase("pendente")) {
                     LocalDate dataVencimento = LocalDate.parse(item.getDataVencimento());
                     if (dataVencimento.isBefore(LocalDate.now())) {
-                        // Aplica a classe CSS de aviso (amarelo)
                         if (!getStyleClass().contains("table-row-cell:warning")) {
                             getStyleClass().add("table-row-cell:warning");
                         }
@@ -155,56 +178,98 @@ public class ContasController {
         // Desabilita botões se nada estiver selecionado
         btnRemover.disableProperty().bind(tabelaContas.getSelectionModel().selectedItemProperty().isNull());
         
-        // NOVO: Desabilita 'Editar' e 'Liquidar' se a conta não estiver pendente
-        
         ReadOnlyObjectProperty<Conta> selectedItem = tabelaContas.getSelectionModel().selectedItemProperty();
 
-        // Este binding será 'true' (desabilitar) se:
-        // 1. A seleção for nula (conta == null)
-        // 2. A conta selecionada NÃO tiver o status "pendente"
         BooleanBinding disableEditAndLiquidarBinding = Bindings.createBooleanBinding(() -> {
             Conta conta = selectedItem.get();
             if (conta == null) {
-                return true; // Desabilita se for nulo
+                return true; 
             }
             return !conta.getStatus().equals("pendente"); // Desabilita se não for "pendente"
-        }, selectedItem); // Depende da seleção
+        }, selectedItem); 
 
         btnEditar.disableProperty().bind(disableEditAndLiquidarBinding);
         btnLiquidar.disableProperty().bind(disableEditAndLiquidarBinding);
 
-
+        // Carrega os dados (agora assíncrono)
         carregarDados();
     }
 
-    private void carregarDados() {
-        try {
-            String filtro = filtroStatus.getSelectionModel().getSelectedItem();
-            if (filtro == null) filtro = "Pendente";
-            
-            List<Conta> lista = contaDAO.listContas(filtro);
-            dadosTabela.clear();
-            dadosTabela.addAll(lista);
-            
-            atualizarResumo();
-        } catch (SQLException e) {
-            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as contas.");
-            e.printStackTrace();
-        }
+    /**
+     * NOVO: Controla a visibilidade do indicador de carregamento.
+     */
+    private void showLoading(boolean isLoading) {
+        loadingIndicator.setVisible(isLoading);
+        loadingIndicator.setManaged(isLoading);
+        
+        contentVBox.setDisable(isLoading);
+        contentVBox.setOpacity(isLoading ? 0.5 : 1.0); 
     }
 
-    private void atualizarResumo() {
-        try {
-            double totalPagar = contaDAO.getTotalPendente("pagar");
-            double totalReceber = contaDAO.getTotalPendente("receber");
+    /**
+     * ATUALIZADO:
+     * Executa a busca de dados (lista e resumos) em uma Task (background thread).
+     * Atualiza a UI na JavaFX Thread quando a busca termina.
+     */
+    private void carregarDados() {
+        // Pega o filtro ANTES de iniciar a thread
+        String filtro = filtroStatus.getSelectionModel().getSelectedItem();
+        if (filtro == null) filtro = "Pendente";
+        final String filtroFinal = filtro; // 'final' para ser usado na Task
+
+        // 1. Cria a Task
+        Task<ContasData> carregarTask = new Task<ContasData>() {
+            @Override
+            protected ContasData call() throws Exception {
+                // Chamadas de banco de dados (demoradas)
+                List<Conta> lista = contaDAO.listContas(filtroFinal);
+                double totalPagar = contaDAO.getTotalPendente("pagar");
+                double totalReceber = contaDAO.getTotalPendente("receber");
+
+                // Retorna o objeto com todos os dados
+                return new ContasData(lista, totalPagar, totalReceber);
+            }
+        };
+
+        // 2. Define o que fazer em caso de SUCESSO (na JavaFX Thread)
+        carregarTask.setOnSucceeded(e -> {
+            ContasData data = carregarTask.getValue();
+
+            // Atualiza a tabela
+            dadosTabela.clear();
+            dadosTabela.addAll(data.contas);
             
-            lblTotalPagar.setText(currencyFormatter.format(totalPagar));
-            lblTotalReceber.setText(currencyFormatter.format(totalReceber));
-        } catch (SQLException e) {
+            // Atualiza os resumos
+            lblTotalPagar.setText(currencyFormatter.format(data.totalPagar));
+            lblTotalReceber.setText(currencyFormatter.format(data.totalReceber));
+
+            // Esconde o loading
+            showLoading(false);
+        });
+
+        // 3. Define o que fazer em caso de FALHA (na JavaFX Thread)
+        carregarTask.setOnFailed(e -> {
+            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as contas.");
+            carregarTask.getException().printStackTrace();
+            
+            // Limpa os dados
+            dadosTabela.clear();
             lblTotalPagar.setText("Erro");
             lblTotalReceber.setText("Erro");
-        }
+            
+            // Esconde o loading
+            showLoading(false);
+        });
+
+        // 4. Mostra o loading ANTES de iniciar a Task
+        showLoading(true);
+
+        // 5. Inicia a Task em uma nova Thread
+        new Thread(carregarTask).start();
     }
+
+    // O método antigo atualizarResumo() não é mais necessário,
+    // pois sua lógica foi movida para dentro da Task carregarDados().
 
     @FXML
     private void handleAdicionarPagar() {
@@ -269,8 +334,9 @@ public class ContasController {
 
         result.ifPresent(conta -> {
             try {
+                // Operação de escrita (rápida, mantida na FX thread por simplicidade)
                 contaDAO.addConta(conta);
-                carregarDados();
+                carregarDados(); // Recarrega os dados (agora assíncrono)
                 AlertUtil.showInfo("Sucesso", "Conta adicionada com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar a conta: " + e.getMessage());
@@ -278,9 +344,6 @@ public class ContasController {
         });
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Editar Lançamento".
-     */
     @FXML
     private void handleEditarConta() {
         Conta selecionada = tabelaContas.getSelectionModel().getSelectedItem();
@@ -291,9 +354,6 @@ public class ContasController {
         abrirDialogoEdicao(selecionada);
     }
 
-    /**
-     * NOVO: Abre o diálogo para editar uma conta existente.
-     */
     private void abrirDialogoEdicao(Conta conta) {
         Dialog<Conta> dialog = new Dialog<>();
         dialog.setTitle("Editar Lançamento");
@@ -307,12 +367,9 @@ public class ContasController {
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Preenche os campos com os dados existentes
         TextField descField = new TextField(conta.getDescricao());
         TextField valorField = new TextField(String.format(Locale.US, "%.2f", conta.getValor()));
         DatePicker dataVencimentoPicker = new DatePicker(LocalDate.parse(conta.getDataVencimento()));
-        
-        // Permite alterar o tipo
         ComboBox<String> tipoCombo = new ComboBox<>(FXCollections.observableArrayList("pagar", "receber"));
         tipoCombo.setValue(conta.getTipo());
 
@@ -340,7 +397,6 @@ public class ContasController {
                         return null;
                     }
                     
-                    // Atualiza o objeto original
                     conta.setDescricao(desc);
                     conta.setValor(valor);
                     conta.setDataVencimento(data.toString());
@@ -359,8 +415,9 @@ public class ContasController {
 
         result.ifPresent(contaEditada -> {
             try {
+                // Operação de escrita (rápida)
                 contaDAO.updateConta(contaEditada);
-                carregarDados();
+                carregarDados(); // Recarrega os dados (agora assíncrono)
                 AlertUtil.showInfo("Sucesso", "Conta atualizada com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar a conta: " + e.getMessage());
@@ -381,12 +438,13 @@ public class ContasController {
             return;
         }
 
-        // Pergunta a data da liquidação (pagamento/recebimento)
         DatePickerDialog dialog = new DatePickerDialog();
         Optional<LocalDate> result = dialog.showAndWait();
 
         if (result.isPresent()) {
             try {
+                // Operação de escrita (transação de DB, pode demorar um pouco)
+                // Idealmente, também seria uma Task, mas por simplicidade:
                 String dataPagamento = result.get().toString();
                 contaDAO.liquidarConta(selecionada.getId(), dataPagamento);
                 
@@ -412,8 +470,9 @@ public class ContasController {
 
         if (confirmado) {
             try {
+                // Operação de escrita (rápida)
                 contaDAO.removerConta(selecionada.getId());
-                carregarDados();
+                carregarDados(); // Recarrega
                 AlertUtil.showInfo("Sucesso", "Lançamento removido.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover: " + e.getMessage());
@@ -444,4 +503,3 @@ public class ContasController {
         }
     }
 }
-

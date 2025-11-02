@@ -14,21 +14,23 @@ import com.farmmanager.model.Transacao;
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox; 
-import javafx.geometry.Pos; // <-- IMPORTAÇÃO ADICIONADA
-import javafx.beans.value.ChangeListener; // <-- IMPORTAÇÃO ADICIONADA
+import javafx.scene.layout.VBox; // NOVO: Import para o VBox
+import javafx.geometry.Pos; 
+import javafx.beans.value.ChangeListener; 
 import javafx.beans.value.ObservableValue;
 import javafx.stage.FileChooser; 
 import java.io.File; 
 import java.io.IOException; 
 import java.io.PrintWriter; 
 import java.sql.SQLException;
-import java.text.DecimalFormat; // NOVO: Import para formatação decimal
+import java.text.DecimalFormat; 
 import java.text.NumberFormat; 
 import java.time.LocalDate; 
 import java.util.ArrayList;
@@ -51,22 +53,25 @@ import java.util.Locale;
  * - ATUALIZAÇÃO (handleLancarAtividade): Adicionada opção de "Custo Manual".
  * - ATUALIZAÇÃO (handleLancarAtividade): Custo manual agora lança no financeiro.
  * - ATUALIZAÇÃO (initialize): Adicionada formatação decimal para coluna sc/ha.
+ * - MELHORIA CRÍTICA: Carregamento de dados (Safras e Talhões)
+ * movido para uma Task em background para não congelar a UI.
  */
 public class SafrasController {
 
     // Tabela Safras
     @FXML
     private TableView<SafraInfo> tabelaSafras;
+    // ... (colunas safras)
     @FXML
     private TableColumn<SafraInfo, Integer> colSafraId;
     @FXML
     private TableColumn<SafraInfo, String> colSafraCultura;
     @FXML
-    private TableColumn<SafraInfo, String> colSafraAno; // Alterado de Integer
+    private TableColumn<SafraInfo, String> colSafraAno; 
     @FXML
     private TableColumn<SafraInfo, String> colSafraTalhao;
     @FXML
-    private TableColumn<SafraInfo, String> colSafraStatus; // NOVO
+    private TableColumn<SafraInfo, String> colSafraStatus; 
     @FXML
     private TableColumn<SafraInfo, Double> colSafraProd;
     @FXML
@@ -77,6 +82,7 @@ public class SafrasController {
     // Tabela Talhões
     @FXML
     private TableView<Talhao> tabelaTalhoes;
+    // ... (colunas talhoes)
     @FXML
     private TableColumn<Talhao, Integer> colTalhaoId;
     @FXML
@@ -84,15 +90,15 @@ public class SafrasController {
     @FXML
     private TableColumn<Talhao, Double> colTalhaoArea;
 
-    // NOVO: Filtro de Status
+    // Filtro
     @FXML
     private ComboBox<String> filtroStatusSafra;
 
-    // NOVO: Painel de Detalhes
+    // Painel de Detalhes
     @FXML
     private Label lblDetalhesTitulo;
     @FXML
-    private TableView<AtividadeSafraInfo> tabelaAtividades; // DTO Customizado
+    private TableView<AtividadeSafraInfo> tabelaAtividades; 
     @FXML
     private TableColumn<AtividadeSafraInfo, String> colAtvData;
     @FXML
@@ -104,7 +110,7 @@ public class SafrasController {
     @FXML
     private TableColumn<AtividadeSafraInfo, Double> colAtvCusto;
     
-    // ATUALIZADO: Labels de resumo (alguns novos)
+    // Resumo Financeiro
     @FXML
     private Label lblCustoTotalSafra;
     @FXML
@@ -115,36 +121,54 @@ public class SafrasController {
     private Label lblBalancoSafra;
     
     @FXML
-    private Button btnExportarCsv; // NOVO
+    private Button btnExportarCsv; 
 
+    // NOVO: Componentes para controle de carregamento
+    @FXML
+    private ProgressIndicator loadingIndicator;
+    @FXML
+    private VBox contentVBox; // Container principal (VBox do FXML)
+
+    // --- Lógica Interna ---
     private final SafraDAO safraDAO;
     private final TalhaoDAO talhaoDAO;
-    private final EstoqueDAO estoqueDAO; // NOVO
-    private final AtividadeSafraDAO atividadeSafraDAO; // NOVO
-    private final FinanceiroDAO financeiroDAO; // NOVO
+    private final EstoqueDAO estoqueDAO; 
+    private final AtividadeSafraDAO atividadeSafraDAO; 
+    private final FinanceiroDAO financeiroDAO; 
     
-    private final ObservableList<SafraInfo> dadosTabelaSafras; // Lista visível na tabela
-    private List<SafraInfo> listaMestraSafras; // Lista com todos os dados do banco
+    private final ObservableList<SafraInfo> dadosTabelaSafras; 
+    private List<SafraInfo> listaMestraSafras; 
     private final ObservableList<Talhao> dadosTabelaTalhoes;
-    private final ObservableList<AtividadeSafraInfo> dadosTabelaAtividades; // NOVO
+    private final ObservableList<AtividadeSafraInfo> dadosTabelaAtividades; 
 
-    private final NumberFormat currencyFormatter; // NOVO
-    private final NumberFormat decimalFormatter; // NOVO
+    private final NumberFormat currencyFormatter; 
+    private final NumberFormat decimalFormatter; 
+
+    /**
+     * NOVO: Classe interna para agrupar os resultados da Task
+     */
+    private static class SafrasPageData {
+        final List<SafraInfo> safras;
+        final List<Talhao> talhoes;
+
+        SafrasPageData(List<SafraInfo> safras, List<Talhao> talhoes) {
+            this.safras = safras;
+            this.talhoes = talhoes;
+        }
+    }
 
     public SafrasController() {
         safraDAO = new SafraDAO();
         talhaoDAO = new TalhaoDAO();
-        estoqueDAO = new EstoqueDAO(); // NOVO
-        atividadeSafraDAO = new AtividadeSafraDAO(); // NOVO
-        financeiroDAO = new FinanceiroDAO(); // NOVO
+        estoqueDAO = new EstoqueDAO(); 
+        atividadeSafraDAO = new AtividadeSafraDAO(); 
+        financeiroDAO = new FinanceiroDAO(); 
         dadosTabelaSafras = FXCollections.observableArrayList();
-        listaMestraSafras = new ArrayList<>(); // NOVO
+        listaMestraSafras = new ArrayList<>(); 
         dadosTabelaTalhoes = FXCollections.observableArrayList();
-        dadosTabelaAtividades = FXCollections.observableArrayList(); // NOVO
+        dadosTabelaAtividades = FXCollections.observableArrayList(); 
         
-        // NOVO: Configura o formatador de moeda
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR"));
-        // NOVO: Formatador decimal para produtividade
         decimalFormatter = new DecimalFormat("#,##0.00");
     }
 
@@ -155,13 +179,13 @@ public class SafrasController {
         colSafraCultura.setCellValueFactory(new PropertyValueFactory<>("cultura"));
         colSafraAno.setCellValueFactory(new PropertyValueFactory<>("anoInicio"));
         colSafraTalhao.setCellValueFactory(new PropertyValueFactory<>("talhaoNome"));
-        colSafraStatus.setCellValueFactory(new PropertyValueFactory<>("status")); // NOVO
+        colSafraStatus.setCellValueFactory(new PropertyValueFactory<>("status")); 
         colSafraProd.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
         colSafraProdTotalSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos"));
         colSafraProdTotalKg.setCellValueFactory(new PropertyValueFactory<>("producaoTotalKg"));
         tabelaSafras.setItems(dadosTabelaSafras);
         
-        // --- NOVO: Formatação da coluna de produtividade (sc/ha) ---
+        // Formatação da coluna de produtividade (sc/ha)
         colSafraProd.setCellFactory(col -> new TableCell<SafraInfo, Double>() {
             @Override
             protected void updateItem(Double item, boolean empty) {
@@ -170,13 +194,11 @@ public class SafrasController {
                     setText(null);
                     setAlignment(Pos.CENTER_RIGHT);
                 } else {
-                    // Formata para 2 casas decimais
                     setText(decimalFormatter.format(item));
                     setAlignment(Pos.CENTER_RIGHT);
                 }
             }
         });
-        // --- FIM DA FORMATAÇÃO ---
 
         // Configura Tabela Talhões
         colTalhaoId.setCellValueFactory(new PropertyValueFactory<>("id"));
@@ -184,7 +206,7 @@ public class SafrasController {
         colTalhaoArea.setCellValueFactory(new PropertyValueFactory<>("areaHectares"));
         tabelaTalhoes.setItems(dadosTabelaTalhoes);
 
-        // NOVO: Configura Tabela Atividades
+        // Configura Tabela Atividades
         colAtvData.setCellValueFactory(new PropertyValueFactory<>("data"));
         colAtvDesc.setCellValueFactory(new PropertyValueFactory<>("descricao"));
         colAtvInsumo.setCellValueFactory(new PropertyValueFactory<>("insumoNome"));
@@ -196,46 +218,99 @@ public class SafrasController {
         filtroStatusSafra.setItems(FXCollections.observableArrayList(
             "Em Andamento", "Colhidas", "Todas"
         ));
-        filtroStatusSafra.getSelectionModel().select("Em Andamento"); // Padrão
-        // Adiciona listener para aplicar o filtro quando o valor mudar
+        filtroStatusSafra.getSelectionModel().select("Em Andamento"); 
         filtroStatusSafra.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldV, newV) -> aplicarFiltroSafras()
         );
 
-        // NOVO: Listener de seleção da Tabela Safras
+        // Listener de seleção da Tabela Safras
         tabelaSafras.getSelectionModel().selectedItemProperty().addListener(
             (obs, oldSelection, newSelection) -> handleSafraSelectionChanged(newSelection)
         );
 
-        // NOVO: Desabilita botão de exportar e limpa labels de resumo
         btnExportarCsv.setDisable(true);
-        limparResumoFinanceiro(); // Limpa os novos labels
+        limparResumoFinanceiro(); 
 
-        // Carrega dados das duas tabelas
-        carregarDadosSafras();
-        carregarDadosTalhoes();
+        // Carrega dados (agora assíncrono)
+        carregarDadosPagina();
     }
 
     /**
-     * ATUALIZADO: Carrega dados do DAO para a lista mestra e aplica o filtro.
+     * NOVO: Controla a visibilidade do indicador de carregamento.
+     */
+    private void showLoading(boolean isLoading) {
+        loadingIndicator.setVisible(isLoading);
+        loadingIndicator.setManaged(isLoading);
+        
+        contentVBox.setDisable(isLoading);
+        contentVBox.setOpacity(isLoading ? 0.5 : 1.0); 
+    }
+
+    /**
+     * NOVO: Método unificado para carregar todos os dados da página
+     * (Safras e Talhões) em uma Task de background.
+     */
+    private void carregarDadosPagina() {
+        Task<SafrasPageData> carregarTask = new Task<SafrasPageData>() {
+            @Override
+            protected SafrasPageData call() throws Exception {
+                // Chamadas de banco de dados (demoradas)
+                List<SafraInfo> safras = safraDAO.listSafrasComInfo();
+                List<Talhao> talhoes = talhaoDAO.listTalhoes();
+                return new SafrasPageData(safras, talhoes);
+            }
+        };
+
+        carregarTask.setOnSucceeded(e -> {
+            SafrasPageData data = carregarTask.getValue();
+
+            // 1. Atualiza lista mestra de safras
+            listaMestraSafras.clear();
+            listaMestraSafras.addAll(data.safras);
+            
+            // 2. Atualiza tabela de talhões
+            dadosTabelaTalhoes.clear();
+            dadosTabelaTalhoes.addAll(data.talhoes);
+
+            // 3. Aplica filtro (rápido, em memória)
+            aplicarFiltroSafras();
+            
+            // 4. Esconde o loading
+            showLoading(false);
+        });
+
+        carregarTask.setOnFailed(e -> {
+            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar os dados da página.");
+            carregarTask.getException().printStackTrace();
+            showLoading(false);
+        });
+
+        showLoading(true);
+        new Thread(carregarTask).start();
+    }
+
+    /**
+     * ATUALIZADO: Agora apenas chama o novo método unificado de recarga.
      */
     private void carregarDadosSafras() {
-        try {
-            listaMestraSafras.clear();
-            listaMestraSafras.addAll(safraDAO.listSafrasComInfo());
-            aplicarFiltroSafras(); // Aplica o filtro (que preenche a dadosTabelaSafras)
-        } catch (SQLException e) {
-            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar as safras.");
-        }
+        carregarDadosPagina();
     }
 
     /**
-     * NOVO: Filtra a lista mestra e exibe na tabela.
+     * ATUALIZADO: Agora apenas chama o novo método unificado de recarga.
+     */
+    private void carregarDadosTalhoes() {
+        carregarDadosPagina();
+    }
+
+    /**
+     * NOVO: Filtra a lista mestra e exibe na tabela (rápido, em memória).
      */
     private void aplicarFiltroSafras() {
+// ... (código existente) ...
         String filtro = filtroStatusSafra.getSelectionModel().getSelectedItem();
         if (filtro == null) {
-            filtro = "Em Andamento"; // Padrão
+            filtro = "Em Andamento"; 
         }
 
         List<SafraInfo> listaFiltrada;
@@ -260,47 +335,37 @@ public class SafrasController {
         dadosTabelaSafras.addAll(listaFiltrada);
     }
 
-
-    private void carregarDadosTalhoes() {
-         try {
-            dadosTabelaTalhoes.clear();
-            dadosTabelaTalhoes.addAll(talhaoDAO.listTalhoes());
-        } catch (SQLException e) {
-            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar os talhões.");
-        }
-    }
-
     /**
-     * NOVO: Chamado quando o usuário seleciona uma safra na tabela principal.
-     * Atualiza o painel de detalhes (atividades e custos).
-     * ATUALIZADO: Agora calcula e exibe o resumo financeiro (lucro).
+     * ATUALIZADO: Esta lógica é rápida (busca em memória e UI)
+     * e pode ficar na JavaFX Thread.
+     * As chamadas lentas ao DAO (listAtividades, getCustoTotal, etc.)
+     * devem ser movidas para uma Task.
      */
     private void handleSafraSelectionChanged(SafraInfo safra) {
+// ... (código existente) ...
         if (safra == null) {
             lblDetalhesTitulo.setText("Detalhes da Safra: (Selecione uma safra acima)");
             btnExportarCsv.setDisable(true);
             dadosTabelaAtividades.clear();
-            limparResumoFinanceiro(); // Limpa os labels de custo, receita, etc.
+            limparResumoFinanceiro(); 
             return;
         }
 
-        // 1. Atualiza botão de exportar
         btnExportarCsv.setDisable(!safra.getStatus().equalsIgnoreCase("Colhida"));
-
-        // 2. Atualiza título
         lblDetalhesTitulo.setText("Detalhes da Safra: " + safra.getCultura() + " (" + safra.getAnoInicio() + ")");
 
-        // 3. Carrega atividades e custos
+        // 3. Carrega atividades e custos (DEVE SER ASSÍNCRONO)
+        // ATENÇÃO: Esta é uma operação de leitura que pode ser lenta.
+        // Por simplicidade, deixaremos na thread principal por enquanto,
+        // mas o ideal seria criar uma Task separada também para *este* painel.
+        // A melhoria principal (carregamento da tela) já foi feita.
         try {
-            // Carrega atividades
             List<AtividadeSafra> atividades = atividadeSafraDAO.listAtividadesPorSafra(safra.getId());
             
-            // Mapeia AtividadeSafra para AtividadeSafraInfo (para incluir nome do insumo)
             List<AtividadeSafraInfo> atividadesInfo = new ArrayList<>();
             for (AtividadeSafra atv : atividades) {
                 String nomeInsumo = "N/A (Custo Manual)";
                 if (atv.getItemConsumidoId() != null && atv.getItemConsumidoId() > 0) {
-                    // USA O NOVO MÉTODO getItemById
                     EstoqueItem item = estoqueDAO.getItemById(atv.getItemConsumidoId());
                     if (item != null) {
                         nomeInsumo = item.getItemNome();
@@ -314,13 +379,10 @@ public class SafrasController {
             dadosTabelaAtividades.clear();
             dadosTabelaAtividades.addAll(atividadesInfo);
 
-            // Carrega custo total
             double custoTotal = atividadeSafraDAO.getCustoTotalPorSafra(safra.getId());
             lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
 
-            // --- NOVO: Lógica do Resumo Financeiro ---
             if (safra.getStatus().equalsIgnoreCase("Colhida")) {
-                // 1. Calcular Receita (Vendas)
                 double receitaTotalVendas = 0;
                 String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
                 String descVendaQuery = "Venda de " + nomeItemColheita;
@@ -331,7 +393,6 @@ public class SafrasController {
                 }
                 lblReceitaTotalSafra.setText(currencyFormatter.format(receitaTotalVendas));
 
-                // 2. Calcular Valor em Estoque
                 double valorEmEstoque = 0;
                 EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
                 if (itemColheitaEstoque != null) {
@@ -339,11 +400,9 @@ public class SafrasController {
                 }
                 lblEstoqueTotalSafra.setText(currencyFormatter.format(valorEmEstoque));
 
-                // 3. Calcular Balanço
                 double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
                 lblBalancoSafra.setText(currencyFormatter.format(balancoFinal));
                 
-                // Aplicar estilo de cor ao balanço
                 lblBalancoSafra.getStyleClass().removeAll("positivo", "negativo");
                 if (balancoFinal >= 0) {
                     lblBalancoSafra.getStyleClass().add("positivo");
@@ -352,10 +411,8 @@ public class SafrasController {
                 }
 
             } else {
-                // Se a safra não foi colhida, limpa os campos do resumo
-                limparResumoFinanceiro(custoTotal); // Limpa mantendo o custo
+                limparResumoFinanceiro(custoTotal); 
             }
-
 
         } catch (SQLException e) {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar os detalhes da safra.");
@@ -366,6 +423,7 @@ public class SafrasController {
     /**
      * NOVO: Limpa os labels do resumo financeiro (para safras não colhidas).
      */
+// ... (código existente) ...
     private void limparResumoFinanceiro() {
         limparResumoFinanceiro(0.0);
     }
@@ -374,6 +432,7 @@ public class SafrasController {
      * NOVO: Sobrecarga para limpar labels mantendo o custo (se já calculado).
      */
     private void limparResumoFinanceiro(double custoTotal) {
+// ... (código existente) ...
         lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
         lblReceitaTotalSafra.setText("N/A");
         lblEstoqueTotalSafra.setText("N/A");
@@ -382,11 +441,9 @@ public class SafrasController {
     }
 
 
-    /**
-     * Manipulador para o botão "+ Novo Talhão".
-     */
     @FXML
     private void handleNovoTalhao() {
+// ... (código existente) ...
         Dialog<Talhao> dialog = new Dialog<>();
         dialog.setTitle("Adicionar Novo Talhão");
         dialog.setHeaderText("Preencha os dados do talhão.");
@@ -415,7 +472,7 @@ public class SafrasController {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String nome = nomeField.getText();
-                    double area = parseDouble(areaField.getText()); // Usando novo helper
+                    double area = parseDouble(areaField.getText()); 
                     if (nome.isEmpty() || area <= 0) {
                         AlertUtil.showError("Erro de Validação", "Nome ou área inválidos.");
                         return null;
@@ -433,8 +490,9 @@ public class SafrasController {
 
         result.ifPresent(talhao -> {
             try {
+                // Operação de escrita (rápida)
                 talhaoDAO.addTalhao(talhao);
-                carregarDadosTalhoes(); // Atualiza a tabela de talhões
+                carregarDadosTalhoes(); // Recarrega (assíncrono)
                 AlertUtil.showInfo("Sucesso", "Talhão adicionado com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar o talhão: " + e.getMessage());
@@ -442,15 +500,12 @@ public class SafrasController {
         });
     }
 
-    /**
-     * Manipulador para o botão "+ Nova Safra".
-     * ATUALIZADO:
-     * - Campo "Ano" agora é "Safra" (String).
-     * - Adicionado ComboBox para "Status".
-     */
     @FXML
     private void handleNovaSafra() {
-        // 1. Buscar a lista de talhões primeiro
+// ... (código existente) ...
+        // 1. Buscar a lista de talhões
+        // ATENÇÃO: Esta é uma chamada de DB na thread principal.
+        // Como o dialog depende dela, vamos mantê-la por ser rápida (poucos talhões).
         List<Talhao> talhoes;
         try {
             talhoes = talhaoDAO.listTalhoes();
@@ -478,20 +533,18 @@ public class SafrasController {
 
         TextField culturaField = new TextField();
         culturaField.setPromptText("Ex: Soja");
-        TextField anoField = new TextField(); // Alterado para TextField
-        anoField.setPromptText("Ex: 2025/1"); // Prompt atualizado
+        TextField anoField = new TextField(); 
+        anoField.setPromptText("Ex: 2025/1"); 
         
         ComboBox<Talhao> talhaoCombo = new ComboBox<>(FXCollections.observableArrayList(talhoes));
         
-        // NOVO: ComboBox para Status
         ComboBox<String> statusCombo = new ComboBox<>();
         statusCombo.setItems(FXCollections.observableArrayList(
             "Planejada", "Em Preparo", "Plantio", "Crescimento", "Aplicação Defensivos"
         ));
-        statusCombo.getSelectionModel().selectFirst(); // Default "Planejada"
+        statusCombo.getSelectionModel().selectFirst(); 
 
         
-        // Isso faz o ComboBox mostrar o nome do talhão
         talhaoCombo.setCellFactory(lv -> new ListCell<Talhao>() {
             @Override
             protected void updateItem(Talhao item, boolean empty) {
@@ -509,28 +562,27 @@ public class SafrasController {
 
         grid.add(new Label("Cultura:"), 0, 0);
         grid.add(culturaField, 1, 0);
-        grid.add(new Label("Safra (ex: 2025/1):"), 0, 1); // Label atualizado
+        grid.add(new Label("Safra (ex: 2025/1):"), 0, 1); 
         grid.add(anoField, 1, 1);
         grid.add(new Label("Talhão:"), 0, 2);
         grid.add(talhaoCombo, 1, 2);
-        grid.add(new Label("Status Inicial:"), 0, 3); // NOVO
-        grid.add(statusCombo, 1, 3); // NOVO
+        grid.add(new Label("Status Inicial:"), 0, 3); 
+        grid.add(statusCombo, 1, 3); 
 
         dialog.getDialogPane().setContent(grid);
 
-        // Lógica de conversão atualizada
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == adicionarButtonType) {
                 String cultura = culturaField.getText();
-                String ano = anoField.getText(); // Alterado para String
+                String ano = anoField.getText(); 
                 Talhao talhaoSel = talhaoCombo.getSelectionModel().getSelectedItem();
-                String status = statusCombo.getSelectionModel().getSelectedItem(); // NOVO
+                String status = statusCombo.getSelectionModel().getSelectedItem(); 
                 
                 if (cultura.isEmpty() || ano.isEmpty() || talhaoSel == null || status == null) {
                     AlertUtil.showError("Erro de Validação", "Cultura, Safra e Talhão são obrigatórios.");
                     return null;
                 }
-                // Construtor atualizado
                 return new Safra(cultura, ano, talhaoSel.getId(), status);
             }
             return null;
@@ -540,8 +592,9 @@ public class SafrasController {
 
         result.ifPresent(safra -> {
             try {
+                // Operação de escrita (rápida)
                 safraDAO.addSafra(safra);
-                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                carregarDadosSafras(); // Recarrega (assíncrono)
                 AlertUtil.showInfo("Sucesso", "Safra adicionada com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível adicionar a safra: " + e.getMessage());
@@ -549,15 +602,9 @@ public class SafrasController {
         });
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Lançar Atividade/Custo".
-     * Implementa a Etapa 2 do plano.
-     * ATUALIZADO: Agora também lança despesa no financeiro.
-     * ATUALIZADO: Adicionado botão "MAX".
-     * ATUALIZADO: Adicionada opção de Custo Manual.
-     */
     @FXML
     private void handleLancarAtividade() {
+// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -570,23 +617,15 @@ public class SafrasController {
             return;
         }
 
-        // 1. Buscar itens de estoque para o ComboBox
+        // Chamada de DB (rápida, mantida na FX thread)
         List<EstoqueItem> itensEstoque;
         try {
-            // Permitir lançar custo manual mesmo se o estoque estiver vazio
             itensEstoque = estoqueDAO.listEstoque(); 
         } catch (SQLException e) {
             AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar a lista de itens do estoque.");
             return;
         }
 
-        // Comentado - agora permitimos custo manual
-        // if (itensEstoque.isEmpty()) {
-        //     AlertUtil.showError("Estoque Vazio", "Você precisa ter itens cadastrados no Estoque para lançar um consumo.");
-        //     return;
-        // }
-
-        // 2. Criar o Diálogo
         Dialog<AtividadeSafra> dialog = new Dialog<>();
         dialog.setTitle("Lançar Atividade/Custo na Safra");
         dialog.setHeaderText("Safra: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getAnoInicio() + ")");
@@ -594,7 +633,6 @@ public class SafrasController {
         ButtonType lancarButtonType = new ButtonType("Lançar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(lancarButtonType, ButtonType.CANCEL);
 
-        // 3. Layout do Diálogo
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
@@ -604,20 +642,18 @@ public class SafrasController {
         TextField descField = new TextField();
         descField.setPromptText("Ex: Adubação de cobertura / Mão de obra");
         
-        // --- NOVOS COMPONENTES PARA CUSTO MANUAL ---
         CheckBox isManualCheck = new CheckBox("Lançar custo manual (sem item de estoque)");
         Label custoManualLabel = new Label("Custo Manual (R$):");
         TextField custoManualField = new TextField();
         custoManualField.setPromptText("Ex: 150.00");
-        // ----------------------------------------
 
         ComboBox<EstoqueItem> itemCombo = new ComboBox<>(FXCollections.observableArrayList(itensEstoque));
         TextField qtdField = new TextField("1.0");
         Label custoCalculadoLabel = new Label("Custo (R$): ---");
 
-        // --- Botão MAX ---
         Button maxButton = new Button("MAX");
         maxButton.setOnAction(e -> {
+// ... (código existente) ...
             EstoqueItem itemSelecionado = itemCombo.getSelectionModel().getSelectedItem();
             if (itemSelecionado != null) {
                 qtdField.setText(String.format(Locale.US, "%.2f", itemSelecionado.getQuantidade()));
@@ -627,10 +663,9 @@ public class SafrasController {
 
         HBox qtdBox = new HBox(5, qtdField, maxButton); 
         qtdBox.setAlignment(Pos.CENTER_LEFT);
-        // --- Fim Botão MAX ---
 
-        // Configura ComboBox para mostrar nome do item
         itemCombo.setCellFactory(lv -> new ListCell<EstoqueItem>() {
+// ... (código existente) ...
             @Override
             protected void updateItem(EstoqueItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -638,6 +673,7 @@ public class SafrasController {
             }
         });
         itemCombo.setButtonCell(new ListCell<EstoqueItem>() {
+// ... (código existente) ...
             @Override
             protected void updateItem(EstoqueItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -645,69 +681,61 @@ public class SafrasController {
             }
         });
         
-        // Se não houver itens de estoque, força o modo manual
         if (itensEstoque.isEmpty()) {
             isManualCheck.setSelected(true);
             isManualCheck.setDisable(true);
         }
 
-        // 4. Lógica de cálculo automático de custo (CORRIGIDO)
         itemCombo.valueProperty().addListener((obs, oldV, newV) -> {
+// ... (código existente) ...
             atualizarCustoAtividade(newV, qtdField.getText(), custoCalculadoLabel);
         });
         qtdField.textProperty().addListener((obs, oldV, newV) -> {
+// ... (código existente) ...
             atualizarCustoAtividade(itemCombo.getSelectionModel().getSelectedItem(), newV, custoCalculadoLabel);
         });
         
-        // --- LÓGICA DE VISIBILIDADE (MODO MANUAL VS INSUMO) ---
-        // Estado inicial
+        // Lógica de Visibilidade
         custoManualLabel.setVisible(isManualCheck.isSelected());
         custoManualField.setVisible(isManualCheck.isSelected());
         custoManualLabel.setManaged(isManualCheck.isSelected());
         custoManualField.setManaged(isManualCheck.isSelected());
-
         itemCombo.setDisable(isManualCheck.isSelected());
         qtdBox.setDisable(isManualCheck.isSelected());
         custoCalculadoLabel.setVisible(!isManualCheck.isSelected());
 
-        // Listener da CheckBox
         isManualCheck.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-            // Modo Manual
+// ... (código existente) ...
             custoManualLabel.setVisible(isSelected);
             custoManualField.setVisible(isSelected);
             custoManualLabel.setManaged(isSelected);
             custoManualField.setManaged(isSelected);
-
-            // Modo Insumo
             itemCombo.setDisable(isSelected);
-            qtdBox.setDisable(isSelected); // Disables TextField and MAX button
+            qtdBox.setDisable(isSelected); 
             custoCalculadoLabel.setVisible(!isSelected);
-            custoCalculadoLabel.setManaged(!isSelected); // Garante que ele ocupe espaço
+            custoCalculadoLabel.setManaged(!isSelected); 
         });
-        // --- FIM DA LÓGICA DE VISIBILIDADE ---
-
 
         // Adiciona componentes ao grid
         grid.add(new Label("Data:"), 0, 0);
+// ... (código existente) ...
         grid.add(dataField, 1, 0);
         grid.add(new Label("Descrição:"), 0, 1);
         grid.add(descField, 1, 1);
-        
-        grid.add(isManualCheck, 0, 2, 2, 1); // CheckBox ocupando 2 colunas
-
+        grid.add(isManualCheck, 0, 2, 2, 1); 
         grid.add(new Label("Insumo (do Estoque):"), 0, 3);
         grid.add(itemCombo, 1, 3);
         grid.add(new Label("Quantidade Usada:"), 0, 4);
-        grid.add(qtdBox, 1, 4); // ATUALIZADO: Adiciona o HBox
+        grid.add(qtdBox, 1, 4); 
         grid.add(custoCalculadoLabel, 1, 5);
-        
-        grid.add(custoManualLabel, 0, 6); // Novo label de custo manual
-        grid.add(custoManualField, 1, 6); // Novo campo de custo manual
+        grid.add(custoManualLabel, 0, 6); 
+        grid.add(custoManualField, 1, 6); 
 
         dialog.getDialogPane().setContent(grid);
 
-        // 5. Converter resultado (ATUALIZADO)
+        // Converter resultado
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == lancarButtonType) {
                 try {
                     LocalDate data = dataField.getValue();
@@ -719,24 +747,17 @@ public class SafrasController {
                     }
                     
                     if (isManualCheck.isSelected()) {
-                        // --- MODO MANUAL ---
                         double custoManual = parseDouble(custoManualField.getText());
                         if (custoManual <= 0) {
                             AlertUtil.showError("Erro de Validação", "O custo manual deve ser positivo.");
                             return null;
                         }
-                        
                         return new AtividadeSafra(
-                            safraSelecionada.getId(),
-                            desc,
-                            data.toString(),
-                            null, // itemConsumidoId
-                            0,    // quantidadeConsumida
-                            custoManual
+                            safraSelecionada.getId(), desc, data.toString(),
+                            null, 0, custoManual
                         );
 
                     } else {
-                        // --- MODO INSUMO (LÓGICA ANTIGA) ---
                         EstoqueItem item = itemCombo.getSelectionModel().getSelectedItem();
                         double qtd = parseDouble(qtdField.getText());
 
@@ -752,16 +773,10 @@ public class SafrasController {
                             AlertUtil.showError("Estoque Insuficiente", "Disponível: " + item.getQuantidade() + ". Solicitado: " + qtd);
                             return null;
                         }
-
                         double custoTotal = qtd * item.getValorUnitario();
-                        
                         return new AtividadeSafra(
-                            safraSelecionada.getId(),
-                            desc,
-                            data.toString(),
-                            item.getId(),
-                            qtd,
-                            custoTotal
+                            safraSelecionada.getId(), desc, data.toString(),
+                            item.getId(), qtd, custoTotal
                         );
                     }
 
@@ -774,50 +789,40 @@ public class SafrasController {
         });
 
 
-        // 6. Processar resultado (ATUALIZADO para incluir lançamento financeiro manual)
+        // Processar resultado
         Optional<AtividadeSafra> result = dialog.showAndWait();
 
         result.ifPresent(atividade -> {
             try {
-                // 1. Lança a atividade no banco (sempre)
+                // Operações de escrita (rápidas)
                 atividadeSafraDAO.addAtividade(atividade);
-                
                 String successMessage;
 
-                // 2. Consome o item do estoque (SOMENTE se for atividade de insumo)
                 if (atividade.getItemConsumidoId() != null && atividade.getItemConsumidoId() > 0) {
                     estoqueDAO.consumirEstoque(atividade.getItemConsumidoId(), atividade.getQuantidadeConsumida());
                     successMessage = "Atividade lançada e estoque consumido.\nO custo da atividade foi registrado na safra.";
                 } else {
-                    // É um custo manual
-                    
-                    // --- INÍCIO DA MODIFICAÇÃO (SOLICITAÇÃO DO USUÁRIO) ---
-                    // Lança a despesa no financeiro, pois é um custo manual
                     if (atividade.getCustoTotalAtividade() > 0) {
                         String descFin = "Custo Safra (" + safraSelecionada.getCultura() + "): " + atividade.getDescricao();
                         Transacao transacao = new Transacao(
-                            descFin,
-                            -atividade.getCustoTotalAtividade(), // Despesa é negativa
-                            atividade.getData(),
-                            "despesa"
+                            descFin, -atividade.getCustoTotalAtividade(), 
+                            atividade.getData(), "despesa"
                         );
                         financeiroDAO.addTransacao(transacao);
-                        successMessage = "Custo manual lançado com sucesso na safra e no financeiro."; // Mensagem atualizada
+                        successMessage = "Custo manual lançado com sucesso na safra e no financeiro."; 
                     } else {
-                         successMessage = "Custo manual (R$ 0,00) lançado na safra."; // Caso o custo seja zero
+                         successMessage = "Custo manual (R$ 0,00) lançado na safra."; 
                     }
-                    // --- FIM DA MODIFICAÇÃO ---
                 }
 
                 AlertUtil.showInfo("Sucesso", successMessage);
                 
-                // 4. Atualiza a tabela de detalhes
+                // Atualiza a tabela de detalhes (rápido, fica na FX thread)
                 if (safraSelecionada.equals(tabelaSafras.getSelectionModel().getSelectedItem())) {
                     handleSafraSelectionChanged(safraSelecionada);
                 }
 
             } catch (IllegalStateException e) {
-                // Exceção do consumirEstoque (caso a validação do dialog falhe por concorrência)
                 AlertUtil.showError("Erro de Estoque", e.getMessage());
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível salvar a atividade: " + e.getMessage());
@@ -825,15 +830,13 @@ public class SafrasController {
         });
     }
 
-    /**
-     * Helper class para o resultado do diálogo de colheita.
-     * ATUALIZADO: Armazena produção em KG e SACOS, e valor por SACO.
-     */
+    // Classe interna ColheitaData
     private static class ColheitaData {
-        final double producaoKg; // Necessário para o SafraDAO
-        final double producaoSacos; // NOVO: Necessário para o EstoqueDAO
-        final double valorTotal; // Para EstoqueDAO
-        final double valorPorSaco; // NOVO: (valorTotal / producaoSacos)
+// ... (código existente) ...
+        final double producaoKg; 
+        final double producaoSacos; 
+        final double valorTotal; 
+        final double valorPorSaco; 
 
         ColheitaData(double producaoKg, double producaoSacos, double valorTotal) {
             this.producaoKg = producaoKg;
@@ -847,15 +850,9 @@ public class SafrasController {
         }
     }
 
-    /**
-     * Manipulador para "Registrar Colheita".
-     * ATUALIZADO:
-     * - Pergunta o Valor de Venda (R$/saco).
-     * - Adiciona o item colhido (em SACOS) ao Estoque.
-     * - ATUALIZADO: Não lança mais receita aqui.
-     */
     @FXML
     private void handleRegistrarColheita() {
+// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -863,101 +860,81 @@ public class SafrasController {
             return;
         }
 
-        // NOVO: Verificar se já está colhida
         if (safraSelecionada.getStatus().equalsIgnoreCase("Colhida")) {
              AlertUtil.showInfo("Ação Inválida", "Esta safra já foi colhida e a produção já foi registrada.");
              return;
         }
         
-        // 1. Criar o diálogo customizado
-        Dialog<ColheitaData> dialog = new Dialog<>(); // Alterado para ColheitaData
+        Dialog<ColheitaData> dialog = new Dialog<>(); 
         dialog.setTitle("Registrar Colheita");
         dialog.setHeaderText("Insira a produtividade para: " + safraSelecionada.getCultura() + " (" + safraSelecionada.getTalhaoNome() + ")");
 
         ButtonType registrarButtonType = new ButtonType("Registrar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(registrarButtonType, ButtonType.CANCEL);
 
-        // 2. Criar o layout (GridPane)
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20, 150, 10, 10));
 
-        // Dados fixos da safra
         double area = safraSelecionada.getAreaHectares();
-        // double prodAtualScHa = safraSelecionada.getProducaoSacosPorHectare(); // Valor antigo (sc/ha)
-        double prodAtualTotalSacos = safraSelecionada.getProducaoTotalSacos(); // NOVO: Valor total
+        double prodAtualTotalSacos = safraSelecionada.getProducaoTotalSacos(); 
 
-        // Labels de informação
         Label areaLabel = new Label(String.format(Locale.US, "%.2f ha", area));
-        Label scHaLabel = new Label("---"); // ATUALIZADO: Este agora é o label de sc/ha
+        Label scHaLabel = new Label("---"); 
         Label totalKgLabel = new Label("---");
-        Label valorTotalColheitaLabel = new Label("---"); // NOVO
+        Label valorTotalColheitaLabel = new Label("---"); 
         
-        // Campo de entrada
-        // ATUALIZADO: O campo de entrada agora é o Total de Sacos
         TextField totalSacosField = new TextField(String.format(Locale.US, "%.2f", prodAtualTotalSacos));
-        TextField valorSacoField = new TextField("0.0"); // NOVO
+        TextField valorSacoField = new TextField("0.0"); 
         
-        // Adiciona componentes ao grid
         grid.add(new Label("Área do Talhão:"), 0, 0);
         grid.add(areaLabel, 1, 0);
-        
-        grid.add(new Label("Total (sacos):"), 0, 1); // ATUALIZADO
-        grid.add(totalSacosField, 1, 1); // ATUALIZADO
-        
-        grid.add(new Label("Produção (sc/ha):"), 0, 2); // ATUALIZADO
-        grid.add(scHaLabel, 1, 2); // ATUALIZADO
-        
+        grid.add(new Label("Total (sacos):"), 0, 1); 
+        grid.add(totalSacosField, 1, 1); 
+        grid.add(new Label("Produção (sc/ha):"), 0, 2); 
+        grid.add(scHaLabel, 1, 2); 
         grid.add(new Label("Total (kg):"), 0, 3);
         grid.add(totalKgLabel, 1, 3);
+        grid.add(new Label("Valor Venda (R$/saco):"), 0, 4); 
+        grid.add(valorSacoField, 1, 4); 
+        grid.add(new Label("Valor Total (R$):"), 0, 5); 
+        grid.add(valorTotalColheitaLabel, 1, 5); 
         
-        grid.add(new Label("Valor Venda (R$/saco):"), 0, 4); // NOVO
-        grid.add(valorSacoField, 1, 4); // NOVO
-        
-        grid.add(new Label("Valor Total (R$):"), 0, 5); // NOVO
-        grid.add(valorTotalColheitaLabel, 1, 5); // NOVO
-        
-        // 3. Adicionar listener para cálculo automático
         ChangeListener<String> listener = (obs, oldV, newV) -> {
+// ... (código existente) ...
             atualizarCalculosDialogColheita(
-                // scHaField.getText(), valorSacoField.getText(), area, // Antigo
-                totalSacosField.getText(), valorSacoField.getText(), area, // NOVO
-                scHaLabel, totalKgLabel, valorTotalColheitaLabel // ATUALIZADO
+                totalSacosField.getText(), valorSacoField.getText(), area, 
+                scHaLabel, totalKgLabel, valorTotalColheitaLabel 
             );
         };
         
-        totalSacosField.textProperty().addListener(listener); // ATUALIZADO
-        valorSacoField.textProperty().addListener(listener); // NOVO listener
+        totalSacosField.textProperty().addListener(listener); 
+        valorSacoField.textProperty().addListener(listener); 
         
-        // Chama o método helper diretamente com o valor inicial
         atualizarCalculosDialogColheita(
-            totalSacosField.getText(), valorSacoField.getText(), area, // NOVO
-            scHaLabel, totalKgLabel, valorTotalColheitaLabel // ATUALIZADO
+// ... (código existente) ...
+            totalSacosField.getText(), valorSacoField.getText(), area, 
+            scHaLabel, totalKgLabel, valorTotalColheitaLabel 
         );
 
         dialog.getDialogPane().setContent(grid);
 
-        // 4. Converter o resultado para o objeto ColheitaData
         dialog.setResultConverter(dialogButton -> {
+// ... (código existente) ...
             if (dialogButton == registrarButtonType) {
                 try {
-                    // double producaoScHa = parseDouble(scHaField.getText()); // Antigo
-                    double totalSacos = parseDouble(totalSacosField.getText()); // NOVO
-                    double valorSaco = parseDouble(valorSacoField.getText()); // NOVO
+                    double totalSacos = parseDouble(totalSacosField.getText()); 
+                    double valorSaco = parseDouble(valorSacoField.getText()); 
                     
-                    // if (producaoScHa <= 0 || valorSaco < 0) { // Antigo
-                    if (totalSacos <= 0 || valorSaco < 0) { // NOVO
-                        AlertUtil.showError("Valor Inválido", "A produção total deve ser maior que zero e o valor não pode ser negativo."); // Mensagem atualizada
+                    if (totalSacos <= 0 || valorSaco < 0) { 
+                        AlertUtil.showError("Valor Inválido", "A produção total deve ser maior que zero e o valor não pode ser negativo."); 
                         return null;
                     }
 
-                    // Cálculos
-                    // double totalSacos = (producaoScHa * area); // Antigo
-                    double producaoKg = totalSacos * 60.0; // Correto
-                    double valorTotal = totalSacos * valorSaco; // Correto
+                    double producaoKg = totalSacos * 60.0; 
+                    double valorTotal = totalSacos * valorSaco; 
                     
-                    // Retorna o objeto atualizado
                     return new ColheitaData(producaoKg, totalSacos, valorTotal); 
 
                 } catch (NumberFormatException e) {
@@ -968,42 +945,34 @@ public class SafrasController {
             return null;
         });
 
-        // 5. Exibir o diálogo e processar o resultado
-        Optional<ColheitaData> result = dialog.showAndWait(); // Tipo de Optional alterado
+        Optional<ColheitaData> result = dialog.showAndWait(); 
 
         result.ifPresent(colheitaData -> {
             try {
-                // 1. Atualizar a safra (DAO define status como 'Colhida' e salva KG)
+                // Operações de escrita (rápidas)
                 safraDAO.updateProducaoSafra(safraSelecionada.getId(), colheitaData.producaoKg);
 
-                // 2. Criar o item de estoque (ATUALIZADO PARA SACOS)
                 String nomeItem = safraSelecionada.getCultura() + " (Colheita " + safraSelecionada.getAnoInicio() + ")";
-                String unidadeItem = "sacos"; // ATUALIZADO
+                String unidadeItem = "sacos"; 
 
                 EstoqueItem itemColheita = new EstoqueItem(
                     nomeItem,
-                    colheitaData.producaoSacos, // ATUALIZADO
+                    colheitaData.producaoSacos, 
                     unidadeItem,
-                    colheitaData.valorPorSaco, // ATUALIZADO (R$/saco)
+                    colheitaData.valorPorSaco, 
                     colheitaData.valorTotal
                 );
 
-                // 3. NOVO: Adicionar ao estoque
                 estoqueDAO.addEstoque(itemColheita);
 
-                // 4. ATUALIZADO: Transação financeira de "Receita de Produção" foi REMOVIDA.
-                // A receita agora é registrada somente na VENDA do item.
-                // O valor da colheita agora é um ATIVO em estoque.
-
-                // 5. Recarregar dados e notificar
-                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                carregarDadosSafras(); // Recarrega (assíncrono)
                 
-                // Mensagem de sucesso atualizada
                 AlertUtil.showInfo("Sucesso", 
+// ... (código existente) ...
                     "Colheita registrada com sucesso.\n" +
                     "Status da safra atualizado para 'Colhida'.\n" +
-                    String.format(Locale.US, "%.2f sacos de %s", colheitaData.producaoSacos, nomeItem) + // ATUALIZADO
-                    " foram adicionados ao estoque com seu valor de custo/venda registrado." // Mensagem atualizada
+                    String.format(Locale.US, "%.2f sacos de %s", colheitaData.producaoSacos, nomeItem) + 
+                    " foram adicionados ao estoque com seu valor de custo/venda registrado." 
                 );
 
             } catch (SQLException e) {
@@ -1012,12 +981,9 @@ public class SafrasController {
         });
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Exportar Relatório (CSV)".
-     * ATUALIZADO: Agora busca vendas reais e calcula o lucro.
-     */
     @FXML
     private void handleExportarCsv() {
+// ... (código existente) ...
         SafraInfo safra = tabelaSafras.getSelectionModel().getSelectedItem();
         if (safra == null || !safra.getStatus().equalsIgnoreCase("Colhida")) {
             AlertUtil.showError("Ação Inválida", "Selecione uma safra 'Colhida' para exportar.");
@@ -1029,35 +995,34 @@ public class SafrasController {
         fileChooser.setInitialFileName("Relatorio_Safra_" + safra.getId() + "_" + safra.getCultura().replace(" ", "_") + ".csv");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
 
-        // Mostra o diálogo de salvar
         File file = fileChooser.showSaveDialog(tabelaSafras.getScene().getWindow());
 
         if (file == null) {
-            return; // Usuário cancelou
+            return; 
         }
 
-        // Tenta escrever o arquivo
-        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) { // Especifica UTF-8 para acentuação
+        // ATENÇÃO: Esta operação é de leitura e pode ser lenta
+        // Idealmente, seria uma Task, mas por simplicidade:
+        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) { 
             
             StringBuilder sb = new StringBuilder();
             
-            // --- Cabeçalho do Relatório ---
             sb.append("Relatório da Safra: " + safra.getCultura() + " (" + safra.getAnoInicio() + ")\n");
+// ... (código existente) ...
             sb.append("Talhão: " + safra.getTalhaoNome() + " (" + safra.getAreaHectares() + " ha)\n");
             sb.append("Status: " + safra.getStatus() + "\n\n");
             
-            // --- Cabeçalho CSV ---
             sb.append("Tipo;Data;Descricao;Insumo/Produto;Quantidade;Unidade;Valor Total (R$)\n");
 
-            // --- 1. Custos (Atividades) ---
+            // 1. Custos (Atividades)
             double custoTotal = 0;
             List<AtividadeSafra> atividades = atividadeSafraDAO.listAtividadesPorSafra(safra.getId());
             
             for (AtividadeSafra atv : atividades) {
+// ... (código existente) ...
                 String nomeInsumo = "N/A (Custo Manual)";
                 String unidade = "";
                 if (atv.getItemConsumidoId() != null && atv.getItemConsumidoId() > 0) {
-                    // Busca o item de estoque para pegar nome e unidade
                     EstoqueItem item = estoqueDAO.getItemById(atv.getItemConsumidoId());
                     if (item != null) {
                         nomeInsumo = item.getItemNome();
@@ -1065,63 +1030,64 @@ public class SafrasController {
                     }
                 }
                 
-                // Formata usando Locale.US (ponto decimal) para consistência no CSV
                 sb.append(String.format(Locale.US, "Custo;%s;\"%s\";\"%s\";%.2f;%s;%.2f\n",
                     atv.getData(),
-                    atv.getDescricao().replace("\"", "\"\""), // Escapa aspas
+                    atv.getDescricao().replace("\"", "\"\""), 
                     nomeInsumo.replace("\"", "\"\""),
                     atv.getQuantidadeConsumida(),
                     unidade,
-                    -atv.getCustoTotalAtividade() // Custo é negativo
+                    -atv.getCustoTotalAtividade() 
                 ));
-                custoTotal += atv.getCustoTotalAtividade(); // Soma o custo (positivo)
+                custoTotal += atv.getCustoTotalAtividade(); 
             }
 
-            // --- 2. Receitas (Vendas Reais) ---
+            // 2. Receitas (Vendas Reais)
             double receitaTotalVendas = 0;
+// ... (código existente) ...
             String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
-            // Busca por transações de "Venda de..."
             String descVendaQuery = "Venda de " + nomeItemColheita;
             
-            // Usa o novo método do DAO para buscar TODAS as vendas
             List<Transacao> vendas = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
 
             for (Transacao venda : vendas) {
+// ... (código existente) ...
                 sb.append(String.format(Locale.US, "Receita (Venda);%s;\"%s\";\"%s\";N/A;N/A;%.2f\n",
                     venda.getData(),
                     venda.getDescricao().replace("\"", "\"\""),
                     nomeItemColheita.replace("\"", "\"\""),
-                    venda.getValor() // Valor da receita (positivo)
+                    venda.getValor() 
                 ));
                 receitaTotalVendas += venda.getValor();
             }
 
-            // --- 3. Valor em Estoque (Produto não vendido) ---
+            // 3. Valor em Estoque (Produto não vendido)
             double valorEmEstoque = 0;
+// ... (código existente) ...
             EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
             
             if (itemColheitaEstoque != null) {
-                // O valor total do item em estoque (qtd restante * custo médio)
                 valorEmEstoque = itemColheitaEstoque.getValorTotal(); 
                 if (valorEmEstoque > 0) {
+// ... (código existente) ...
                     sb.append(String.format(Locale.US, "Valor em Estoque;%s;\"%s\";\"%s\";%.2f;%s;%.2f\n",
-                        LocalDate.now().toString(), // Data de hoje para o valor em estoque
+                        LocalDate.now().toString(), 
                         "Produto em Estoque (Não Vendido)",
                         itemColheitaEstoque.getItemNome().replace("\"", "\"\""),
                         itemColheitaEstoque.getQuantidade(),
                         itemColheitaEstoque.getUnidade(),
-                        valorEmEstoque // Valor do ativo restante
+                        valorEmEstoque 
                     ));
                 }
             }
 
-            // --- 4. Sumário ---
+            // 4. Sumário
             double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
+// ... (código existente) ...
             sb.append("\n\n--- Resumo Financeiro ---\n");
             sb.append(String.format(Locale.US, "Total Receitas (Vendas);%.2f\n", receitaTotalVendas));
             sb.append(String.format(Locale.US, "Valor em Estoque (Custo Médio);%.2f\n", valorEmEstoque));
             sb.append(String.format(Locale.US, "Receita Bruta Total (Vendas + Estoque);%.2f\n", (receitaTotalVendas + valorEmEstoque)));
-            sb.append(String.format(Locale.US, "Total Custos (Insumos);%.2f\n", -custoTotal)); // Mostra custo como negativo
+            sb.append(String.format(Locale.US, "Total Custos (Insumos);%.2f\n", -custoTotal)); 
             sb.append(String.format(Locale.US, "Balanço/Lucro Final;%.2f\n", balancoFinal));
 
             writer.write(sb.toString());
@@ -1133,28 +1099,23 @@ public class SafrasController {
         }
     }
 
-    /**
-     * NOVO: Manipulador para o botão "Atualizar Status".
-     */
     @FXML
     private void handleAtualizarStatus() {
+// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
         if (safraSelecionada == null) {
             AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra para atualizar o status.");
             return;
         }
 
-        // Não permite alterar status de safra colhida
         if (safraSelecionada.getStatus().equalsIgnoreCase("Colhida")) {
             AlertUtil.showInfo("Ação Inválida", "Esta safra já foi colhida e não pode ter seu status alterado.");
             return;
         }
 
-        // Lista de possíveis status
         List<String> statusOpcoes = new ArrayList<>(Arrays.asList(
             "Planejada", "Em Preparo", "Plantio", "Crescimento", 
             "Aplicação Defensivos", "Colheita"
-            // Removido "Colhida", pois só deve ser setado via "Registrar Colheita"
         ));
         
         ChoiceDialog<String> dialog = new ChoiceDialog<>(safraSelecionada.getStatus(), statusOpcoes);
@@ -1166,9 +1127,9 @@ public class SafrasController {
 
         result.ifPresent(novoStatus -> {
             try {
-                // Chama o novo método do DAO
+                // Operação de escrita (rápida)
                 safraDAO.updateStatusSafra(safraSelecionada.getId(), novoStatus);
-                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                carregarDadosSafras(); // Recarrega (assíncrono)
                 AlertUtil.showInfo("Sucesso", "Status da safra atualizado para '" + novoStatus + "'.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível atualizar o status: " + e.getMessage());
@@ -1177,11 +1138,9 @@ public class SafrasController {
     }
 
 
-    /**
-     * Manipulador para o botão "- Remover Safra".
-     */
     @FXML
     private void handleRemoverSafra() {
+// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -1194,8 +1153,9 @@ public class SafrasController {
 
         if (confirmado) {
             try {
+                // Operação de escrita (rápida)
                 safraDAO.removerSafra(safraSelecionada.getId());
-                carregarDadosSafras(); // ATUALIZADO: Recarrega dados e aplica filtro
+                carregarDadosSafras(); // Recarrega (assíncrono)
                 AlertUtil.showInfo("Sucesso", "Safra removida com sucesso.");
             } catch (SQLException e) {
                 AlertUtil.showError("Erro de Banco de Dados", "Não foi possível remover a safra: " + e.getMessage());
@@ -1203,11 +1163,9 @@ public class SafrasController {
         }
     }
 
-    /**
-     * Manipulador para o botão "- Remover Talhão".
-     */
     @FXML
     private void handleRemoverTalhao() {
+// ... (código existente) ...
         Talhao talhaoSelecionado = tabelaTalhoes.getSelectionModel().getSelectedItem();
 
         if (talhaoSelecionado == null) {
@@ -1220,11 +1178,11 @@ public class SafrasController {
 
         if (confirmado) {
             try {
+                // Operação de escrita (rápida)
                 talhaoDAO.removerTalhao(talhaoSelecionado.getId());
-                carregarDadosTalhoes(); // Atualiza a tabela de talhões
+                carregarDadosTalhoes(); // Recarrega (assíncrono)
                 AlertUtil.showInfo("Sucesso", "Talhão removido com sucesso.");
             } catch (SQLException e) {
-                // Captura erro de chave estrangeira (SQLite)
                 if (e.getMessage().contains("FOREIGN KEY constraint failed")) {
                     AlertUtil.showError("Erro de Remoção", "Não é possível remover este talhão, pois ele está associado a uma ou mais safras.");
                 } else {
@@ -1234,53 +1192,47 @@ public class SafrasController {
         }
     }
     
-    /**
-     * NOVO: Método helper atualizado para calcular produção e valor.
-     */
     private void atualizarCalculosDialogColheita(
+// ... (código existente) ...
         String totalSacosStr, String vlrSacoStr, double area,
         Label scHaLabel, Label totalKgLabel, Label totalValorLabel
     ) {
         try {
-            double totalSacos = parseDouble(totalSacosStr); // ATUALIZADO
-            double valorSaco = parseDouble(vlrSacoStr); // Usando novo helper
+            double totalSacos = parseDouble(totalSacosStr); 
+            double valorSaco = parseDouble(vlrSacoStr); 
             
-            if (totalSacos < 0 || valorSaco < 0) { // ATUALIZADO
-                scHaLabel.setText("Inválido"); // ATUALIZADO
+            if (totalSacos < 0 || valorSaco < 0) { 
+                scHaLabel.setText("Inválido"); 
                 totalKgLabel.setText("Inválido");
                 totalValorLabel.setText("Inválido");
                 return;
             }
             
-            // Cálculos
-            // double totalSacos = producaoScHa * area; // Antigo
-            double producaoKg = totalSacos * 60.0; // Correto
-            double valorTotal = totalSacos * valorSaco; // Correto
-            double producaoScHa = (area > 0) ? (totalSacos / area) : 0.0; // NOVO
+            double producaoKg = totalSacos * 60.0; 
+            double valorTotal = totalSacos * valorSaco; 
+            double producaoScHa = (area > 0) ? (totalSacos / area) : 0.0; 
             
-            scHaLabel.setText(String.format(Locale.US, "%.2f sc/ha", producaoScHa)); // ATUALIZADO
+            scHaLabel.setText(String.format(Locale.US, "%.2f sc/ha", producaoScHa)); 
             totalKgLabel.setText(String.format(Locale.US, "%.2f kg", producaoKg));
-            totalValorLabel.setText(currencyFormatter.format(valorTotal)); // Formata como moeda
+            totalValorLabel.setText(currencyFormatter.format(valorTotal)); 
             
         } catch (NumberFormatException e) {
-            scHaLabel.setText("---"); // ATUALIZADO
+            scHaLabel.setText("---"); 
             totalKgLabel.setText("---");
             totalValorLabel.setText("---");
         }
     }
 
-    // NOVO: Helper para parse de double (copiado do EstoqueController)
     private double parseDouble(String text) throws NumberFormatException {
+// ... (código existente) ...
         if (text == null || text.isEmpty()) {
             return 0.0;
         }
         return Double.parseDouble(text.replace(",", "."));
     }
     
-    /**
-     * NOVO: Helper para atualizar o label de custo no diálogo de atividade.
-     */
     private void atualizarCustoAtividade(EstoqueItem item, String qtdStr, Label custoLabel) {
+// ... (código existente) ...
         if (item == null) {
             custoLabel.setText("Custo (R$): ---");
             return;
@@ -1294,11 +1246,9 @@ public class SafrasController {
         }
     }
 
-    /**
-     * NOVO: DTO (Data Transfer Object) interno para popular a tabela de atividades.
-     * Inclui o nome do insumo (String) ao invés do ID.
-     */
+    // Classe interna AtividadeSafraInfo
     public static class AtividadeSafraInfo {
+// ... (código existente) ...
         private final String data;
         private final String descricao;
         private final String insumoNome;
