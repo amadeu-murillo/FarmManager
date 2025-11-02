@@ -24,6 +24,7 @@
   Tela de Gestão Financeira (ATUALIZADA)
   - O VBox principal agora está dentro de um StackPane.
   - Um ProgressIndicator foi adicionado ao StackPane, sobreposto ao VBox.
+  - ATUALIZADO: Adicionadas colunas de Fornecedor e Empresa.
 -->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.FinanceiroController">
    <children>
@@ -103,8 +104,12 @@
                <columns>
                   <TableColumn fx:id="colFinId" prefWidth="60.0" text="ID" />
                   <TableColumn fx:id="colFinData" prefWidth="120.0" text="Data Evento" />
-                  <TableColumn fx:id="colFinDataHoraCriacao" prefWidth="160.0" text="Data Lançamento" />
                   <TableColumn fx:id="colFinDesc" prefWidth="250.0" text="Descrição" />
+                  <!-- NOVAS COLUNAS -->
+                  <TableColumn fx:id="colFinFornecedorNome" prefWidth="150.0" text="Fornecedor" />
+                  <TableColumn fx:id="colFinFornecedorEmpresa" prefWidth="150.0" text="Empresa" />
+                  <!-- FIM NOVAS COLUNAS -->
+                  <TableColumn fx:id="colFinDataHoraCriacao" prefWidth="160.0" text="Data Lançamento" />
                   <TableColumn fx:id="colFinEntrada" prefWidth="150.0" text="Entrada (R$)" />
                   <TableColumn fx:id="colFinSaida" prefWidth="150.0" text="Saída (R$)" />
                </columns>

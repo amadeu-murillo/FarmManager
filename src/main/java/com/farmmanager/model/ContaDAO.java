@@ -13,6 +13,7 @@ import java.util.List;
  * NOVO: DAO para gerenciar a tabela 'contas' (Contas a Pagar/Receber).
  * ATUALIZADO: Adicionado updateConta.
  * ATUALIZADO: Adicionados métodos para alertas de dashboard (Vencidas, A Vencer).
+ * ATUALIZADO: Adicionados campos de fornecedor.
  */
 public class ContaDAO {
 
@@ -20,7 +21,7 @@ public class ContaDAO {
      * Adiciona uma nova conta (pagar/receber).
      */
     public boolean addConta(Conta conta) throws SQLException {
-        String sql = "INSERT INTO contas(descricao, valor, data_vencimento, tipo, status, data_criacao) VALUES(?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO contas(descricao, valor, data_vencimento, tipo, status, fornecedor_nome, fornecedor_empresa, data_criacao) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
@@ -29,7 +30,9 @@ public class ContaDAO {
             pstmt.setString(3, conta.getDataVencimento());
             pstmt.setString(4, conta.getTipo());
             pstmt.setString(5, conta.getStatus());
-            pstmt.setString(6, DateTimeUtil.getCurrentTimestamp());
+            pstmt.setString(6, conta.getFornecedorNome()); // NOVO
+            pstmt.setString(7, conta.getFornecedorEmpresa()); // NOVO
+            pstmt.setString(8, DateTimeUtil.getCurrentTimestamp());
             
             return pstmt.executeUpdate() > 0;
         }
@@ -52,7 +55,9 @@ public class ContaDAO {
      * NOVO: Atualiza os dados de uma conta pendente.
      */
     public boolean updateConta(Conta conta) throws SQLException {
-        String sql = "UPDATE contas SET descricao = ?, valor = ?, data_vencimento = ?, tipo = ? WHERE id = ? AND status = 'pendente'";
+        String sql = "UPDATE contas SET descricao = ?, valor = ?, data_vencimento = ?, tipo = ?, "
+                   + "fornecedor_nome = ?, fornecedor_empresa = ? "
+                   + "WHERE id = ? AND status = 'pendente'";
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
@@ -60,7 +65,9 @@ public class ContaDAO {
             pstmt.setDouble(2, conta.getValor());
             pstmt.setString(3, conta.getDataVencimento());
             pstmt.setString(4, conta.getTipo());
-            pstmt.setInt(5, conta.getId());
+            pstmt.setString(5, conta.getFornecedorNome()); // NOVO
+            pstmt.setString(6, conta.getFornecedorEmpresa()); // NOVO
+            pstmt.setInt(7, conta.getId());
             
             return pstmt.executeUpdate() > 0;
         }
@@ -81,7 +88,12 @@ public class ContaDAO {
         // 2. Definir a transação
         double valorTransacao = conta.getTipo().equals("pagar") ? -conta.getValor() : conta.getValor();
         String tipoTransacao = conta.getTipo().equals("pagar") ? "despesa" : "receita";
+        
+        // Adiciona info do fornecedor na descrição do financeiro
         String descTransacao = "Liquidação: " + conta.getDescricao();
+        if (conta.getFornecedorNome() != null && !conta.getFornecedorNome().isEmpty()) {
+            descTransacao += " (Fornec: " + conta.getFornecedorNome() + ")";
+        }
 
         Transacao transacao = new Transacao(descTransacao, valorTransacao, dataPagamento, tipoTransacao);
         
@@ -253,8 +265,9 @@ public class ContaDAO {
             rs.getString("data_vencimento"),
             rs.getString("tipo"),
             rs.getString("status"),
+            rs.getString("fornecedor_nome"), // NOVO
+            rs.getString("fornecedor_empresa"), // NOVO
             rs.getString("data_criacao")
         );
     }
 }
-

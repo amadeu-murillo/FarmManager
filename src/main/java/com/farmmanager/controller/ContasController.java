@@ -34,6 +34,7 @@ import java.util.Optional;
  * - Adicionada funcionalidade de editar contas pendentes.
  * - MELHORIA CRÍTICA: Carregamento de dados (carregarDados)
  * movido para uma Task em background para não congelar a UI.
+ * - ATUALIZADO: Adicionados campos de fornecedor.
  */
 public class ContasController {
 
@@ -43,6 +44,10 @@ public class ContasController {
     private TableColumn<Conta, Integer> colId;
     @FXML
     private TableColumn<Conta, String> colDescricao;
+    @FXML
+    private TableColumn<Conta, String> colFornecedorNome; // NOVO
+    @FXML
+    private TableColumn<Conta, String> colFornecedorEmpresa; // NOVO
     @FXML
     private TableColumn<Conta, String> colDataVencimento;
     @FXML
@@ -106,6 +111,8 @@ public class ContasController {
         // Configura colunas
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colDescricao.setCellValueFactory(new PropertyValueFactory<>("descricao"));
+        colFornecedorNome.setCellValueFactory(new PropertyValueFactory<>("fornecedorNome")); // NOVO
+        colFornecedorEmpresa.setCellValueFactory(new PropertyValueFactory<>("fornecedorEmpresa")); // NOVO
         colDataVencimento.setCellValueFactory(new PropertyValueFactory<>("dataVencimento"));
         colTipo.setCellValueFactory(new PropertyValueFactory<>("tipo"));
         colValor.setCellValueFactory(new PropertyValueFactory<>("valor"));
@@ -299,6 +306,11 @@ public class ContasController {
         TextField valorField = new TextField();
         valorField.setPromptText("Ex: 1500.00");
         DatePicker dataVencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
+        
+        TextField fornecedorNomeField = new TextField(); // NOVO
+        fornecedorNomeField.setPromptText("Ex: João da Silva (Opcional)"); // NOVO
+        TextField fornecedorEmpresaField = new TextField(); // NOVO
+        fornecedorEmpresaField.setPromptText("Ex: Agropecuária XYZ (Opcional)"); // NOVO
 
         grid.add(new Label("Descrição:"), 0, 0);
         grid.add(descField, 1, 0);
@@ -306,6 +318,10 @@ public class ContasController {
         grid.add(valorField, 1, 1);
         grid.add(new Label("Data Vencimento:"), 0, 2);
         grid.add(dataVencimentoPicker, 1, 2);
+        grid.add(new Label("Fornecedor (Nome):"), 0, 3); // NOVO
+        grid.add(fornecedorNomeField, 1, 3); // NOVO
+        grid.add(new Label("Fornecedor (Empresa):"), 0, 4); // NOVO
+        grid.add(fornecedorEmpresaField, 1, 4); // NOVO
 
         dialog.getDialogPane().setContent(grid);
         AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
@@ -316,13 +332,15 @@ public class ContasController {
                     String desc = descField.getText();
                     double valor = Double.parseDouble(valorField.getText().replace(",", "."));
                     LocalDate data = dataVencimentoPicker.getValue();
+                    String fornNome = fornecedorNomeField.getText(); // NOVO
+                    String fornEmpresa = fornecedorEmpresaField.getText(); // NOVO
 
                     if (desc.isEmpty() || data == null || valor <= 0) {
-                        AlertUtil.showError("Erro de Validação", "Todos os campos são obrigatórios e o valor deve ser positivo.");
+                        AlertUtil.showError("Erro de Validação", "Descrição, Data e Valor (> 0) são obrigatórios.");
                         return null;
                     }
                     
-                    return new Conta(desc, valor, data.toString(), tipo, "pendente");
+                    return new Conta(desc, valor, data.toString(), tipo, "pendente", fornNome, fornEmpresa);
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valor inválido.");
                     return null;
@@ -373,6 +391,9 @@ public class ContasController {
         DatePicker dataVencimentoPicker = new DatePicker(LocalDate.parse(conta.getDataVencimento()));
         ComboBox<String> tipoCombo = new ComboBox<>(FXCollections.observableArrayList("pagar", "receber"));
         tipoCombo.setValue(conta.getTipo());
+        
+        TextField fornecedorNomeField = new TextField(conta.getFornecedorNome()); // NOVO
+        TextField fornecedorEmpresaField = new TextField(conta.getFornecedorEmpresa()); // NOVO
 
         grid.add(new Label("Descrição:"), 0, 0);
         grid.add(descField, 1, 0);
@@ -382,6 +403,10 @@ public class ContasController {
         grid.add(dataVencimentoPicker, 1, 2);
         grid.add(new Label("Tipo:"), 0, 3);
         grid.add(tipoCombo, 1, 3);
+        grid.add(new Label("Fornecedor (Nome):"), 0, 4); // NOVO
+        grid.add(fornecedorNomeField, 1, 4); // NOVO
+        grid.add(new Label("Fornecedor (Empresa):"), 0, 5); // NOVO
+        grid.add(fornecedorEmpresaField, 1, 5); // NOVO
 
         dialog.getDialogPane().setContent(grid);
         AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
@@ -393,6 +418,8 @@ public class ContasController {
                     double valor = Double.parseDouble(valorField.getText().replace(",", "."));
                     LocalDate data = dataVencimentoPicker.getValue();
                     String tipo = tipoCombo.getValue();
+                    String fornNome = fornecedorNomeField.getText(); // NOVO
+                    String fornEmpresa = fornecedorEmpresaField.getText(); // NOVO
 
                     if (desc.isEmpty() || data == null || valor <= 0) {
                         AlertUtil.showError("Erro de Validação", "Todos os campos são obrigatórios e o valor deve ser positivo.");
@@ -403,6 +430,8 @@ public class ContasController {
                     conta.setValor(valor);
                     conta.setDataVencimento(data.toString());
                     conta.setTipo(tipo);
+                    conta.setFornecedorNome(fornNome); // NOVO
+                    conta.setFornecedorEmpresa(fornEmpresa); // NOVO
                     
                     return conta;
                 } catch (NumberFormatException e) {
@@ -506,4 +535,3 @@ public class ContasController {
         }
     }
 }
-
