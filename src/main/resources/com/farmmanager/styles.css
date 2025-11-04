@@ -1,13 +1,15 @@
 /* * ---- Estilo Profissional "Moderno & Limpo" ----
- * Paleta de cores focada em tons de cinza-azulados e azuis para
+ * Paleta de cores focada em tons de cinza-azulados e verdes para
  * uma aparência corporativa e limpa.
  *
- * ATUALIZADO (Refatoração UX/UI):
- * - Alterado o layout dos cards de KPI para um VBox vertical (Ícone > Valor > Título).
- * - Ajustadas as classes .card-content-valor e .card-content-texto para remover o padding-top.
- * - Ajustada a classe .card-title para ter padding-top.
- * - Adicionado alinhamento (alignment) aos VBox dos cards no FXML (spacing="10.0" alignment="TOP_LEFT").
- * - Adicionada a classe .content-subtitle para os títulos das seções.
+ * ATUALIZADO (Refatoração UI/UX):
+ * - Removido '.sidebar-section-title' (títulos de seção).
+ * - Adicionado '.sidebar-separator' para agrupar visualmente os botões.
+ * - Alterado '.sidebar-button-selected' para usar uma borda esquerda verde
+ * (cor da marca) em vez de um fundo azul.
+ * - Ajustado o padding dos botões para alinhar com a nova borda.
+ * - ADICIONADO: Efeitos :pressed (clique) para botões e cartões.
+ * - ADICIONADO: Variações de cores para ícones de KPI (.kpi-icon-container).
  */
 
 /* Fundo principal e fonte base */
@@ -28,42 +30,56 @@
     -fx-font-size: 20px;
     -fx-font-weight: bold;
     -fx-text-fill: white;
-    -fx-padding: 15px 15px 20px 15px;
 }
 
 .sidebar-logo-icon {
     -fx-fill: #48BB78; /* Verde (cor de sucesso) */
 }
 
-.sidebar-section-title {
-    -fx-font-size: 11px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #A0AEC0; /* Cinza claro (mesma cor do ícone inativo) */
-    -fx-text-transform: uppercase;
-    -fx-padding: 20px 15px 5px 15px; 
+/* REMOVIDO: Títulos de seção não são mais usados */
+/*.sidebar-section-title { ... } */
+
+/* ADICIONADO: Estilo para o separador visual */
+.sidebar-separator {
+    -fx-padding: 15px 10px;
+    -fx-background-color: transparent;
 }
+.sidebar-separator .line {
+    -fx-border-color: #4A5568; /* Linha sutil (mesma cor do hover antigo) */
+    -fx-border-width: 1px 0 0 0;
+}
+
 
 .sidebar-icon {
     -fx-fill: #A0AEC0; /* Cinza claro para ícones inativos */
 }
 
+/* ATUALIZADO: Padding esquerdo padrão */
 .sidebar .button {
     -fx-background-color: transparent;
     -fx-text-fill: #E2E8F0; /* Texto do botão (cinza-azulado claro) */
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-alignment: CENTER_LEFT;
-    -fx-padding: 10px 20px; 
+    -fx-padding: 10px 20px 10px 20px; /* Padding padrão */
     -fx-background-radius: 8px;
     -fx-graphic-text-gap: 12px;
+    -fx-transition: all 0.1s ease-in-out; /* Transição mais rápida para clique */
 }
 
+/* ATUALIZADO: Cor de hover */
 .sidebar .button:hover {
-    -fx-background-color: #4A5568; /* Hover sutil */
+    -fx-background-color: #374151; /* Um cinza um pouco mais claro */
     -fx-text-fill: white;
 }
 .sidebar .button:hover .sidebar-icon {
     -fx-fill: white;
+}
+
+/* ADICIONADO: Efeito de clique */
+.sidebar .button:pressed {
+    -fx-background-color: #374151; /* Mantém a cor de hover */
+    -fx-translate-y: 1px; /* Simula o botão sendo pressionado */
 }
 
 .sidebar .button:focused {
@@ -71,21 +87,30 @@
     -fx-border-width: 0;
     -fx-background-insets: 0;
     -fx-border-insets: 0;
-    -fx-background-color: #4A5568; 
+    -fx-background-color: #374151; /* Cor de hover */
 }
 .sidebar .button:focused:hover {
-     -fx-background-color: #4A5568;
+     -fx-background-color: #374151;
 }
 
+/* ATUALIZADO: Estilo de botão selecionado (mais profissional) */
 .sidebar-button-selected {
-    -fx-background-color: #4299E1; /* Azul de destaque */
+    -fx-background-color: #4A5568; /* Fundo sutil */
     -fx-text-fill: white;
+    -fx-border-color: #48BB78; /* Verde da marca (logo) */
+    -fx-border-width: 0 0 0 4px; /* Borda esquerda de 4px */
+    -fx-padding: 10px 20px 10px 16px; /* Padding esquerdo reduzido para compensar a borda */
 }
 .sidebar-button-selected .sidebar-icon {
     -fx-fill: white;
 }
 .sidebar-button-selected:hover {
-    -fx-background-color: #4299E1;
+    -fx-background-color: #4A5568; /* Mantém a cor ao passar o mouse */
+}
+/* ADICIONADO: Efeito de clique no botão selecionado */
+.sidebar-button-selected:pressed {
+    -fx-background-color: #4A5568;
+    -fx-translate-y: 1px;
 }
 
 
@@ -135,6 +160,12 @@
     -fx-cursor: hand; 
 }
 
+/* ADICIONADO: Efeito de clique para o cartão */
+.card:hover:pressed {
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.15), 15, 0.1, 0, 4); /* Sombra um pouco mais escura */
+    -fx-translate-y: 1px; /* Move para baixo */
+}
+
 
 /* Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
 .card-alerta-danger {
@@ -148,6 +179,11 @@
     -fx-translate-y: -2px;
     -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.12), 20, 0.15, 0, 6);
     -fx-cursor: hand; 
+}
+/* ADICIONADO: Efeito de clique */
+.card-alerta-danger:hover:pressed {
+    -fx-translate-y: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.15), 15, 0.1, 0, 4);
 }
 
 .card-alerta-danger .card-content-texto {
@@ -172,6 +208,11 @@
      -fx-translate-y: -2px;
      -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.12), 20, 0.15, 0, 6);
      -fx-cursor: hand; 
+}
+/* ADICIONADO: Efeito de clique */
+.card-alerta-warning:hover:pressed {
+    -fx-translate-y: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.15), 15, 0.1, 0, 4);
 }
 
 .card-alerta-warning .card-content-texto {
@@ -198,6 +239,28 @@
 
 .kpi-icon {
     -fx-fill: #3182CE; /* Azul mais escuro (Tailwind blue-600) */
+}
+
+/* NOVAS: Variações de cor para ícones de KPI */
+.kpi-icon-container.green {
+    -fx-background-color: #E6FFFA; /* Tailwind green-50 */
+}
+.kpi-icon-container.green .kpi-icon {
+    -fx-fill: #38A169; /* Tailwind green-600 */
+}
+
+.kpi-icon-container.red {
+    -fx-background-color: #FFF5F5; /* Tailwind red-50 */
+}
+.kpi-icon-container.red .kpi-icon {
+    -fx-fill: #E53E3E; /* Tailwind red-600 */
+}
+
+.kpi-icon-container.yellow {
+    -fx-background-color: #FFFBEB; /* Tailwind yellow-50 */
+}
+.kpi-icon-container.yellow .kpi-icon {
+    -fx-fill: #D69E2E; /* Tailwind yellow-600 */
 }
 
 
@@ -279,9 +342,15 @@
     -fx-background-radius: 8px;
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(66, 153, 225, 0.2), 8, 0.1, 0, 2);
+    -fx-transition: all 0.1s ease-in-out; /* Transição mais rápida */
 }
 .module-button:hover {
     -fx-background-color: #3182CE; 
+}
+/* ADICIONADO: Efeito de clique */
+.module-button:pressed {
+    -fx-translate-y: 1px; /* Move para baixo */
+    -fx-effect: none; /* Remove a sombra para simular pressão */
 }
 
 .module-button.success {
@@ -291,6 +360,11 @@
 .module-button.success:hover {
     -fx-background-color: #38A169;
 }
+.module-button.success:pressed {
+    -fx-background-color: #38A169;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
+}
 
 .module-button.danger {
     -fx-background-color: #E53E3E; 
@@ -299,6 +373,11 @@
 .module-button.danger:hover {
     -fx-background-color: #C53030;
 }
+.module-button.danger:pressed {
+    -fx-background-color: #C53030;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
+}
 
 .module-button.warning {
     -fx-background-color: #ED8936; 
@@ -306,6 +385,11 @@
 }
 .module-button.warning:hover {
     -fx-background-color: #DD6B20;
+}
+.module-button.warning:pressed {
+    -fx-background-color: #DD6B20;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
 }
 
 /* --- Painel de Filtros --- */

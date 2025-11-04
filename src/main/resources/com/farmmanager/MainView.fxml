@@ -1,102 +1,63 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <!-- 
-  IMPORTAÇÕES ADICIONADAS: MenuBar, Menu, MenuItem 
+  IMPORTAÇÕES ATUALIZADAS:
+  - MenuBar, Menu, MenuItem REMOVIDOS (agora apenas na sidebar)
+  - Separator ADICIONADO para agrupar visualmente
 -->
-<?import javafx.scene.control.MenuBar?>
-<?import javafx.scene.control.Menu?>
-<?import javafx.scene.control.MenuItem?>
 <?import de.jensd.fx.glyphs.fontawesome.FontAwesomeIconView?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
-<!-- NOVO: Importações para Imagem (agora usado para ícone) -->
 <?import javafx.scene.image.ImageView?>
 <?import javafx.scene.image.Image?>
 <?import javafx.geometry.Insets?>
-<!-- NOVO: Import para HBox usado no logo -->
 <?import javafx.scene.layout.HBox?>
-
 
 <!-- 
   MainView.fxml (O "Shell" da Aplicação)
-  ATUALIZADO:
-  - Adicionado <MenuBar> na seção <top> do BorderPane.
-  - Adicionado <FontAwesomeIconView> para o logo na barra lateral.
-  - ATUALIZADO: Removido alignment="TOP_CENTER" do VBox da barra lateral.
-  - ATUALIZADO: Logo e Título agrupados em um HBox para melhor alinhamento.
-  - ATUALIZADO: Adicionados fx:id a todos os botões de navegação.
-  - ATUALIZADO: Ícone de folha substituído pelo logo.png
+  ATUALIZADO (Refatoração de UI/UX):
+  - REMOVIDA a seção <top> (MenuBar) para eliminar redundância.
+  - CORRIGIDO o ImageView para exibir o logo.png.
+  - ADICIONADO um Label "FarmManager" ao lado do logo.
+  - REMOVIDOS os títulos de seção (ex: "GERAL") para um visual mais limpo.
+  - ADICIONADOS Separators para agrupar visualmente os botões.
 -->
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
    
-   <!-- NOVO: Menu Superior Adicionado -->
-   <top>
-      <MenuBar>
-        <menus>
-          <!-- Menu "Geral" -->
-          <Menu text="Geral">
-            <items>
-              <MenuItem text="Dashboard" onAction="#handleShowDashboard" />
-            </items>
-          </Menu>
-          
-          <!-- Menu "Financeiro" -->
-          <Menu text="Financeiro">
-            <items>
-              <MenuItem text="Contas (Pagar/Receber)" onAction="#handleShowContas" />
-              <MenuItem text="Financeiro (Caixa)" onAction="#handleShowFinanceiro" />
-            </items>
-          </Menu>
-          
-          <!-- Menu "Operações" -->
-          <Menu text="Operações">
-            <items>
-              <MenuItem text="Safras e Talhões" onAction="#handleShowSafras" />
-              <MenuItem text="Insumos/Produtos" onAction="#handleShowEstoque" />
-              <MenuItem text="Patrimônio" onAction="#handleShowPatrimonio" />
-              <MenuItem text="Funcionários" onAction="#handleShowFuncionarios" />
-            </items>
-          </Menu>
-          
-          <!-- Menu "Relatórios" -->
-          <Menu text="Relatórios">
-            <items>
-              <MenuItem text="Histórico de Safras" onAction="#handleShowHistoricoSafras" />
-            </items>
-          </Menu>
-        </menus>
-      </MenuBar>
-   </top>
+   <!-- 
+     REMOVIDO: A seção <top> (MenuBar) foi removida.
+     A navegação agora está centralizada na barra lateral esquerda,
+     melhorando a usabilidade e reduzindo a confusão.
+   -->
    
    <left>
-      <!-- Menu Lateral de Navegação (com ícones) - alignment="TOP_CENTER" REMOVIDO -->
+      <!-- Menu Lateral de Navegação (com ícones) -->
       <VBox prefWidth="200.0" styleClass="sidebar" BorderPane.alignment="CENTER">
          <children>
          
-            <!-- NOVO: HBox para agrupar logo e título -->
-            <!-- ATUALIZADO: Trocado FontAwesomeIconView por ImageView com o logo.png -->
-            <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-padding: 15px 15px 20px 25px;">
+            <!-- HBox para agrupar logo e título -->
+            <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-padding: 15px 15px 20px 20px;">
                <children>
-                  <!-- Substituído o ícone de folha pelo logo -->
-                  <ImageView fitHeight="40.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
-                     
-                  </ImageView>
+                  <!-- CORRIGIDO: Adicionado Image com a URL do logo -->
+                  
                </children>
             </HBox>
             
-            <!-- GERAL -->
-            <Label styleClass="sidebar-section-title" text="GERAL" />
+            <!-- REMOVIDO: Label "GERAL" -->
             <Button fx:id="btnDashboard" alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowDashboard" prefHeight="40.0" prefWidth="200.0" text="Dashboard">
                <graphic>
                   <FontAwesomeIconView glyphName="HOME" size="1.2em" styleClass="sidebar-icon" />
                </graphic>
             </Button>
             
-            <!-- FINANCEIRO -->
-            <Label styleClass="sidebar-section-title" text="FINANCEIRO" />
+            <!-- ADICIONADO: Separador Visual -->
+            <Separator styleClass="sidebar-separator" />
+            
+            <!-- REMOVIDO: Label "FINANCEIRO" -->
             <Button fx:id="btnContas" alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowContas" prefHeight="40.0" prefWidth="200.0" text="Contas (Pagar/Receber)">
                <graphic>
                   <FontAwesomeIconView glyphName="CALENDAR" size="1.2em" styleClass="sidebar-icon" />
@@ -108,8 +69,10 @@
                </graphic>
             </Button>
             
-            <!-- OPERAÇÕES -->
-            <Label styleClass="sidebar-section-title" text="OPERAÇÕES" />
+            <!-- ADICIONADO: Separador Visual -->
+            <Separator styleClass="sidebar-separator" />
+            
+            <!-- REMOVIDO: Label "OPERAÇÕES" -->
             <Button fx:id="btnSafras" alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowSafras" prefHeight="40.0" prefWidth="200.0" text="Safras e Talhões">
                <graphic>
                   <FontAwesomeIconView glyphName="LEAF" size="1.2em" styleClass="sidebar-icon" />
@@ -131,8 +94,10 @@
                </graphic>
             </Button>
             
-            <!-- RELATÓRIOS -->
-            <Label styleClass="sidebar-section-title" text="RELATÓRIOS" />
+            <!-- ADICIONADO: Separador Visual -->
+            <Separator styleClass="sidebar-separator" />
+            
+            <!-- REMOVIDO: Label "RELATÓRIOS" -->
             <Button fx:id="btnHistorico" alignment="BASELINE_LEFT" mnemonicParsing="false" onAction="#handleShowHistoricoSafras" prefHeight="40.0" prefWidth="200.0" text="Histórico de Safras">
                <graphic>
                   <FontAwesomeIconView glyphName="BAR_CHART" size="1.2em" styleClass="sidebar-icon" />

@@ -578,7 +578,8 @@ public class SafrasController {
         dialog.setResultConverter(dialogButton -> {
 // ... (código existente) ...
             if (dialogButton == adicionarButtonType) {
-                String cultura = culturaField.getText();
+                // MODIFICAÇÃO: Converte cultura para minúsculo e remove espaços extras
+                String cultura = culturaField.getText().toLowerCase().trim();
                 String ano = anoField.getText(); 
                 Talhao talhaoSel = talhaoCombo.getSelectionModel().getSelectedItem();
                 String status = statusCombo.getSelectionModel().getSelectedItem(); 
@@ -587,6 +588,7 @@ public class SafrasController {
                     AlertUtil.showError("Erro de Validação", "Cultura, Safra e Talhão são obrigatórios.");
                     return null;
                 }
+                // O objeto Safra será criado com o nome da cultura já em minúsculo
                 return new Safra(cultura, ano, talhaoSel.getId(), status);
             }
             return null;
@@ -1282,4 +1284,3 @@ public class SafrasController {
         public double getCusto() { return custo; }
     }
 }
-
