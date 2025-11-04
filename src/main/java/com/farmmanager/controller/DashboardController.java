@@ -45,6 +45,7 @@ import java.util.Map;
  * - Adicionado `lblWelcomeDate` para exibir a data atual.
  * - Adicionado KPI `lblPatrimonioManutencao` para "Patrimônio em Manutenção".
  * - Layout de KPIs operacionais ajustado para 4 colunas.
+ * - ATUALIZADO (Usabilidade): Mensagem de boas-vindas alterada.
  */
 public class DashboardController {
 
@@ -184,6 +185,7 @@ public class DashboardController {
      * ATUALIZADO: Chamado automaticamente ao carregar o FXML.
      * Apenas configura o estado inicial e chama o carregador assíncrono.
      * NOVO: Adiciona a data atual ao `lblWelcomeDate`.
+     * ATUALIZADO (Usabilidade): Mensagem de boas-vindas alterada.
      */
     @FXML
     public void initialize() {
@@ -192,9 +194,10 @@ public class DashboardController {
             LocalDate hoje = LocalDate.now();
             // Formata a data para o padrão brasileiro
             DateTimeFormatter dtf = DateTimeFormatter.ofPattern("'Hoje é' EEEE, dd 'de' MMMM 'de' yyyy", new Locale("pt", "BR"));
-            lblWelcomeDate.setText(dtf.format(hoje));
+            // ATUALIZAÇÃO DE USABILIDADE:
+            lblWelcomeDate.setText("Bem-vindo(a)! " + dtf.format(hoje));
         } catch (Exception e) {
-            lblWelcomeDate.setText("Bem-vindo!"); // Fallback
+            lblWelcomeDate.setText("Bem-vindo(a)!"); // Fallback atualizado
         }
 
         // Garante que os HBox de alerta não ocupem espaço antes do carregamento

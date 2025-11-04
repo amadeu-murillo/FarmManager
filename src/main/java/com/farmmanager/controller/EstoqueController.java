@@ -21,6 +21,8 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox; // NOVO: Import para o VBox
 import javafx.geometry.Pos; 
 import javafx.util.Pair; 
+// NOVO: Import para ScrollPane
+import javafx.scene.control.ScrollPane; 
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -48,6 +50,9 @@ import java.util.stream.Collectors;
  * movido para uma Task em background para não congelar a UI.
  * - MELHORIA USABILIDADE: 'handleAdicionarItem' agora permite adicionar item sem registro financeiro (ajuste).
  * - ATUALIZADO: Adicionados campos de fornecedor.
+ * - ATUALIZADO (handleVenderItem): Adicionados campos de Cliente e validação em tempo real.
+ * - ATUALIZADO (handleVenderItem): Diálogo agora usa ScrollPane e é redimensionável.
+ * - ATUALIZADO (handleAdicionarItem): Diálogo agora usa ScrollPane e é redimensionável.
  */
 public class EstoqueController {
 
@@ -256,8 +261,9 @@ public class EstoqueController {
         Dialog<Pair<CompraInfo, Boolean>> dialog = new Dialog<>(); 
         dialog.setTitle("Adicionar Item ao Estoque"); // Texto ATUALIZADO
         dialog.setHeaderText("Preencha os dados da entrada.\nSe o item já existir, os valores serão somados (custo médio).");
+        dialog.setResizable(true); // NOVO: Permite redimensionar
 
-        ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE); // Texto atualizado
+        ButtonType adicionarButtonType = new ButtonType("Adicionar", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(adicionarButtonType, ButtonType.CANCEL);
 
         GridPane grid = new GridPane();
@@ -350,16 +356,14 @@ public class EstoqueController {
             vencimentoPicker.setManaged(registrar && aPrazo);
         });
 
-        tipoPagCombo.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
-            boolean aPrazo = newVal.equals("A Prazo");
-            boolean registrar = registrarFinanceiroCheck.isSelected();
-            vencimentoLabel.setVisible(registrar && aPrazo);
-            vencimentoPicker.setVisible(registrar && aPrazo);
-            vencimentoLabel.setManaged(registrar && aPrazo);
-            vencimentoPicker.setManaged(registrar && aPrazo);
-        });
+        // NOVO: Coloca o GridPane dentro de um ScrollPane
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(grid);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+        scrollPane.setPrefHeight(450); // Define uma altura preferencial
 
-        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().setContent(scrollPane); // ATUALIZADO: Define o ScrollPane
         AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
         
         // --- Validação em Tempo Real (similar ao PatrimonioController) ---
@@ -500,7 +504,6 @@ public class EstoqueController {
 
     // Helper para converter texto em double (aceita , e .)
     private double parseDouble(String text) throws NumberFormatException {
-// ... (código existente) ...
         if (text == null || text.isEmpty()) {
             return 0.0;
         }
@@ -509,13 +512,11 @@ public class EstoqueController {
 
     // Helper para formatar double para o campo de texto
     private String formatDouble(double value) {
-// ... (código existente) ...
         return String.format(Locale.US, "%.2f", value);
     }
 
     // Calcula Vlr. Total
     private void calcularTotal(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
-// ... (código existente) ...
         if (isUpdating) return; 
         isUpdating = true;
         try {
@@ -532,7 +533,6 @@ public class EstoqueController {
 
     // Calcula Vlr. Unitário
     private void calcularUnitario(TextField qtdField, TextField valorUnitarioField, TextField valorTotalField) {
-// ... (código existente) ...
         if (isUpdating) return; 
         isUpdating = true;
         try {
@@ -550,7 +550,6 @@ public class EstoqueController {
 
     @FXML
     private void handleVenderItem() {
-// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -561,6 +560,7 @@ public class EstoqueController {
         Dialog<VendaInfo> dialog = new Dialog<>(); 
         dialog.setTitle("Vender Item do Estoque");
         dialog.setHeaderText("Item: " + selecionado.getItemNome() + " (Disponível: " + selecionado.getQuantidade() + " " + selecionado.getUnidade() + ")");
+        dialog.setResizable(true); // NOVO: Permite redimensionar
 
         ButtonType venderButtonType = new ButtonType("Vender", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(venderButtonType, ButtonType.CANCEL);
@@ -590,6 +590,13 @@ public class EstoqueController {
         Label vencimentoLabel = new Label("Data Recebimento:");
         DatePicker vencimentoPicker = new DatePicker(LocalDate.now().plusDays(30));
         
+        // --- NOVOS CAMPOS PARA CLIENTE ---
+        TextField clienteNomeField = new TextField();
+        clienteNomeField.setPromptText("Ex: João da Silva (Opcional)");
+        TextField clienteEmpresaField = new TextField();
+        clienteEmpresaField.setPromptText("Ex: Fazenda Bela Vista (Opcional)");
+        // --- FIM NOVOS CAMPOS ---
+
         vencimentoLabel.setVisible(false);
         vencimentoPicker.setVisible(false);
         vencimentoLabel.setManaged(false);
@@ -611,10 +618,47 @@ public class EstoqueController {
         grid.add(tipoPagCombo, 1, 2);
         grid.add(vencimentoLabel, 0, 3);
         grid.add(vencimentoPicker, 1, 3);
-        grid.add(valorTotalVendaLabel, 1, 4); 
+        
+        // --- ADICIONA NOVOS CAMPOS AO GRID ---
+        grid.add(new Label("Cliente (Nome):"), 0, 4);
+        grid.add(clienteNomeField, 1, 4);
+        grid.add(new Label("Cliente (Empresa):"), 0, 5);
+        grid.add(clienteEmpresaField, 1, 5);
+        // --- FIM ADIÇÃO ---
+        
+        grid.add(valorTotalVendaLabel, 1, 6); // Índice atualizado
 
-        ChangeListener<String> listener = (obs, oldV, newV) -> {
+        // --- VALIDAÇÃO EM TEMPO REAL ---
+        Node venderButtonNode = dialog.getDialogPane().lookupButton(venderButtonType);
+        venderButtonNode.setDisable(true); // Começa desabilitado
+
+        Runnable validadorVenda = () -> {
+            boolean qtdOk = false;
+            boolean precoOk = false;
+            boolean dataVencOk = true; // Assume OK
+
             try {
+                double qtd = parseDouble(qtdField.getText());
+                qtdOk = qtd > 0 && qtd <= selecionado.getQuantidade();
+            } catch (NumberFormatException e) {
+                qtdOk = false;
+            }
+            
+            try {
+                double preco = parseDouble(precoVendaField.getText());
+                precoOk = preco >= 0; // Preço pode ser zero (doação/brinde)
+            } catch (NumberFormatException e) {
+                precoOk = false;
+            }
+
+            if (tipoPagCombo.getSelectionModel().getSelectedItem().equals("A Prazo")) {
+                dataVencOk = vencimentoPicker.getValue() != null;
+            }
+            
+            venderButtonNode.setDisable(!qtdOk || !precoOk || !dataVencOk);
+            
+            // Atualiza o Label de total (movido para dentro do listener)
+             try {
                 double qtd = parseDouble(qtdField.getText());
                 double preco = parseDouble(precoVendaField.getText());
                 valorTotalVendaLabel.setText(String.format(Locale.US, "Total da Venda: R$ %.2f", qtd * preco));
@@ -623,22 +667,36 @@ public class EstoqueController {
             }
         };
 
-        qtdField.textProperty().addListener(listener);
-        precoVendaField.textProperty().addListener(listener);
-        listener.changed(null, null, null); 
+        qtdField.textProperty().addListener((obs, o, n) -> validadorVenda.run());
+        precoVendaField.textProperty().addListener((obs, o, n) -> validadorVenda.run());
+        tipoPagCombo.valueProperty().addListener((obs, o, n) -> validadorVenda.run());
+        vencimentoPicker.valueProperty().addListener((obs, o, n) -> validadorVenda.run());
+        validadorVenda.run(); // Executa validação inicial
+        // --- FIM DA VALIDAÇÃO ---
 
-        dialog.getDialogPane().setContent(grid);
-        AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
+        // NOVO: Coloca o GridPane dentro de um ScrollPane para melhor usabilidade
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setContent(grid);
+        scrollPane.setFitToWidth(true);
+        // Remove fundo e borda do scrollpane para integrar com o diálogo
+        scrollPane.setStyle("-fx-background-color: transparent; -fx-background-insets: 0;");
+        // Define uma altura preferencial para o scrollpane
+        scrollPane.setPrefHeight(450); 
+
+        dialog.getDialogPane().setContent(scrollPane); // ATUALIZADO: Define o ScrollPane como conteúdo
+        AlertUtil.setDialogIcon(dialog); 
 
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == venderButtonType) {
                 try {
                     double qtd = parseDouble(qtdField.getText());
                     double preco = parseDouble(precoVendaField.getText());
                     String tipoRecebimento = tipoPagCombo.getSelectionModel().getSelectedItem(); 
                     LocalDate dataVencimento = vencimentoPicker.getValue(); 
+                    String clienteNome = clienteNomeField.getText(); // NOVO
+                    String clienteEmpresa = clienteEmpresaField.getText(); // NOVO
 
+                    // Validações (já cobertas pelo listener, mas mantidas por segurança)
                     if (qtd <= 0 || preco < 0) {
                         AlertUtil.showError("Valor Inválido", "Quantidade deve ser positiva e preço não pode ser negativo.");
                         return null;
@@ -652,7 +710,7 @@ public class EstoqueController {
                         return null;
                     }
                     
-                    return new VendaInfo(qtd, preco, tipoRecebimento, dataVencimento); 
+                    return new VendaInfo(qtd, preco, tipoRecebimento, dataVencimento, clienteNome, clienteEmpresa); 
                 } catch (NumberFormatException e) {
                     AlertUtil.showError("Erro de Formato", "Valores de quantidade ou R$ inválidos.");
                     return null;
@@ -669,7 +727,17 @@ public class EstoqueController {
                 estoqueDAO.consumirEstoque(selecionado.getId(), vendaInfo.qtdAVender);
 
                 double valorReceita = vendaInfo.qtdAVender * vendaInfo.precoVendaUnitario;
+                
+                // DESCRIÇÃO ATUALIZADA
                 String desc = "Venda de " + selecionado.getItemNome();
+                // Usa os prefixos consistentes com o resto do app
+                if (vendaInfo.clienteNome != null && !vendaInfo.clienteNome.isEmpty()) {
+                    desc += " (Fornec: " + vendaInfo.clienteNome + ")";
+                }
+                if (vendaInfo.clienteEmpresa != null && !vendaInfo.clienteEmpresa.isEmpty()) {
+                    desc += " (Empresa: " + vendaInfo.clienteEmpresa + ")";
+                }
+
 
                 if (vendaInfo.tipoRecebimento.equals("À Vista")) {
                     String data = LocalDate.now().format(dateFormatter);
@@ -678,14 +746,15 @@ public class EstoqueController {
                     AlertUtil.showInfo("Sucesso", "Venda (à vista) registrada. Estoque atualizado e receita lançada.");
 
                 } else {
+                    // CONTA ATUALIZADA
                     Conta conta = new Conta(
                         desc,
                         valorReceita, 
                         vendaInfo.dataVencimento.toString(),
                         "receber", 
                         "pendente",
-                        null, // Venda não tem "fornecedor"
-                        null
+                        vendaInfo.clienteNome, // Passa o nome do cliente
+                        vendaInfo.clienteEmpresa // Passa a empresa do cliente
                     );
                     contaDAO.addConta(conta);
                     AlertUtil.showInfo("Sucesso", "Venda (a prazo) registrada. Estoque atualizado e 'Conta a Receber' criada.");
@@ -703,7 +772,6 @@ public class EstoqueController {
 
     @FXML
     private void handleConsumirItem() {
-// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -738,7 +806,6 @@ public class EstoqueController {
         AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == consumirButtonType) {
                 try {
                     double qtd = parseDouble(qtdField.getText());
@@ -789,7 +856,6 @@ public class EstoqueController {
 
     @FXML
     private void handleEditarItem() {
-// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -827,7 +893,6 @@ public class EstoqueController {
         AlertUtil.setDialogIcon(dialog); // CORREÇÃO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == salvarButtonType) {
                 String nome = nomeField.getText().trim();
                 String unidade = unidadeField.getText().trim();
@@ -870,7 +935,6 @@ public class EstoqueController {
 
     @FXML
     private void handleRemoverItem() {
-// ... (código existente) ...
         EstoqueItem selecionado = tabelaEstoque.getSelectionModel().getSelectedItem();
         
         if (selecionado == null) {
@@ -899,7 +963,6 @@ public class EstoqueController {
     
     // Classe interna - CompraInfo
     private static class CompraInfo {
-// ... (código existente) ...
         final EstoqueItem item;
         final String tipoPagamento; 
         final LocalDate dataVencimento; 
@@ -912,18 +975,23 @@ public class EstoqueController {
     }
     
     // Classe interna - VendaInfo
+    // ATUALIZADA para incluir dados do cliente
     private static class VendaInfo {
-// ... (código existente) ...
         final double qtdAVender;
         final double precoVendaUnitario;
         final String tipoRecebimento; 
         final LocalDate dataVencimento; 
+        final String clienteNome; // NOVO
+        final String clienteEmpresa; // NOVO
 
-        VendaInfo(double qtd, double preco, String tipo, LocalDate data) {
+        VendaInfo(double qtd, double preco, String tipo, LocalDate data, String clienteNome, String clienteEmpresa) {
             this.qtdAVender = qtd;
             this.precoVendaUnitario = preco;
             this.tipoRecebimento = tipo;
             this.dataVencimento = data;
+            this.clienteNome = clienteNome; // NOVO
+            this.clienteEmpresa = clienteEmpresa; // NOVO
         }
     }
 }
+

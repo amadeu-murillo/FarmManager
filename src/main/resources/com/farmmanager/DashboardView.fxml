@@ -16,22 +16,34 @@
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.control.ProgressIndicator?>
 
+<!-- 
+  ATUALIZADO (Refatoração de UX/UI):
+  - Layout dos KPIs (Financeiro e Operacional) completamente alterado.
+  - Em vez de GridPane, os cards agora estão em HBox (HBox.hgrow="ALWAYS").
+  - A estrutura interna de cada VBox (card) foi alterada para um layout vertical:
+    1. StackPane (Ícone)
+    2. Label (Valor Principal - ex: lblBalanco)
+    3. Label (Título - ex: "Balanço Financeiro")
+  - O Label de sub-valor (lblAreaTotal) foi movido para baixo do lblTalhoes, usando a classe "card-sub-value".
+  - HBox dos Alertas agora é clicável (onMouseClicked) para navegação.
+-->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.DashboardController">
    <children>
       <ScrollPane fx:id="contentScrollPane" fitToWidth="true" styleClass="scroll-pane-dashboard">
          <content>
             <VBox spacing="15.0">
                <children>
-                  <Label styleClass="content-title" text="Dashboard - Resumo da Fazenda" />
+                  <Label styleClass="content-title" text="Resumo da Fazenda" />
                   
-                  <Label fx:id="lblWelcomeDate" styleClass="summary-label" text="Carregando data..." style="-fx-font-size: 14px; -fx-text-fill: #718096; -fx-padding-top: -10px; -fx-padding-bottom: 5px;" />
+                  <Label fx:id="lblWelcomeDate" styleClass="summary-label" text="Carregando data..." style="-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #718096; -fx-padding-bottom: 5px;" />
                   
+                  <!-- Seção de Alertas -->
                   <Label text="Alertas" styleClass="content-subtitle" />
                   <HBox spacing="25.0" style="-fx-padding-top: 5px;">
                      <children>
                         <HBox fx:id="alertaContasVencidasBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
-                              <VBox styleClass="card, card-alerta-danger" HBox.hgrow="ALWAYS">
+                              <VBox onMouseClicked="#navigateToContas" styleClass="card, card-alerta-danger" HBox.hgrow="ALWAYS">
                                  <children>
                                     <Label styleClass="card-title" text="Alerta: Contas Vencidas" />
                                     <HBox alignment="CENTER_LEFT" spacing="15.0" VBox.vgrow="ALWAYS">
@@ -54,7 +66,7 @@
                         </HBox>
                         <HBox fx:id="alertaContasAVencerBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
-                              <VBox styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
+                              <VBox onMouseClicked="#navigateToContas" styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
                                  <children>
                                     <Label styleClass="card-title" text="Alerta: Contas a Vencer (Próx. 7 dias)" />
                                     <HBox alignment="CENTER_LEFT" spacing="15.0" VBox.vgrow="ALWAYS">
@@ -77,7 +89,7 @@
                         </HBox>
                         <HBox fx:id="alertaEstoqueBaixoBox" spacing="25.0" managed="false" visible="false" HBox.hgrow="ALWAYS">
                            <children>
-                              <VBox styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
+                              <VBox onMouseClicked="#navigateToEstoque" styleClass="card, card-alerta-warning" HBox.hgrow="ALWAYS">
                                  <children>
                                     <Label styleClass="card-title" text="Alerta: Estoque Baixo" />
                                     <HBox alignment="CENTER_LEFT" spacing="15.0" VBox.vgrow="ALWAYS">
@@ -104,197 +116,124 @@
                      </VBox.margin>
                   </HBox>
 
+                  <!-- Seção Financeira -->
                   <Label text="Resumo Financeiro" styleClass="content-subtitle" />
-                  <GridPane styleClass="dashboard-grid">
-                     <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                     </columnConstraints>
-                     <rowConstraints>
-                        <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
-                     </rowConstraints>
+                  <HBox spacing="25.0" styleClass="dashboard-grid"> <!-- Usando HBox em vez de GridPane -->
                      <children>
-                        <VBox fx:id="cardBalanco" onMouseClicked="#navigateToFinanceiro" styleClass="card" GridPane.columnIndex="0">
+                        <!-- CARD KPI ATUALIZADO (Balanço) -->
+                        <VBox fx:id="cardBalanco" onMouseClicked="#navigateToFinanceiro" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="BALANCE_SCALE" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Balanço Financeiro (R$)" />
-                                          <Label fx:id="lblBalanco" styleClass="card-content-valor" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="BALANCE_SCALE" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblBalanco" styleClass="card-content-valor" text="Carregando..." />
+                              <Label styleClass="card-title" text="Balanço Financeiro (R$)" />
                            </children>
                         </VBox>
-                        <VBox fx:id="cardEstoque" onMouseClicked="#navigateToEstoque" styleClass="card" GridPane.columnIndex="1">
+                        <!-- CARD KPI ATUALIZADO (Estoque) -->
+                        <VBox fx:id="cardEstoque" onMouseClicked="#navigateToEstoque" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="ARCHIVE" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Valor Total em Estoque (R$)" />
-                                          <Label fx:id="lblValorEstoque" styleClass="card-content-valor" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="ARCHIVE" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblValorEstoque" styleClass="card-content-valor" text="Carregando..." />
+                              <Label styleClass="card-title" text="Valor Total em Estoque (R$)" />
                            </children>
                         </VBox>
-                        <VBox fx:id="cardPatrimonio" onMouseClicked="#navigateToPatrimonio" styleClass="card" GridPane.columnIndex="2">
+                        <!-- CARD KPI ATUALIZADO (Patrimônio) -->
+                        <VBox fx:id="cardPatrimonio" onMouseClicked="#navigateToPatrimonio" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="TRUCK" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Valor Total Patrimônio (R$)" />
-                                          <Label fx:id="lblValorPatrimonio" styleClass="card-content-valor" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="TRUCK" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblValorPatrimonio" styleClass="card-content-valor" text="Carregando..." />
+                              <Label styleClass="card-title" text="Valor Total Patrimônio (R$)" />
                            </children>
                         </VBox>
-                        <VBox fx:id="cardContas" onMouseClicked="#navigateToContas" styleClass="card" GridPane.columnIndex="3">
+                        <!-- CARD KPI ATUALIZADO (Contas) -->
+                        <VBox fx:id="cardContas" onMouseClicked="#navigateToContas" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="CALENDAR" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Contas Pendentes (R$)" />
-                                          <Label fx:id="lblContasPendentes" styleClass="card-content-valor" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="CALENDAR" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblContasPendentes" styleClass="card-content-valor" text="Carregando..." />
+                              <Label styleClass="card-title" text="Contas Pendentes (R$)" />
                            </children>
                         </VBox>
                      </children>
                      <VBox.margin>
                         <Insets top="5.0" />
                      </VBox.margin>
-                  </GridPane>
+                  </HBox>
                   
+                  <!-- Seção Operacional -->
                   <Label text="Resumo Operacional" styleClass="content-subtitle" />
-                  <GridPane styleClass="dashboard-grid">
-                     <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                     </columnConstraints>
-                     <rowConstraints>
-                        <RowConstraints minHeight="10.0" prefHeight="150.0" vgrow="SOMETIMES" />
-                     </rowConstraints>
+                  <HBox spacing="25.0" styleClass="dashboard-grid"> <!-- Usando HBox em vez de GridPane -->
                      <children>
-                        <VBox fx:id="cardSafras" onMouseClicked="#navigateToSafras" styleClass="card" GridPane.columnIndex="0">
+                        <!-- CARD KPI ATUALIZADO (Safras) -->
+                        <VBox fx:id="cardSafras" onMouseClicked="#navigateToSafras" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="LEAF" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Safras Ativas" />
-                                          <Label fx:id="lblSafras" styleClass="card-content-texto" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="LEAF" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblSafras" styleClass="card-content-texto" text="Carregando..." />
+                              <Label styleClass="card-title" text="Safras Ativas" />
                            </children>
                         </VBox>
-                        <VBox fx:id="cardFuncionarios" onMouseClicked="#navigateToFuncionarios" styleClass="card" GridPane.columnIndex="1">
+                        <!-- CARD KPI ATUALIZADO (Funcionários) -->
+                        <VBox fx:id="cardFuncionarios" onMouseClicked="#navigateToFuncionarios" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="USERS" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Funcionários Ativos" />
-                                          <Label fx:id="lblFuncionarios" styleClass="card-content-texto" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="USERS" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblFuncionarios" styleClass="card-content-texto" text="Carregando..." />
+                              <Label styleClass="card-title" text="Funcionários Ativos" />
                            </children>
                         </VBox>
-                        <VBox fx:id="cardTalhoes" onMouseClicked="#navigateToSafras" styleClass="card" GridPane.columnIndex="2">
+                        <!-- CARD KPI ATUALIZADO (Talhões) -->
+                        <VBox fx:id="cardTalhoes" onMouseClicked="#navigateToSafras" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="MAP_MARKER" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Talhões" />
-                                          <Label fx:id="lblTalhoes" styleClass="card-content-texto" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="MAP_MARKER" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
-                              <Label fx:id="lblAreaTotal" styleClass="summary-value" text="(Carregando...)" style="-fx-font-size: 16px; -fx-text-fill: #4A5568; -fx-padding-top: 10px;" />
+                              </StackPane>
+                              <Label fx:id="lblTalhoes" styleClass="card-content-texto" text="Carregando..." />
+                              <Label styleClass="card-title" text="Talhões" />
+                              <Label fx:id="lblAreaTotal" styleClass="card-sub-value" text="(Carregando...)" />
                            </children>
                         </VBox>
-                        
-                        <VBox fx:id="cardPatrimonioOperacional" onMouseClicked="#navigateToPatrimonio" styleClass="card" GridPane.columnIndex="3">
+                        <!-- CARD KPI ATUALIZADO (Manutenção) -->
+                        <VBox fx:id="cardPatrimonioOperacional" onMouseClicked="#navigateToPatrimonio" styleClass="card" spacing="10.0" alignment="TOP_LEFT" HBox.hgrow="ALWAYS">
                            <children>
-                              <HBox alignment="CENTER_LEFT" spacing="15.0">
+                              <StackPane styleClass="kpi-icon-container" alignment="CENTER">
                                  <children>
-                                    <StackPane styleClass="kpi-icon-container">
-                                       <children>
-                                          <FontAwesomeIconView glyphName="WRENCH" size="2.5em" styleClass="kpi-icon" />
-                                       </children>
-                                    </StackPane>
-                                    <VBox>
-                                       <children>
-                                          <Label styleClass="card-title" text="Em Manutenção" />
-                                          <Label fx:id="lblPatrimonioManutencao" styleClass="card-content-texto" text="Carregando..." />
-                                       </children>
-                                    </VBox>
+                                    <FontAwesomeIconView glyphName="WRENCH" size="2.5em" styleClass="kpi-icon" />
                                  </children>
-                              </HBox>
+                              </StackPane>
+                              <Label fx:id="lblPatrimonioManutencao" styleClass="card-content-texto" text="Carregando..." />
+                              <Label styleClass="card-title" text="Em Manutenção" />
                            </children>
                         </VBox>
-                        
                      </children>
                      <VBox.margin>
                         <Insets top="5.0" />
                      </VBox.margin>
-                  </GridPane>
+                  </HBox>
                   
+                  <!-- Seção de Gráficos -->
                   <Label text="Análise Gráfica" styleClass="content-subtitle" />
                   <VBox styleClass="card" VBox.vgrow="ALWAYS">
                      <children>
