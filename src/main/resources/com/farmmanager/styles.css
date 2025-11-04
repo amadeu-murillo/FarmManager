@@ -1,6 +1,13 @@
 /* * ---- Estilo Profissional "Moderno & Limpo" ----
  * Paleta de cores focada em tons de cinza-azulados e azuis para
  * uma aparência corporativa e limpa.
+ *
+ * ATUALIZADO (Refatoração UX/UI):
+ * - Alterado o layout dos cards de KPI para um VBox vertical (Ícone > Valor > Título).
+ * - Ajustadas as classes .card-content-valor e .card-content-texto para remover o padding-top.
+ * - Ajustada a classe .card-title para ter padding-top.
+ * - Adicionado alinhamento (alignment) aos VBox dos cards no FXML (spacing="10.0" alignment="TOP_LEFT").
+ * - Adicionada a classe .content-subtitle para os títulos das seções.
  */
 
 /* Fundo principal e fonte base */
@@ -14,7 +21,7 @@
 .sidebar {
     -fx-background-color: #2D3748; /* Cinza-azulado bem escuro */
     -fx-padding: 10px;
-    -fx-spacing: 5px; /* ATUALIZADO de 8px */
+    -fx-spacing: 5px; 
 }
 
 .sidebar-title {
@@ -24,21 +31,18 @@
     -fx-padding: 15px 15px 20px 15px;
 }
 
-/* NOVO: Estilo para o ícone do logo */
 .sidebar-logo-icon {
     -fx-fill: #48BB78; /* Verde (cor de sucesso) */
 }
 
-/* NOVO: Título da Seção (GERAL, FINANCEIRO, etc.) */
 .sidebar-section-title {
     -fx-font-size: 11px;
     -fx-font-weight: bold;
     -fx-text-fill: #A0AEC0; /* Cinza claro (mesma cor do ícone inativo) */
     -fx-text-transform: uppercase;
-    -fx-padding: 20px 15px 5px 15px; /* Mais espaço acima, menos abaixo */
+    -fx-padding: 20px 15px 5px 15px; 
 }
 
-/* Ícone do menu lateral */
 .sidebar-icon {
     -fx-fill: #A0AEC0; /* Cinza claro para ícones inativos */
 }
@@ -49,7 +53,7 @@
     -fx-font-size: 14px;
     -fx-font-weight: bold;
     -fx-alignment: CENTER_LEFT;
-    -fx-padding: 10px 20px; /* ATUALIZADO de 12px 20px */
+    -fx-padding: 10px 20px; 
     -fx-background-radius: 8px;
     -fx-graphic-text-gap: 12px;
 }
@@ -62,22 +66,17 @@
     -fx-fill: white;
 }
 
-/* Estado de foco (quando clicado/selecionado) - ATUALIZADO */
 .sidebar .button:focused {
-    /* NOVO: Remove o anel de foco visual padrão, pois vamos gerenciá-lo manualmente */
     -fx-border-color: transparent;
     -fx-border-width: 0;
     -fx-background-insets: 0;
     -fx-border-insets: 0;
-    /* Mantém o estado de hover se também estiver focado */
     -fx-background-color: #4A5568; 
 }
 .sidebar .button:focused:hover {
      -fx-background-color: #4A5568;
 }
 
-
-/* NOVO: Estado de SELECIONADO (Botão Ativo) */
 .sidebar-button-selected {
     -fx-background-color: #4299E1; /* Azul de destaque */
     -fx-text-fill: white;
@@ -85,7 +84,6 @@
 .sidebar-button-selected .sidebar-icon {
     -fx-fill: white;
 }
-/* Garante que o hover não mude a cor do botão selecionado */
 .sidebar-button-selected:hover {
     -fx-background-color: #4299E1;
 }
@@ -93,7 +91,7 @@
 
 /* --- Área de Conteúdo --- */
 .content-area {
-    -fx-padding: 25px; /* Mais respiro */
+    -fx-padding: 25px; 
     -fx-spacing: 20px;
     -fx-background-color: #F7FAFC;
 }
@@ -107,125 +105,124 @@
     -fx-padding-bottom: 12px;
 }
 
+/* NOVO: Subtítulo para seções (Resumo Financeiro, etc) */
+.content-subtitle {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+    -fx-padding-top: 10px; /* Espaço acima do subtítulo */
+}
+
+
 /* --- Estilos do Dashboard (Cards) --- */
 .dashboard-grid {
-    -fx-hgap: 25px;
-    -fx-vgap: 25px;
+    /* dashboard-grid agora é usado em HBox, gap é controlado pelo spacing do HBox */
 }
 
 .card {
     -fx-background-color: #FFFFFF;
-    -fx-border-color: transparent; /* Remove borda, usa sombra */
+    -fx-border-color: transparent; 
     -fx-border-radius: 10px;
     -fx-background-radius: 10px;
     -fx-padding: 25px;
-    /* Sombra mais suave e profissional */
     -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.08), 15, 0.1, 0, 4);
-    /* NOVO: Transição suave para hover */
     -fx-transition: all 0.2s ease-in-out;
 }
 
-/* NOVO: Efeito de hover sutil para cards normais */
 .card:hover {
     -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.12), 20, 0.15, 0, 6);
     -fx-translate-y: -2px;
-    -fx-cursor: hand; /* NOVO: Indica clicabilidade */
+    -fx-cursor: hand; 
 }
 
 
-/* NOVO: Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
+/* Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
 .card-alerta-danger {
-    -fx-background-color: #FFF5F5; /* Vermelho bem claro (Tailwind red-50) */
-    -fx-border-color: #E53E3E; /* Vermelho (Tailwind red-500) */
+    -fx-background-color: #FFF5F5; 
+    -fx-border-color: #E53E3E; 
     -fx-border-width: 2px;
 }
 .card-alerta-danger:hover {
-    -fx-background-color: #FEF2F2; /* Tailwind red-100 */
-    -fx-border-color: #C53030; /* Tailwind red-700 */
+    -fx-background-color: #FEF2F2; 
+    -fx-border-color: #C53030; 
     -fx-translate-y: -2px;
     -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.12), 20, 0.15, 0, 6);
+    -fx-cursor: hand; 
 }
 
-/* Faz o texto do número no card de alerta ser vermelho */
 .card-alerta-danger .card-content-texto {
-    -fx-text-fill: #E53E3E; /* Vermelho (negativo-text color) */
+    -fx-text-fill: #E53E3E; 
 }
 
-/* Estilo para ícone de alerta vermelho */
 .card-alerta-danger .alert-icon {
     -fx-fill: #E53E3E;
 }
 
 
-/* NOVO: Estilo para cards de Alerta Amarelo (TEMA AVISO) */
+/* Estilo para cards de Alerta Amarelo (TEMA AVISO) */
 .card-alerta-warning {
-    -fx-background-color: #FFFBEB; /* Amarelo bem claro (Tailwind yellow-50) */
-    -fx-border-color: #FBBF24; /* Amarelo (Tailwind yellow-400) */
+    -fx-background-color: #FFFBEB; 
+    -fx-border-color: #FBBF24; 
     -fx-border-width: 2px;
     -fx-transition: all 0.2s ease-in-out;
 }
 .card-alerta-warning:hover {
-     -fx-background-color: #FEF9C3; /* Tailwind yellow-100 */
-     -fx-border-color: #D97706; /* Tailwind yellow-600 */
+     -fx-background-color: #FEF9C3; 
+     -fx-border-color: #D97706; 
      -fx-translate-y: -2px;
      -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.12), 20, 0.15, 0, 6);
+     -fx-cursor: hand; 
 }
 
-/* Faz o texto do número no card de alerta ser laranja */
 .card-alerta-warning .card-content-texto {
-    -fx-text-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
+    -fx-text-fill: #B45309; 
 }
 
-/* NOVO: Estilo para ícone de alerta laranja/amarelo */
 .card-alerta-warning .alert-icon {
-    -fx-fill: #B45309; /* Laranja escuro (Tailwind yellow-700) */
+    -fx-fill: #B45309; 
 }
 
-/* --- NOVO: Estilos para KPIs (Cards do Dashboard) --- */
+/* --- Estilos para KPIs (Cards do Dashboard) --- */
 
-/* Container para o ícone (StackPane) */
 .kpi-icon-container {
-    -fx-background-color: #F7FAFC; /* Fundo cinza claro */
+    -fx-background-color: #EBF8FF; /* Fundo azul claro (Tailwind blue-50) */
     -fx-min-width: 60px;
     -fx-pref-width: 60px;
     -fx-max-width: 60px;
     -fx-min-height: 60px;
     -fx-pref-height: 60px;
     -fx-max-height: 60px;
-    -fx-background-radius: 8px;
+    -fx-background-radius: 8px; /* ATUALIZADO: Raio de borda (quadrado suave) */
     -fx-alignment: CENTER;
 }
 
-/* Ícone dentro do container */
 .kpi-icon {
-    -fx-fill: #4299E1; /* Azul principal */
+    -fx-fill: #3182CE; /* Azul mais escuro (Tailwind blue-600) */
 }
 
-/* --- FIM DOS ESTILOS DE KPI --- */
 
-
+/* ATUALIZADO: Título agora tem padding-top */
 .card-title {
     -fx-font-size: 15px;
     -fx-font-weight: bold;
     -fx-text-fill: #718096; /* Cinza médio para subtítulos */
+    -fx-padding-top: 5px; /* Adiciona espaço acima do título */
 }
 
+/* ATUALIZADO: Removido padding-top e aumentado font-size */
 .card-content-valor {
-    -fx-font-size: 30px;
+    -fx-font-size: 32px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748; /* Cor escura principal */
-    -fx-padding-top: 10px;
 }
 
-/* Cores específicas para os cards (Verde/Vermelho) */
 .card-content-valor.positivo, .label.positivo {
-    -fx-text-fill: #38A169; /* Verde mais suave */
+    -fx-text-fill: #38A169; 
 }
 .card-content-valor.negativo, .label.negativo {
-    -fx-text-fill: #E53E3E; /* Vermelho mais suave */
+    -fx-text-fill: #E53E3E; 
 }
 
-/* NOVO: Estilos para texto (usado na tabela e resumo) */
 .positivo-text {
     -fx-text-fill: #38A169;
     -fx-font-weight: bold;
@@ -235,7 +232,6 @@
     -fx-font-weight: bold;
 }
 
-/* NOVO: Estilos para o painel de resumo financeiro */
 .summary-label {
     -fx-font-size: 14px;
     -fx-font-weight: bold;
@@ -246,7 +242,6 @@
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748;
 }
-/* Aplica as cores de positivo/negativo também no resumo */
 .summary-value.positivo-text {
     -fx-text-fill: #38A169;
 }
@@ -254,12 +249,19 @@
     -fx-text-fill: #E53E3E;
 }
 
+.card-sub-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4A5568; 
+    -fx-padding-top: 2px; /* Pequeno espaço entre o valor principal e o sub-valor */
+}
 
+
+/* ATUALIZADO: Removido padding-top e aumentado font-size */
 .card-content-texto {
-    -fx-font-size: 30px;
+    -fx-font-size: 32px;
     -fx-font-weight: bold;
     -fx-text-fill: #2D3748;
-    -fx-padding-top: 10px;
 }
 
 /* --- Estilos dos Módulos (Botões da Toolbar) --- */
@@ -273,43 +275,40 @@
     -fx-text-fill: white;
     -fx-font-size: 13px;
     -fx-font-weight: bold;
-    -fx-padding: 10px 18px; /* Botões maiores (melhor UX) */
+    -fx-padding: 10px 18px; 
     -fx-background-radius: 8px;
     -fx-cursor: hand;
     -fx-effect: dropshadow(gaussian, rgba(66, 153, 225, 0.2), 8, 0.1, 0, 2);
 }
 .module-button:hover {
-    -fx-background-color: #3182CE; /* Azul mais escuro */
+    -fx-background-color: #3182CE; 
 }
 
-/* Botão de Sucesso (Verde) */
 .module-button.success {
-    -fx-background-color: #48BB78; /* Verde */
+    -fx-background-color: #48BB78; 
     -fx-effect: dropshadow(gaussian, rgba(72, 187, 120, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.success:hover {
     -fx-background-color: #38A169;
 }
 
-/* Botão de Perigo (Vermelho) */
 .module-button.danger {
-    -fx-background-color: #E53E3E; /* Vermelho */
+    -fx-background-color: #E53E3E; 
     -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.danger:hover {
     -fx-background-color: #C53030;
 }
 
-/* NOVO: Botão de Aviso (Laranja) - Usado no EstoqueView */
 .module-button.warning {
-    -fx-background-color: #ED8936; /* Laranja */
+    -fx-background-color: #ED8936; 
     -fx-effect: dropshadow(gaussian, rgba(237, 137, 54, 0.2), 8, 0.1, 0, 2);
 }
 .module-button.warning:hover {
     -fx-background-color: #DD6B20;
 }
 
-/* --- NOVO: Painel de Filtros --- */
+/* --- Painel de Filtros --- */
 .filter-pane {
     -fx-padding: 10px 0px 10px 0px;
     -fx-alignment: CENTER_LEFT;
@@ -325,7 +324,7 @@
 }
 
 .table-view .column-header-background {
-    -fx-background-color: #F7FAFC; /* Fundo do cabeçalho (combina com o root) */
+    -fx-background-color: #F7FAFC; 
     -fx-border-color: #E2E8F0;
     -fx-border-width: 0 0 1px 0;
 }
@@ -334,7 +333,7 @@
     -fx-background-color: transparent;
     -fx-font-size: 12px;
     -fx-font-weight: bold;
-    -fx-text-fill: #718096; /* Texto do cabeçalho (cinza) */
+    -fx-text-fill: #718096; 
     -fx-padding: 12px 10px;
 }
 
@@ -342,55 +341,46 @@
     -fx-padding: 12px 10px;
     -fx-font-size: 13px;
     -fx-text-fill: #2D3748;
-    -fx-border-color: #EDF2F7; /* Linhas horizontais sutis */
+    -fx-border-color: #EDF2F7; 
     -fx-border-width: 1px 0 0 0;
 }
 
-/* Linhas zebradas (striping) */
 .table-row-cell:odd {
     -fx-background-color: white;
 }
 .table-row-cell:even {
-    -fx-background-color: #F7FAFC; /* Cinza bem claro */
+    -fx-background-color: #F7FAFC; 
 }
 
-/* Hover na linha da tabela */
 .table-row-cell:hover {
     -fx-background-color: #EDF2F7;
 }
 
-/* --- NOVO: Linha selecionada --- */
 .table-row-cell:selected {
-    -fx-background-color: #C6F6D5; /* Verde claro (Tailwind green-200) */
+    -fx-background-color: #C6F6D5; 
 }
 
-/* Texto na célula selecionada */
 .table-row-cell:selected .text {
-    -fx-fill: #22543D; /* Verde escuro para o texto (Tailwind green-800) */
+    -fx-fill: #22543D; 
     -fx-font-weight: bold;
 }
 
-/* Células customizadas (como as de financeiro) quando selecionadas */
 .table-row-cell:selected .label {
      -fx-text-fill: #22543D;
 }
-/* --- FIM DA NOVA REGRA --- */
 
-/* NOVO: Linha de aviso (estoque baixo) */
 .table-row-cell:warning {
-     -fx-background-color: #FEF3C7; /* Amarelo claro (Tailwind yellow-100) */
+     -fx-background-color: #FEF3C7; 
 }
 .table-row-cell:warning:hover {
-     -fx-background-color: #FDE68A; /* Amarelo mais forte (Tailwind yellow-200) */
+     -fx-background-color: #FDE68A; 
 }
 .table-row-cell:warning .text {
-    -fx-fill: #92400E; /* Marrom escuro (Tailwind yellow-800) */
+    -fx-fill: #92400E; 
     -fx-font-weight: bold;
 }
-/* --- FIM DA NOVA REGRA --- */
 
 
-/* Remove fundo da área vazia da tabela */
 .table-view .filler {
     -fx-background-color: white;
     -fx-background-radius: 0 0 8px 8px;
@@ -413,17 +403,15 @@
     -fx-fill: #2D3748;
     -fx-font-size: 11px;
 }
-/* Cores padrão para o PieChart */
-.default-color0.chart-pie { -fx-pie-color: #4299E1; } /* Azul */
-.default-color1.chart-pie { -fx-pie-color: #E53E3E; } /* Vermelho */
-.default-color2.chart-pie { -fx-pie-color: #48BB78; } /* Verde */
-.default-color3.chart-pie { -fx-pie-color: #ED8936; } /* Laranja */
+.default-color0.chart-pie { -fx-pie-color: #4299E1; } 
+.default-color1.chart-pie { -fx-pie-color: #E53E3E; } 
+.default-color2.chart-pie { -fx-pie-color: #48BB78; } 
+.default-color3.chart-pie { -fx-pie-color: #ED8936; } 
 
-/* Cor da linha do LineChart */
 .default-color0.chart-series-line { -fx-stroke: #4299E1; }
 .default-color0.chart-line-symbol { -fx-background-color: #4299E1, white; }
 
-/* --- NOVO: Estilos para Menu de Contexto (Clique Direito) --- */
+/* --- Estilos para Menu de Contexto (Clique Direito) --- */
 .context-menu {
     -fx-background-color: #FFFFFF;
     -fx-background-radius: 8px;
@@ -440,11 +428,11 @@
 }
 
 .context-menu .menu-item:focused {
-    -fx-background-color: #F7FAFC; /* Cinza bem claro (hover) */
+    -fx-background-color: #F7FAFC; 
 }
 
 .context-menu .menu-item:focused .label {
-    -fx-text-fill: #2D3748; /* Cor de texto principal */
+    -fx-text-fill: #2D3748; 
 }
 
 .context-menu .separator .line {
@@ -452,7 +440,6 @@
     -fx-border-width: 1px 0 0 0;
     -fx-border-color: #E2E8F0;
 }
-/* --- FIM DOS NOVOS ESTILOS --- */
 
 /* --- Outros Componentes --- */
 .split-pane-divider {
@@ -460,7 +447,6 @@
     -fx-padding: 0 1px;
 }
 
-/* NOVO: Estilo para o ScrollPane do Dashboard (remove bordas e fundo) */
 .scroll-pane-dashboard {
     -fx-background-color: transparent;
     -fx-background-insets: 0;
@@ -471,20 +457,18 @@
    -fx-background-color: transparent;
 }
 
-/* Oculta a barra de rolagem horizontal (pois fitToWidth=true) */
 .scroll-pane-dashboard .scroll-bar:horizontal {
     -fx-max-height: 0;
     -fx-opacity: 0;
 }
 
-/* Estiliza a barra de rolagem vertical */
 .scroll-pane-dashboard .scroll-bar:vertical {
-    -fx-background-color: #F7FAFC; /* Fundo da barra */
+    -fx-background-color: #F7FAFC; 
     -fx-pref-width: 10px;
 }
 
 .scroll-pane-dashboard .scroll-bar:vertical .thumb {
-    -fx-background-color: #A0AEC0; /* Cor do "polegar" (cinza) */
+    -fx-background-color: #A0AEC0; 
     -fx-background-radius: 5px;
 }
 

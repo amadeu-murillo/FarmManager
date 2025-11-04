@@ -28,6 +28,7 @@
   - ATUALIZADO: Removido alignment="TOP_CENTER" do VBox da barra lateral.
   - ATUALIZADO: Logo e Título agrupados em um HBox para melhor alinhamento.
   - ATUALIZADO: Adicionados fx:id a todos os botões de navegação.
+  - ATUALIZADO: Ícone de folha substituído pelo logo.png
 -->
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.MainViewController">
    
@@ -76,10 +77,13 @@
          <children>
          
             <!-- NOVO: HBox para agrupar logo e título -->
+            <!-- ATUALIZADO: Trocado FontAwesomeIconView por ImageView com o logo.png -->
             <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-padding: 15px 15px 20px 25px;">
                <children>
-                  <FontAwesomeIconView glyphName="LEAF" size="2.5em" styleClass="sidebar-logo-icon" />
-                   <!-- Padding removido do CSS para o HBox controlar -->
+                  <!-- Substituído o ícone de folha pelo logo -->
+                  <ImageView fitHeight="40.0" fitWidth="40.0" pickOnBounds="true" preserveRatio="true">
+                     
+                  </ImageView>
                </children>
             </HBox>
             
