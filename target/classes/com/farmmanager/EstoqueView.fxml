@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+  IMPORTAÇÕES ATUALIZADAS:
+  - Adicionado StackPane (para sobrepor o loading)
+  - Adicionado ProgressIndicator (para o loading)
+-->
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.control.ProgressIndicator?>
+
+<!-- 
+  Tela de Gestão de Estoque
+  ATUALIZADO: 
+  - O VBox principal agora está dentro de um StackPane.
+  - Um ProgressIndicator foi adicionado ao StackPane.
+  - ATUALIZADO: Adicionadas colunas de Fornecedor e Empresa.
+-->
+<StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
+   <children>
+      <!-- VBox principal que contém todo o conteúdo da página -->
+      <!-- fx:id="contentVBox" permite ao controller desabilitá-lo durante o carregamento -->
+      <VBox fx:id="contentVBox" spacing="15.0">
+         <children>
+            <Label styleClass="content-title" text="Gestão de Insumos e Produtos" />
+
+            <!-- Painel de Resumo (Valor Total em Estoque) -->
+            <GridPane styleClass="card" hgap="20.0" vgap="10.0">
+               <padding>
+                  <Insets top="20" right="20" bottom="20" left="20" />
+               </padding>
+               <columnConstraints>
+                  <ColumnConstraints hgrow="ALWAYS" minWidth="10.0" prefWidth="100.0" />
+               </columnConstraints>
+               <children>
+                  <VBox spacing="5.0" GridPane.columnIndex="0">
+                     <children>
+                        <Label text="Valor Total em Estoque" styleClass="summary-label" />
+                        <Label fx:id="lblValorTotalEstoque" styleClass="summary-value" text="R$ 0,00" />
+                     </children>
+                  </VBox>
+               </children>
+            </GridPane>
+
+            <!-- Painel de Filtros (Busca) -->
+            <GridPane styleClass="filter-pane" hgap="10.0" vgap="10.0">
+               <columnConstraints>
+                  <ColumnConstraints hgrow="NEVER" />
+                  <ColumnConstraints hgrow="ALWAYS" />
+               </columnConstraints>
+               <children>
+                  <Label text="Buscar por nome:" style="-fx-font-weight: bold;" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+                  <TextField fx:id="filtroNome" promptText="Filtrar por nome do item..." GridPane.columnIndex="1" GridPane.rowIndex="0" />
+               </children>
+            </GridPane>
+
+            <!-- Toolbar de Ações -->
+            <HBox styleClass="module-toolbar" style="-fx-padding-bottom: 0;">
+               <children>
+                  <!-- ATUALIZADO: onAction e text -->
+                  <Button mnemonicParsing="false" onAction="#handleAdicionarItem" styleClass="module-button" text="+ Adicionar Item" />
+                  <Button mnemonicParsing="false" onAction="#handleVenderItem" styleClass="module-button, success" text="Vender Item" />
+                  <Button mnemonicParsing="false" onAction="#handleConsumirItem" styleClass="module-button, warning" text="Consumir Item (Uso Interno)" />
+                  <Button mnemonicParsing="false" onAction="#handleEditarItem" styleClass="module-button" text="Editar Item" />
+                  <Button mnemonicParsing="false" onAction="#handleRemoverItem" styleClass="module-button, danger" text="- Remover Item (Ajuste)" />
+               </children>
+            </HBox>
+            
+            <!-- Tabela de Estoque -->
+            <TableView fx:id="tabelaEstoque" VBox.vgrow="ALWAYS">
+               <columns>
+                  <TableColumn fx:id="colItemId" prefWidth="50.0" text="ID" />
+                  <TableColumn fx:id="colItemNome" prefWidth="250.0" text="Nome do Item" />
+                  <TableColumn fx:id="colItemQtd" prefWidth="100.0" text="Quantidade" />
+                  <TableColumn fx:id="colItemUnidade" prefWidth="80.0" text="Unidade" />
+                  <TableColumn fx:id="colItemValorUnit" prefWidth="130.0" text="Valor Unitário (R$)" />
+                  <TableColumn fx:id="colItemValorTotal" prefWidth="130.0" text="Valor Total (R$)" />
+                  <!-- NOVAS COLUNAS -->
+                  <TableColumn fx:id="colItemFornecedorNome" prefWidth="150.0" text="Fornecedor" />
+                  <TableColumn fx:id="colItemFornecedorEmpresa" prefWidth="150.0" text="Empresa" />
+                  <!-- FIM NOVAS COLUNAS -->
+                  <TableColumn fx:id="colDataCriacao" prefWidth="160.0" text="Data Criação" />
+                  <TableColumn fx:id="colDataModificacao" prefWidth="160.0" text="Última Modificação" />
+               </columns>
+            </TableView>
+         </children>
+      </VBox>
+      
+      <!-- 
+        NOVO: Indicador de Carregamento 
+        - Fica centralizado dentro do StackPane, acima do VBox.
+        - managed="false" e visible="false" por padrão.
+      -->
+      <ProgressIndicator fx:id="loadingIndicator" maxHeight="60.0" maxWidth="60.0" managed="false" visible="false" />
+      
+   </children>
+</StackPane>

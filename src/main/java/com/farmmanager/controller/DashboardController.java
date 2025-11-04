@@ -12,9 +12,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
-import javafx.scene.chart.LineChart;
+// REMOVIDO: import javafx.scene.chart.LineChart;
 import javafx.scene.chart.PieChart;
-import javafx.scene.chart.XYChart;
+// REMOVIDO: import javafx.scene.chart.XYChart;
 import javafx.scene.control.Label;
 import javafx.scene.control.ProgressIndicator; // NOVO: Import
 import javafx.scene.control.ScrollPane; // NOVO: Import
@@ -35,7 +35,7 @@ import java.util.Map;
  * - Reorganizada a ordem de carregamento para refletir o novo FXML.
  * - Ajustado `carregarAreaTotal` para popular o novo card de "Área Total".
  * - ATUALIZADO: `carregarAlertas()` e FXML IDs relacionados foram re-adicionados.
- * - ATUALIZADO: `carregarChartBalanco()` para usar `getBalancoPorDia()`.
+ * - ATUALIZADO: `carregarChartBalanco()` removido.
  * - ATUALIZADO: Alertas agora separam Vencidas de A Vencer.
  * - MELHORIA UX: Adicionado alerta de Estoque Baixo.
  * - MELHORIA UX: Adicionados métodos de navegação (ex: navigateToSafras).
@@ -115,8 +115,7 @@ public class DashboardController {
     // Gráficos
     @FXML
     private PieChart chartDespesas;
-    @FXML
-    private LineChart<String, Number> chartBalanco;
+    // REMOVIDO: @FXML private LineChart<String, Number> chartBalanco;
     @FXML
     private PieChart chartCulturas;
 
@@ -143,6 +142,7 @@ public class DashboardController {
      * NOVO: Classe interna para agrupar todos os dados
      * buscados na Task de background.
      * ATUALIZADO: Adicionado `totalPatrimonioManutencao`.
+     * ATUALIZADO: Removido `balancoPorDia`.
      */
     private static class DashboardData {
         int totalVencidas;
@@ -159,7 +159,7 @@ public class DashboardController {
         double totalArea;
         int totalPatrimonioManutencao; // NOVO
         Map<String, Double> totaisReceitaDespesa;
-        Map<String, Double> balancoPorDia;
+        // REMOVIDO: Map<String, Double> balancoPorDia;
         Map<String, Integer> contagemCulturas;
     }
 
@@ -228,6 +228,7 @@ public class DashboardController {
      * NOVO: Cria uma Task para carregar todos os dados do dashboard
      * em uma thread de background.
      * ATUALIZADO: Busca também `totalPatrimonioManutencao`.
+     * ATUALIZADO: Não busca mais `balancoPorDia`.
      */
     private void carregarDadosDashboardAssincrono() {
         Task<DashboardData> carregarTask = new Task<DashboardData>() {
@@ -258,7 +259,7 @@ public class DashboardController {
 
                 // Gráficos
                 data.totaisReceitaDespesa = financeiroDAO.getTotaisReceitaDespesa();
-                data.balancoPorDia = financeiroDAO.getBalancoPorDia();
+                // REMOVIDO: data.balancoPorDia = financeiroDAO.getBalancoPorDia();
                 data.contagemCulturas = safraDAO.getContagemCulturasAtivas();
                 
                 return data;
@@ -276,7 +277,8 @@ public class DashboardController {
                 atualizarKPIsFinanceiros(data.balanco, data.valorEstoque, data.valorPatrimonio, data.contasAReceber, data.contasAPagar);
                 // ATUALIZADO: Passa o novo dado
                 atualizarKPIsOperacionais(data.totalSafras, data.totalFuncionarios, data.totalTalhoes, data.totalArea, data.totalPatrimonioManutencao);
-                atualizarGraficos(data.totaisReceitaDespesa, data.balancoPorDia, data.contagemCulturas);
+                // ATUALIZADO: Não passa mais balancoPorDia
+                atualizarGraficos(data.totaisReceitaDespesa, data.contagemCulturas);
             } catch (Exception ex) {
                 AlertUtil.showError("Erro de UI", "Erro ao exibir dados do dashboard: " + ex.getMessage());
                 ex.printStackTrace();
@@ -368,8 +370,9 @@ public class DashboardController {
 
     /**
      * NOVO: Método unificado para atualizar todos os gráficos com dados pré-buscados.
+     * ATUALIZADO: Não recebe mais balancoPorDia e não atualiza chartBalanco.
      */
-    private void atualizarGraficos(Map<String, Double> totaisReceitaDespesa, Map<String, Double> balancoPorDia, Map<String, Integer> contagemCulturas) {
+    private void atualizarGraficos(Map<String, Double> totaisReceitaDespesa, Map<String, Integer> contagemCulturas) {
         // Gráfico Despesas (Receitas vs. Despesas)
         double totalReceitas = totaisReceitaDespesa.getOrDefault("receita", 0.0);
         double totalDespesas = totaisReceitaDespesa.getOrDefault("despesa", 0.0);
@@ -380,14 +383,14 @@ public class DashboardController {
                 );
         chartDespesas.setData(pieChartData);
 
-        // Gráfico Balanço Diário
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        series.setName("Balanço Diário");
-        chartBalanco.getData().clear();
-        for (Map.Entry<String, Double> entry : balancoPorDia.entrySet()) {
-            series.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
-        }
-        chartBalanco.getData().add(series);
+        // REMOVIDO: Gráfico Balanço Diário
+        // XYChart.Series<String, Number> series = new XYChart.Series<>();
+        // series.setName("Balanço Diário");
+        // chartBalanco.getData().clear();
+        // for (Map.Entry<String, Double> entry : balancoPorDia.entrySet()) {
+        //     series.getData().add(new XYChart.Data<>(entry.getKey(), entry.getValue()));
+        // }
+        // chartBalanco.getData().add(series);
 
         // Gráfico Culturas Ativas
         ObservableList<PieChart.Data> pieChartDataCulturas = FXCollections.observableArrayList();
@@ -446,3 +449,4 @@ public class DashboardController {
         }
     }
 }
+
