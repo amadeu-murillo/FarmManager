@@ -16,6 +16,11 @@ import javafx.application.Platform; // NOVO: Import para Platform
  * Se uma segunda instância for aberta, ela será imediatamente fechada.
  * A comunicação para focar a primeira instância é complexa e
  * não foi implementada (requer RMI ou Sockets complexos).
+ *
+ * ATUALIZAÇÃO 2:
+ * - A inicialização do Database (Database.initDb()) foi MOVIDA
+ * para App.java (no método start()) para garantir que o Toolkit
+ * do JavaFX esteja pronto antes de tentar mostrar alertas de erro.
  */
 public class Main {
     
@@ -45,8 +50,9 @@ public class Main {
             // 3. Se o lock foi bem-sucedido, continua a execução normal.
             System.out.println("Lock adquirido. Iniciando FarmManager...");
             
-            // Inicializa o banco de dados ANTES de lançar a UI
-            com.farmmanager.model.Database.initDb();
+            // REMOVIDO: A inicialização do DB foi movida para App.start()
+            // para garantir que o JavaFX esteja pronto para mostrar alertas de erro.
+            // com.farmmanager.model.Database.initDb(); 
             
             // Lança a aplicação JavaFX
             App.main(args);
@@ -63,4 +69,3 @@ public class Main {
         }
     }
 }
-

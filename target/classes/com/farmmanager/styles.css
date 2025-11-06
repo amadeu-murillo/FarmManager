@@ -1,0 +1,562 @@
+/* * ---- Estilo Profissional "Moderno & Limpo" ----
+ * Paleta de cores focada em tons de cinza-azulados e verdes para
+ * uma aparência corporativa e limpa.
+ *
+ * ATUALIZADO (Refatoração UI/UX):
+ * - Removido '.sidebar-section-title' (títulos de seção).
+ * - Adicionado '.sidebar-separator' para agrupar visualmente os botões.
+ * - Alterado '.sidebar-button-selected' para usar uma borda esquerda verde
+ * (cor da marca) em vez de um fundo azul.
+ * - Ajustado o padding dos botões para alinhar com a nova borda.
+ * - ADICIONADO: Efeitos :pressed (clique) para botões e cartões.
+ * - ADICIONADO: Variações de cores para ícones de KPI (.kpi-icon-container).
+ */
+
+/* Fundo principal e fonte base */
+.root {
+    -fx-font-family: 'Segoe UI', Arial, sans-serif;
+    -fx-background-color: #F7FAFC; /* Cinza muito claro (quase branco) */
+    -fx-text-fill: #2D3748; /* Cor de texto principal (cinza-azulado escuro) */
+}
+
+/* --- Menu Lateral (Sidebar) --- */
+.sidebar {
+    -fx-background-color: #2D3748; /* Cinza-azulado bem escuro */
+    -fx-padding: 10px;
+    -fx-spacing: 5px; 
+}
+
+.sidebar-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+.sidebar-logo-icon {
+    -fx-fill: #48BB78; /* Verde (cor de sucesso) */
+}
+
+/* REMOVIDO: Títulos de seção não são mais usados */
+/*.sidebar-section-title { ... } */
+
+/* ADICIONADO: Estilo para o separador visual */
+.sidebar-separator {
+    -fx-padding: 15px 10px;
+    -fx-background-color: transparent;
+}
+.sidebar-separator .line {
+    -fx-border-color: #4A5568; /* Linha sutil (mesma cor do hover antigo) */
+    -fx-border-width: 1px 0 0 0;
+}
+
+
+.sidebar-icon {
+    -fx-fill: #A0AEC0; /* Cinza claro para ícones inativos */
+}
+
+/* ATUALIZADO: Padding esquerdo padrão */
+.sidebar .button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #E2E8F0; /* Texto do botão (cinza-azulado claro) */
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-alignment: CENTER_LEFT;
+    -fx-padding: 10px 20px 10px 20px; /* Padding padrão */
+    -fx-background-radius: 8px;
+    -fx-graphic-text-gap: 12px;
+    -fx-transition: all 0.1s ease-in-out; /* Transição mais rápida para clique */
+}
+
+/* ATUALIZADO: Cor de hover */
+.sidebar .button:hover {
+    -fx-background-color: #374151; /* Um cinza um pouco mais claro */
+    -fx-text-fill: white;
+}
+.sidebar .button:hover .sidebar-icon {
+    -fx-fill: white;
+}
+
+/* ADICIONADO: Efeito de clique */
+.sidebar .button:pressed {
+    -fx-background-color: #374151; /* Mantém a cor de hover */
+    -fx-translate-y: 1px; /* Simula o botão sendo pressionado */
+}
+
+.sidebar .button:focused {
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-background-insets: 0;
+    -fx-border-insets: 0;
+    -fx-background-color: #374151; /* Cor de hover */
+}
+.sidebar .button:focused:hover {
+     -fx-background-color: #374151;
+}
+
+/* ATUALIZADO: Estilo de botão selecionado (mais profissional) */
+.sidebar-button-selected {
+    -fx-background-color: #4A5568; /* Fundo sutil */
+    -fx-text-fill: white;
+    -fx-border-color: #48BB78; /* Verde da marca (logo) */
+    -fx-border-width: 0 0 0 4px; /* Borda esquerda de 4px */
+    -fx-padding: 10px 20px 10px 16px; /* Padding esquerdo reduzido para compensar a borda */
+}
+.sidebar-button-selected .sidebar-icon {
+    -fx-fill: white;
+}
+.sidebar-button-selected:hover {
+    -fx-background-color: #4A5568; /* Mantém a cor ao passar o mouse */
+}
+/* ADICIONADO: Efeito de clique no botão selecionado */
+.sidebar-button-selected:pressed {
+    -fx-background-color: #4A5568;
+    -fx-translate-y: 1px;
+}
+
+
+/* --- Área de Conteúdo --- */
+.content-area {
+    -fx-padding: 25px; 
+    -fx-spacing: 20px;
+    -fx-background-color: #F7FAFC;
+}
+
+.content-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+    -fx-border-color: #E2E8F0; /* Linha sutil */
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding-bottom: 12px;
+}
+
+/* NOVO: Subtítulo para seções (Resumo Financeiro, etc) */
+.content-subtitle {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+    -fx-padding-top: 10px; /* Espaço acima do subtítulo */
+}
+
+
+/* --- Estilos do Dashboard (Cards) --- */
+.dashboard-grid {
+    /* dashboard-grid agora é usado em HBox, gap é controlado pelo spacing do HBox */
+}
+
+.card {
+    -fx-background-color: #FFFFFF;
+    -fx-border-color: transparent; 
+    -fx-border-radius: 10px;
+    -fx-background-radius: 10px;
+    -fx-padding: 25px;
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.08), 15, 0.1, 0, 4);
+    -fx-transition: all 0.2s ease-in-out;
+}
+
+.card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.12), 20, 0.15, 0, 6);
+    -fx-translate-y: -2px;
+    -fx-cursor: hand; 
+}
+
+/* ADICIONADO: Efeito de clique para o cartão */
+.card:hover:pressed {
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.15), 15, 0.1, 0, 4); /* Sombra um pouco mais escura */
+    -fx-translate-y: 1px; /* Move para baixo */
+}
+
+
+/* Estilo para cards de Alerta (TEMA VERMELHO / PERIGO) */
+.card-alerta-danger {
+    -fx-background-color: #FFF5F5; 
+    -fx-border-color: #E53E3E; 
+    -fx-border-width: 2px;
+}
+.card-alerta-danger:hover {
+    -fx-background-color: #FEF2F2; 
+    -fx-border-color: #C53030; 
+    -fx-translate-y: -2px;
+    -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.12), 20, 0.15, 0, 6);
+    -fx-cursor: hand; 
+}
+/* ADICIONADO: Efeito de clique */
+.card-alerta-danger:hover:pressed {
+    -fx-translate-y: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.15), 15, 0.1, 0, 4);
+}
+
+.card-alerta-danger .card-content-texto {
+    -fx-text-fill: #E53E3E; 
+}
+
+.card-alerta-danger .alert-icon {
+    -fx-fill: #E53E3E;
+}
+
+
+/* Estilo para cards de Alerta Amarelo (TEMA AVISO) */
+.card-alerta-warning {
+    -fx-background-color: #FFFBEB; 
+    -fx-border-color: #FBBF24; 
+    -fx-border-width: 2px;
+    -fx-transition: all 0.2s ease-in-out;
+}
+.card-alerta-warning:hover {
+     -fx-background-color: #FEF9C3; 
+     -fx-border-color: #D97706; 
+     -fx-translate-y: -2px;
+     -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.12), 20, 0.15, 0, 6);
+     -fx-cursor: hand; 
+}
+/* ADICIONADO: Efeito de clique */
+.card-alerta-warning:hover:pressed {
+    -fx-translate-y: 1px;
+    -fx-effect: dropshadow(gaussian, rgba(217, 119, 6, 0.15), 15, 0.1, 0, 4);
+}
+
+.card-alerta-warning .card-content-texto {
+    -fx-text-fill: #B45309; 
+}
+
+.card-alerta-warning .alert-icon {
+    -fx-fill: #B45309; 
+}
+
+/* --- Estilos para KPIs (Cards do Dashboard) --- */
+
+.kpi-icon-container {
+    -fx-background-color: #EBF8FF; /* Fundo azul claro (Tailwind blue-50) */
+    -fx-min-width: 60px;
+    -fx-pref-width: 60px;
+    -fx-max-width: 60px;
+    -fx-min-height: 60px;
+    -fx-pref-height: 60px;
+    -fx-max-height: 60px;
+    -fx-background-radius: 8px; /* ATUALIZADO: Raio de borda (quadrado suave) */
+    -fx-alignment: CENTER;
+}
+
+.kpi-icon {
+    -fx-fill: #3182CE; /* Azul mais escuro (Tailwind blue-600) */
+}
+
+/* NOVAS: Variações de cor para ícones de KPI */
+.kpi-icon-container.green {
+    -fx-background-color: #E6FFFA; /* Tailwind green-50 */
+}
+.kpi-icon-container.green .kpi-icon {
+    -fx-fill: #38A169; /* Tailwind green-600 */
+}
+
+.kpi-icon-container.red {
+    -fx-background-color: #FFF5F5; /* Tailwind red-50 */
+}
+.kpi-icon-container.red .kpi-icon {
+    -fx-fill: #E53E3E; /* Tailwind red-600 */
+}
+
+.kpi-icon-container.yellow {
+    -fx-background-color: #FFFBEB; /* Tailwind yellow-50 */
+}
+.kpi-icon-container.yellow .kpi-icon {
+    -fx-fill: #D69E2E; /* Tailwind yellow-600 */
+}
+
+
+/* ATUALIZADO: Título agora tem padding-top */
+.card-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #718096; /* Cinza médio para subtítulos */
+    -fx-padding-top: 5px; /* Adiciona espaço acima do título */
+}
+
+/* ATUALIZADO: Removido padding-top e aumentado font-size */
+.card-content-valor {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748; /* Cor escura principal */
+}
+
+.card-content-valor.positivo, .label.positivo {
+    -fx-text-fill: #38A169; 
+}
+.card-content-valor.negativo, .label.negativo {
+    -fx-text-fill: #E53E3E; 
+}
+
+.positivo-text {
+    -fx-text-fill: #38A169;
+    -fx-font-weight: bold;
+}
+.negativo-text {
+    -fx-text-fill: #E53E3E;
+    -fx-font-weight: bold;
+}
+
+.summary-label {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #718096;
+}
+.summary-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+}
+.summary-value.positivo-text {
+    -fx-text-fill: #38A169;
+}
+.summary-value.negativo-text {
+    -fx-text-fill: #E53E3E;
+}
+
+.card-sub-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4A5568; 
+    -fx-padding-top: 2px; /* Pequeno espaço entre o valor principal e o sub-valor */
+}
+
+
+/* ATUALIZADO: Removido padding-top e aumentado font-size */
+.card-content-texto {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2D3748;
+}
+
+/* --- Estilos dos Módulos (Botões da Toolbar) --- */
+.module-toolbar {
+    -fx-spacing: 12px;
+    -fx-padding-bottom: 20px;
+}
+
+.module-button {
+    -fx-background-color: #4299E1; /* Azul (Principal) */
+    -fx-text-fill: white;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 10px 18px; 
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(66, 153, 225, 0.2), 8, 0.1, 0, 2);
+    -fx-transition: all 0.1s ease-in-out; /* Transição mais rápida */
+}
+.module-button:hover {
+    -fx-background-color: #3182CE; 
+}
+/* ADICIONADO: Efeito de clique */
+.module-button:pressed {
+    -fx-translate-y: 1px; /* Move para baixo */
+    -fx-effect: none; /* Remove a sombra para simular pressão */
+}
+
+.module-button.success {
+    -fx-background-color: #48BB78; 
+    -fx-effect: dropshadow(gaussian, rgba(72, 187, 120, 0.2), 8, 0.1, 0, 2);
+}
+.module-button.success:hover {
+    -fx-background-color: #38A169;
+}
+.module-button.success:pressed {
+    -fx-background-color: #38A169;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
+}
+
+.module-button.danger {
+    -fx-background-color: #E53E3E; 
+    -fx-effect: dropshadow(gaussian, rgba(229, 62, 62, 0.2), 8, 0.1, 0, 2);
+}
+.module-button.danger:hover {
+    -fx-background-color: #C53030;
+}
+.module-button.danger:pressed {
+    -fx-background-color: #C53030;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
+}
+
+.module-button.warning {
+    -fx-background-color: #ED8936; 
+    -fx-effect: dropshadow(gaussian, rgba(237, 137, 54, 0.2), 8, 0.1, 0, 2);
+}
+.module-button.warning:hover {
+    -fx-background-color: #DD6B20;
+}
+.module-button.warning:pressed {
+    -fx-background-color: #DD6B20;
+    -fx-translate-y: 1px;
+    -fx-effect: none;
+}
+
+/* --- Painel de Filtros --- */
+.filter-pane {
+    -fx-padding: 10px 0px 10px 0px;
+    -fx-alignment: CENTER_LEFT;
+}
+
+/* --- Estilo da Tabela --- */
+.table-view {
+    -fx-background-color: white;
+    -fx-border-color: #E2E8F0;
+    -fx-border-radius: 8px;
+    -fx-background-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #F7FAFC; 
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.table-view .column-header {
+    -fx-background-color: transparent;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #718096; 
+    -fx-padding: 12px 10px;
+}
+
+.table-view .table-cell {
+    -fx-padding: 12px 10px;
+    -fx-font-size: 13px;
+    -fx-text-fill: #2D3748;
+    -fx-border-color: #EDF2F7; 
+    -fx-border-width: 1px 0 0 0;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: white;
+}
+.table-row-cell:even {
+    -fx-background-color: #F7FAFC; 
+}
+
+.table-row-cell:hover {
+    -fx-background-color: #EDF2F7;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #C6F6D5; 
+}
+
+.table-row-cell:selected .text {
+    -fx-fill: #22543D; 
+    -fx-font-weight: bold;
+}
+
+.table-row-cell:selected .label {
+     -fx-text-fill: #22543D;
+}
+
+.table-row-cell:warning {
+     -fx-background-color: #FEF3C7; 
+}
+.table-row-cell:warning:hover {
+     -fx-background-color: #FDE68A; 
+}
+.table-row-cell:warning .text {
+    -fx-fill: #92400E; 
+    -fx-font-weight: bold;
+}
+
+
+.table-view .filler {
+    -fx-background-color: white;
+    -fx-background-radius: 0 0 8px 8px;
+}
+
+/* --- Estilos dos Gráficos (Dashboard) --- */
+.chart-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4A5568;
+}
+.axis {
+    -fx-tick-label-fill: #718096;
+    -fx-font-size: 10px;
+}
+.chart-pie-label-line {
+    -fx-stroke: #A0AEC0;
+}
+.chart-pie-label {
+    -fx-fill: #2D3748;
+    -fx-font-size: 11px;
+}
+.default-color0.chart-pie { -fx-pie-color: #4299E1; } 
+.default-color1.chart-pie { -fx-pie-color: #E53E3E; } 
+.default-color2.chart-pie { -fx-pie-color: #48BB78; } 
+.default-color3.chart-pie { -fx-pie-color: #ED8936; } 
+
+.default-color0.chart-series-line { -fx-stroke: #4299E1; }
+.default-color0.chart-line-symbol { -fx-background-color: #4299E1, white; }
+
+/* --- Estilos para Menu de Contexto (Clique Direito) --- */
+.context-menu {
+    -fx-background-color: #FFFFFF;
+    -fx-background-radius: 8px;
+    -fx-border-color: #E2E8F0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(45, 55, 72, 0.08), 10, 0.1, 0, 2);
+    -fx-padding: 5px;
+}
+
+.context-menu .menu-item {
+    -fx-padding: 8px 12px;
+    -fx-background-radius: 6px;
+}
+
+.context-menu .menu-item:focused {
+    -fx-background-color: #F7FAFC; 
+}
+
+.context-menu .menu-item:focused .label {
+    -fx-text-fill: #2D3748; 
+}
+
+.context-menu .separator .line {
+    -fx-border-insets: 0 0 0 0;
+    -fx-border-width: 1px 0 0 0;
+    -fx-border-color: #E2E8F0;
+}
+
+/* --- Outros Componentes --- */
+.split-pane-divider {
+    -fx-background-color: #E2E8F0;
+    -fx-padding: 0 1px;
+}
+
+.scroll-pane-dashboard {
+    -fx-background-color: transparent;
+    -fx-background-insets: 0;
+    -fx-padding: 0;
+}
+
+.scroll-pane-dashboard > .viewport {
+   -fx-background-color: transparent;
+}
+
+.scroll-pane-dashboard .scroll-bar:horizontal {
+    -fx-max-height: 0;
+    -fx-opacity: 0;
+}
+
+.scroll-pane-dashboard .scroll-bar:vertical {
+    -fx-background-color: #F7FAFC; 
+    -fx-pref-width: 10px;
+}
+
+.scroll-pane-dashboard .scroll-bar:vertical .thumb {
+    -fx-background-color: #A0AEC0; 
+    -fx-background-radius: 5px;
+}
+
+.scroll-pane-dashboard .scroll-bar:vertical .thumb:hover {
+    -fx-background-color: #718096;
+}
+

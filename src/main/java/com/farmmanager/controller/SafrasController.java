@@ -11,6 +11,8 @@ import com.farmmanager.model.AtividadeSafra;
 import com.farmmanager.model.AtividadeSafraDAO; 
 import com.farmmanager.model.FinanceiroDAO; 
 import com.farmmanager.model.Transacao; 
+import com.farmmanager.model.Conta; // NOVO: Import para Contas
+import com.farmmanager.model.ContaDAO; // NOVO: Import para ContaDAO
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -57,6 +59,8 @@ import java.util.Locale;
  * movido para uma Task em background para não congelar a UI.
  * - CORREÇÃO (handleRegistrarColheita): Corrigida chamada ao construtor de EstoqueItem.
  * - CORREÇÃO (handleExportarCsv): Adicionado BOM UTF-8 para corrigir acentuação no Excel.
+ * - ATUALIZAÇÃO (handleSafraSelectionChanged, handleExportarCsv): Agora somam vendas "À Vista" (Financeiro) 
+ * e "A Prazo" (Contas a Receber) para calcular a receita total da safra.
  */
 public class SafrasController {
 
@@ -137,6 +141,7 @@ public class SafrasController {
     private final EstoqueDAO estoqueDAO; 
     private final AtividadeSafraDAO atividadeSafraDAO; 
     private final FinanceiroDAO financeiroDAO; 
+    private final ContaDAO contaDAO; // NOVO: DAO para Contas
     
     private final ObservableList<SafraInfo> dadosTabelaSafras; 
     private List<SafraInfo> listaMestraSafras; 
@@ -165,6 +170,7 @@ public class SafrasController {
         estoqueDAO = new EstoqueDAO(); 
         atividadeSafraDAO = new AtividadeSafraDAO(); 
         financeiroDAO = new FinanceiroDAO(); 
+        contaDAO = new ContaDAO(); // NOVO: Inicializa o DAO
         dadosTabelaSafras = FXCollections.observableArrayList();
         listaMestraSafras = new ArrayList<>(); 
         dadosTabelaTalhoes = FXCollections.observableArrayList();
@@ -309,7 +315,6 @@ public class SafrasController {
      * NOVO: Filtra a lista mestra e exibe na tabela (rápido, em memória).
      */
     private void aplicarFiltroSafras() {
-// ... (código existente) ...
         String filtro = filtroStatusSafra.getSelectionModel().getSelectedItem();
         if (filtro == null) {
             filtro = "Em Andamento"; 
@@ -342,9 +347,10 @@ public class SafrasController {
      * e pode ficar na JavaFX Thread.
      * As chamadas lentas ao DAO (listAtividades, getCustoTotal, etc.)
      * devem ser movidas para uma Task.
+     * ATUALIZADO: Agora soma vendas "À Vista" (Financeiro) e "A Prazo" (Contas)
+     * para calcular a receita total.
      */
     private void handleSafraSelectionChanged(SafraInfo safra) {
-// ... (código existente) ...
         if (safra == null) {
             lblDetalhesTitulo.setText("Detalhes da Safra: (Selecione uma safra acima)");
             btnExportarCsv.setDisable(true);
@@ -385,15 +391,28 @@ public class SafrasController {
             lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
 
             if (safra.getStatus().equalsIgnoreCase("Colhida")) {
+                // --- INÍCIO DA ATUALIZAÇÃO (Lógica de Receita) ---
                 double receitaTotalVendas = 0;
                 String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
                 String descVendaQuery = "Venda de " + nomeItemColheita;
                 
-                List<Transacao> vendas = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
-                for (Transacao venda : vendas) {
-                    receitaTotalVendas += venda.getValor();
+                // 1. Soma vendas À VISTA (do Financeiro)
+                List<Transacao> vendasAVista = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
+                for (Transacao venda : vendasAVista) {
+                    receitaTotalVendas += venda.getValor(); // Valores já são positivos
+                }
+
+                // 2. Soma vendas A PRAZO (de Contas a Receber)
+                // (Requer novo método no ContaDAO: listContasPorDescricaoLike)
+                List<Conta> vendasAPrazo = contaDAO.listContasPorDescricaoLike(descVendaQuery);
+                for (Conta conta : vendasAPrazo) {
+                    if (conta.getTipo().equals("receber")) {
+                        // Soma o valor da conta (pendente ou paga), pois a receita é realizada na venda.
+                        receitaTotalVendas += conta.getValor();
+                    }
                 }
                 lblReceitaTotalSafra.setText(currencyFormatter.format(receitaTotalVendas));
+                // --- FIM DA ATUALIZAÇÃO (Lógica de Receita) ---
 
                 double valorEmEstoque = 0;
                 EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
@@ -405,11 +424,11 @@ public class SafrasController {
                 double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
                 lblBalancoSafra.setText(currencyFormatter.format(balancoFinal));
                 
-                lblBalancoSafra.getStyleClass().removeAll("positivo", "negativo");
+                lblBalancoSafra.getStyleClass().removeAll("positivo-text", "negativo-text"); // ATUALIZADO
                 if (balancoFinal >= 0) {
-                    lblBalancoSafra.getStyleClass().add("positivo");
+                    lblBalancoSafra.getStyleClass().add("positivo-text"); // ATUALIZADO
                 } else {
-                    lblBalancoSafra.getStyleClass().add("negativo");
+                    lblBalancoSafra.getStyleClass().add("negativo-text"); // ATUALIZADO
                 }
 
             } else {
@@ -425,7 +444,6 @@ public class SafrasController {
     /**
      * NOVO: Limpa os labels do resumo financeiro (para safras não colhidas).
      */
-// ... (código existente) ...
     private void limparResumoFinanceiro() {
         limparResumoFinanceiro(0.0);
     }
@@ -434,18 +452,16 @@ public class SafrasController {
      * NOVO: Sobrecarga para limpar labels mantendo o custo (se já calculado).
      */
     private void limparResumoFinanceiro(double custoTotal) {
-// ... (código existente) ...
         lblCustoTotalSafra.setText(currencyFormatter.format(custoTotal));
         lblReceitaTotalSafra.setText("N/A");
         lblEstoqueTotalSafra.setText("N/A");
         lblBalancoSafra.setText("N/A");
-        lblBalancoSafra.getStyleClass().removeAll("positivo", "negativo");
+        lblBalancoSafra.getStyleClass().removeAll("positivo-text", "negativo-text"); // ATUALIZADO
     }
 
 
     @FXML
     private void handleNovoTalhao() {
-// ... (código existente) ...
         Dialog<Talhao> dialog = new Dialog<>();
         dialog.setTitle("Adicionar Novo Talhão");
         dialog.setHeaderText("Preencha os dados do talhão.");
@@ -505,7 +521,6 @@ public class SafrasController {
 
     @FXML
     private void handleNovaSafra() {
-// ... (código existente) ...
         // 1. Buscar a lista de talhões
         // ATENÇÃO: Esta é uma chamada de DB na thread principal.
         // Como o dialog depende dela, vamos mantê-la por ser rápida (poucos talhões).
@@ -576,7 +591,6 @@ public class SafrasController {
         AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == adicionarButtonType) {
                 // MODIFICAÇÃO: Converte cultura para minúsculo e remove espaços extras
                 String cultura = culturaField.getText().toLowerCase().trim();
@@ -610,7 +624,6 @@ public class SafrasController {
 
     @FXML
     private void handleLancarAtividade() {
-// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -659,7 +672,6 @@ public class SafrasController {
 
         Button maxButton = new Button("MAX");
         maxButton.setOnAction(e -> {
-// ... (código existente) ...
             EstoqueItem itemSelecionado = itemCombo.getSelectionModel().getSelectedItem();
             if (itemSelecionado != null) {
                 qtdField.setText(String.format(Locale.US, "%.2f", itemSelecionado.getQuantidade()));
@@ -671,7 +683,6 @@ public class SafrasController {
         qtdBox.setAlignment(Pos.CENTER_LEFT);
 
         itemCombo.setCellFactory(lv -> new ListCell<EstoqueItem>() {
-// ... (código existente) ...
             @Override
             protected void updateItem(EstoqueItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -679,7 +690,6 @@ public class SafrasController {
             }
         });
         itemCombo.setButtonCell(new ListCell<EstoqueItem>() {
-// ... (código existente) ...
             @Override
             protected void updateItem(EstoqueItem item, boolean empty) {
                 super.updateItem(item, empty);
@@ -693,11 +703,9 @@ public class SafrasController {
         }
 
         itemCombo.valueProperty().addListener((obs, oldV, newV) -> {
-// ... (código existente) ...
             atualizarCustoAtividade(newV, qtdField.getText(), custoCalculadoLabel);
         });
         qtdField.textProperty().addListener((obs, oldV, newV) -> {
-// ... (código existente) ...
             atualizarCustoAtividade(itemCombo.getSelectionModel().getSelectedItem(), newV, custoCalculadoLabel);
         });
         
@@ -711,7 +719,6 @@ public class SafrasController {
         custoCalculadoLabel.setVisible(!isManualCheck.isSelected());
 
         isManualCheck.selectedProperty().addListener((obs, wasSelected, isSelected) -> {
-// ... (código existente) ...
             custoManualLabel.setVisible(isSelected);
             custoManualField.setVisible(isSelected);
             custoManualLabel.setManaged(isSelected);
@@ -724,7 +731,6 @@ public class SafrasController {
 
         // Adiciona componentes ao grid
         grid.add(new Label("Data:"), 0, 0);
-// ... (código existente) ...
         grid.add(dataField, 1, 0);
         grid.add(new Label("Descrição:"), 0, 1);
         grid.add(descField, 1, 1);
@@ -742,7 +748,6 @@ public class SafrasController {
 
         // Converter resultado
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == lancarButtonType) {
                 try {
                     LocalDate data = dataField.getValue();
@@ -839,7 +844,6 @@ public class SafrasController {
 
     // Classe interna ColheitaData
     private static class ColheitaData {
-// ... (código existente) ...
         final double producaoKg; 
         final double producaoSacos; 
         final double valorTotal; 
@@ -859,7 +863,6 @@ public class SafrasController {
 
     @FXML
     private void handleRegistrarColheita() {
-// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -909,7 +912,6 @@ public class SafrasController {
         grid.add(valorTotalColheitaLabel, 1, 5); 
         
         ChangeListener<String> listener = (obs, oldV, newV) -> {
-// ... (código existente) ...
             atualizarCalculosDialogColheita(
                 totalSacosField.getText(), valorSacoField.getText(), area, 
                 scHaLabel, totalKgLabel, valorTotalColheitaLabel 
@@ -920,7 +922,6 @@ public class SafrasController {
         valorSacoField.textProperty().addListener(listener); 
         
         atualizarCalculosDialogColheita(
-// ... (código existente) ...
             totalSacosField.getText(), valorSacoField.getText(), area, 
             scHaLabel, totalKgLabel, valorTotalColheitaLabel 
         );
@@ -929,7 +930,6 @@ public class SafrasController {
         AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
 
         dialog.setResultConverter(dialogButton -> {
-// ... (código existente) ...
             if (dialogButton == registrarButtonType) {
                 try {
                     double totalSacos = parseDouble(totalSacosField.getText()); 
@@ -979,7 +979,6 @@ public class SafrasController {
                 carregarDadosSafras(); // Recarrega (assíncrono)
                 
                 AlertUtil.showInfo("Sucesso", 
-// ... (código existente) ...
                     "Colheita registrada com sucesso.\n" +
                     "Status da safra atualizado para 'Colhida'.\n" +
                     String.format(Locale.US, "%.2f sacos de %s", colheitaData.producaoSacos, nomeItem) + 
@@ -992,9 +991,12 @@ public class SafrasController {
         });
     }
 
+    /**
+     * ATUALIZADO: Agora busca vendas "À Vista" (Financeiro) e "A Prazo" (Contas)
+     * para compor o CSV.
+     */
     @FXML
     private void handleExportarCsv() {
-// ... (código existente) ...
         SafraInfo safra = tabelaSafras.getSelectionModel().getSelectedItem();
         if (safra == null || !safra.getStatus().equalsIgnoreCase("Colhida")) {
             AlertUtil.showError("Ação Inválida", "Selecione uma safra 'Colhida' para exportar.");
@@ -1021,7 +1023,6 @@ public class SafrasController {
             StringBuilder sb = new StringBuilder();
             
             sb.append("Relatório da Safra: " + safra.getCultura() + " (" + safra.getAnoInicio() + ")\n");
-// ... (código existente) ...
             sb.append("Talhão: " + safra.getTalhaoNome() + " (" + safra.getAreaHectares() + " ha)\n");
             sb.append("Status: " + safra.getStatus() + "\n\n");
             
@@ -1032,7 +1033,6 @@ public class SafrasController {
             List<AtividadeSafra> atividades = atividadeSafraDAO.listAtividadesPorSafra(safra.getId());
             
             for (AtividadeSafra atv : atividades) {
-// ... (código existente) ...
                 String nomeInsumo = "N/A (Custo Manual)";
                 String unidade = "";
                 if (atv.getItemConsumidoId() != null && atv.getItemConsumidoId() > 0) {
@@ -1054,17 +1054,16 @@ public class SafrasController {
                 custoTotal += atv.getCustoTotalAtividade(); 
             }
 
-            // 2. Receitas (Vendas Reais)
+            // --- INÍCIO DA ATUALIZAÇÃO (Lógica de Receita CSV) ---
+            // 2. Receitas (Vendas Reais - À Vista e A Prazo)
             double receitaTotalVendas = 0;
-// ... (código existente) ...
             String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
             String descVendaQuery = "Venda de " + nomeItemColheita;
             
-            List<Transacao> vendas = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
-
-            for (Transacao venda : vendas) {
-// ... (código existente) ...
-                sb.append(String.format(Locale.US, "Receita (Venda);%s;\"%s\";\"%s\";N/A;N/A;%.2f\n",
+            // Vendas à Vista (do Financeiro)
+            List<Transacao> vendasAVista = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
+            for (Transacao venda : vendasAVista) {
+                sb.append(String.format(Locale.US, "Receita (Venda à Vista);%s;\"%s\";\"%s\";N/A;N/A;%.2f\n",
                     venda.getData(),
                     venda.getDescricao().replace("\"", "\"\""),
                     nomeItemColheita.replace("\"", "\"\""),
@@ -1073,15 +1072,29 @@ public class SafrasController {
                 receitaTotalVendas += venda.getValor();
             }
 
+            // Vendas a Prazo (de Contas a Receber)
+            List<Conta> vendasAPrazo = contaDAO.listContasPorDescricaoLike(descVendaQuery);
+            for (Conta conta : vendasAPrazo) {
+                 if (conta.getTipo().equals("receber")) {
+                    sb.append(String.format(Locale.US, "Receita (Venda a Prazo);%s;\"%s\";\"%s\";N/A;N/A;%.2f\n",
+                        conta.getDataVencimento(), // Usa data de vencimento como referência
+                        conta.getDescricao().replace("\"", "\"\"") + " (Status: " + conta.getStatus() + ")",
+                        nomeItemColheita.replace("\"", "\"\""),
+                        conta.getValor()
+                    ));
+                    receitaTotalVendas += conta.getValor();
+                }
+            }
+            // --- FIM DA ATUALIZAÇÃO (Lógica de Receita CSV) ---
+
+
             // 3. Valor em Estoque (Produto não vendido)
             double valorEmEstoque = 0;
-// ... (código existente) ...
             EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
             
             if (itemColheitaEstoque != null) {
                 valorEmEstoque = itemColheitaEstoque.getValorTotal(); 
                 if (valorEmEstoque > 0) {
-// ... (código existente) ...
                     sb.append(String.format(Locale.US, "Valor em Estoque;%s;\"%s\";\"%s\";%.2f;%s;%.2f\n",
                         LocalDate.now().toString(), 
                         "Produto em Estoque (Não Vendido)",
@@ -1095,7 +1108,6 @@ public class SafrasController {
 
             // 4. Sumário
             double balancoFinal = (receitaTotalVendas + valorEmEstoque) - custoTotal;
-// ... (código existente) ...
             sb.append("\n\n--- Resumo Financeiro ---\n");
             sb.append(String.format(Locale.US, "Total Receitas (Vendas);%.2f\n", receitaTotalVendas));
             sb.append(String.format(Locale.US, "Valor em Estoque (Custo Médio);%.2f\n", valorEmEstoque));
@@ -1114,7 +1126,6 @@ public class SafrasController {
 
     @FXML
     private void handleAtualizarStatus() {
-// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
         if (safraSelecionada == null) {
             AlertUtil.showError("Nenhuma Seleção", "Por favor, selecione uma safra para atualizar o status.");
@@ -1154,7 +1165,6 @@ public class SafrasController {
 
     @FXML
     private void handleRemoverSafra() {
-// ... (código existente) ...
         SafraInfo safraSelecionada = tabelaSafras.getSelectionModel().getSelectedItem();
 
         if (safraSelecionada == null) {
@@ -1179,7 +1189,6 @@ public class SafrasController {
 
     @FXML
     private void handleRemoverTalhao() {
-// ... (código existente) ...
         Talhao talhaoSelecionado = tabelaTalhoes.getSelectionModel().getSelectedItem();
 
         if (talhaoSelecionado == null) {
@@ -1207,7 +1216,6 @@ public class SafrasController {
     }
     
     private void atualizarCalculosDialogColheita(
-// ... (código existente) ...
         String totalSacosStr, String vlrSacoStr, double area,
         Label scHaLabel, Label totalKgLabel, Label totalValorLabel
     ) {
@@ -1238,7 +1246,6 @@ public class SafrasController {
     }
 
     private double parseDouble(String text) throws NumberFormatException {
-// ... (código existente) ...
         if (text == null || text.isEmpty()) {
             return 0.0;
         }
@@ -1246,7 +1253,6 @@ public class SafrasController {
     }
     
     private void atualizarCustoAtividade(EstoqueItem item, String qtdStr, Label custoLabel) {
-// ... (código existente) ...
         if (item == null) {
             custoLabel.setText("Custo (R$): ---");
             return;
@@ -1262,7 +1268,6 @@ public class SafrasController {
 
     // Classe interna AtividadeSafraInfo
     public static class AtividadeSafraInfo {
-// ... (código existente) ...
         private final String data;
         private final String descricao;
         private final String insumoNome;

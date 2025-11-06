@@ -14,6 +14,7 @@ import java.util.List;
  * ATUALIZADO: Adicionado updateConta.
  * ATUALIZADO: Adicionados métodos para alertas de dashboard (Vencidas, A Vencer).
  * ATUALIZADO: Adicionados campos de fornecedor.
+ * ATUALIZADO: Adicionado listContasPorDescricaoLike para o balanço de safras.
  */
 public class ContaDAO {
 
@@ -106,7 +107,6 @@ public class ContaDAO {
 
             // 3. Adiciona no financeiro
             FinanceiroDAO financeiroDAO = new FinanceiroDAO();
-            // Precisamos passar a conexão para o DAO do financeiro para manter a transação
             // Como o FinanceiroDAO não está preparado para isso, vamos chamá-lo fora da transação
             // (idealmente, o addTransacao receberia a conexão)
             
@@ -177,11 +177,34 @@ public class ContaDAO {
         }
 
         try (Connection conn = Database.getConnection();
-             Statement stmt = conn.createStatement(); // <-- Esta linha causava o erro
+             Statement stmt = conn.createStatement(); 
              ResultSet rs = stmt.executeQuery(sql)) {
 
             while (rs.next()) {
                 contas.add(mapRowToConta(rs));
+            }
+        }
+        return contas;
+    }
+
+    /**
+     * NOVO: Retorna uma lista de contas (pagar/receber) onde a descrição começa com o texto.
+     * Usado pelo SafrasController para encontrar vendas a prazo.
+     */
+    public List<Conta> listContasPorDescricaoLike(String partialDesc) throws SQLException {
+        List<Conta> contas = new ArrayList<>();
+        // Busca por contas que COMECEM com o prefixo
+        String sql = "SELECT * FROM contas WHERE descricao LIKE ? ORDER BY data_vencimento ASC";
+        
+        try (Connection conn = Database.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, partialDesc + "%"); 
+            
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    contas.add(mapRowToConta(rs)); // Reusa o helper existente
+                }
             }
         }
         return contas;
@@ -213,8 +236,13 @@ public class ContaDAO {
      */
     public int getContagemContasVencidas() throws SQLException {
         // SQL do SQLite para comparar datas. date('now') é hoje.
+        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+        //              "AND data_vencimento < date('now')"; // ANTIGO SQLITE
+        
+        // NOVO: SQL alterado para PostgreSQL
+        // Converte data_vencimento (que é TEXT) para DATE e compara com a data atual
         String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-                     "AND data_vencimento < date('now')";
+                     "AND data_vencimento::date < CURRENT_DATE";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -238,14 +266,20 @@ public class ContaDAO {
      */
     public int getContagemContasAVencer(int dias) throws SQLException {
         // SQL do SQLite para comparar datas. date('now') é hoje.
+        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+        //              "AND data_vencimento >= date('now') " +
+        //              "AND data_vencimento <= date('now', '+' || ? || ' days')"; // ANTIGO SQLITE
+        
+        // NOVO: SQL alterado para PostgreSQL
         String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-                     "AND data_vencimento >= date('now') " +
-                     "AND data_vencimento <= date('now', '+' || ? || ' days')";
+                     "AND data_vencimento::date >= CURRENT_DATE " +
+                     "AND data_vencimento::date <= (CURRENT_DATE + ? * INTERVAL '1 day')";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            pstmt.setString(1, String.valueOf(dias)); // Passa os dias como string para o SQLite
+            // pstmt.setString(1, String.valueOf(dias)); // ANTIGO SQLITE
+            pstmt.setInt(1, dias); // NOVO: PostgreSQL espera um INT para o '?' no INTERVAL
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
