@@ -21,6 +21,7 @@ import java.net.URL;
  * ATUALIZADO: Adiciona o ícone da aplicação na barra de título da janela.
  * ATUALIZADO: Armazena a instância do Stage principal (primaryStage)
  * para referência global e permite focar a janela.
+ * ATUALIZADO: Chama Database.initDb() DEPOIS da inicialização do JavaFX.
  */
 public class App extends Application {
 
@@ -34,6 +35,22 @@ public class App extends Application {
         
         // NOVO: Carrega o ícone para ser usado nos diálogos
         AlertUtil.loadAppIcon();
+
+        // --- ATUALIZAÇÃO CRÍTICA ---
+        // Inicializa o banco de dados AQUI.
+        // Se falhar, o AlertUtil.showError() (que é JavaFX)
+        // funcionará corretamente, pois o Toolkit já está inicializado.
+        try {
+            com.farmmanager.model.Database.initDb();
+        } catch (Exception e) {
+            // Se o initDb() falhar (ex: AlertUtil.showError), 
+            // a aplicação não deve continuar.
+            System.err.println("Falha fatal na inicialização do banco de dados. A fechar.");
+            Platform.exit(); // Fecha a aplicação JavaFX
+            System.exit(1); // Fecha o processo
+            return; // Interrompe a execução do 'start'
+        }
+        // --- FIM DA ATUALIZAÇÃO ---
 
         // Constrói o caminho para o arquivo FXML dentro do pacote de resources
         URL fxmlUrl = getClass().getResource("/com/farmmanager/MainView.fxml");
@@ -106,4 +123,3 @@ public class App extends Application {
         launch(args);
     }
 }
-
