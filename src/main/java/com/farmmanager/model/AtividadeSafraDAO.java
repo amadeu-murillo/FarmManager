@@ -14,12 +14,15 @@ import java.util.List;
  * NOVO: DAO para gerenciar a tabela 'atividades_safra'.
  * NOVO: Adicionado data_hora_criacao.
  * ATUALIZADO: Adicionada classe DTO ConsumoHistoricoInfo e método listConsumoHistorico.
+ * ATUALIZADO: listConsumoHistorico agora usa LEFT JOIN para incluir consumo interno (sem safra).
+ * ATUALIZADO: addAtividade e listAtividadesPorSafra agora lidam com safra_id Nulo (Integer).
  */
 public class AtividadeSafraDAO {
 
     /**
      * NOVO: DTO para carregar o histórico de consumo de insumos.
      * Esta classe interna agrupa dados de 3 tabelas (atividades, estoque, safras).
+     * ATUALIZADO: Lida com safras nulas (consumo interno).
      */
     public static class ConsumoHistoricoInfo {
         private final String data;
@@ -35,7 +38,13 @@ public class AtividadeSafraDAO {
             this.quantidadeConsumida = quantidadeConsumida;
             this.unidade = unidade;
             this.descricaoAtividade = descricaoAtividade;
-            this.safraDestino = culturaSafra + " (" + anoSafra + ")";
+            
+            // ATUALIZADO: Trata o caso de consumo interno (sem safra)
+            if (culturaSafra == null || anoSafra == null) {
+                this.safraDestino = "Uso Interno / Avulso";
+            } else {
+                this.safraDestino = culturaSafra + " (" + anoSafra + ")";
+            }
         }
 
         // Getters
@@ -50,6 +59,7 @@ public class AtividadeSafraDAO {
 
     /**
      * Adiciona uma nova atividade/custo ao banco de dados.
+     * ATUALIZADO: Lida com safra_id nulo.
      */
     public boolean addAtividade(AtividadeSafra atividade) throws SQLException {
         // NOVO: SQL atualizado
@@ -59,7 +69,13 @@ public class AtividadeSafraDAO {
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            pstmt.setInt(1, atividade.getSafraId());
+            // ATUALIZADO: Lida com safra_id nulo
+            if (atividade.getSafraId() != null) {
+                pstmt.setInt(1, atividade.getSafraId());
+            } else {
+                pstmt.setNull(1, Types.INTEGER);
+            }
+            
             pstmt.setString(2, atividade.getDescricao());
             pstmt.setString(3, atividade.getData());
             
@@ -80,7 +96,7 @@ public class AtividadeSafraDAO {
 
     /**
      * Lista todas as atividades de uma safra específica.
-     * (Será usado na Etapa 3)
+     * ATUALIZADO: Lida com safra_id Nulo (Integer).
      */
     public List<AtividadeSafra> listAtividadesPorSafra(int safraId) throws SQLException {
         List<AtividadeSafra> atividades = new ArrayList<>();
@@ -95,10 +111,12 @@ public class AtividadeSafraDAO {
                 while (rs.next()) {
                     // Trata o item_consumido_id nulo
                     Integer itemConsumidoId = (Integer) rs.getObject("item_consumido_id");
+                    // ATUALIZADO: Trata safra_id nulo (embora este método filtre por ID)
+                    Integer safraIdLido = (Integer) rs.getObject("safra_id"); 
 
                     AtividadeSafra atv = new AtividadeSafra(
                         rs.getInt("id"),
-                        rs.getInt("safra_id"),
+                        safraIdLido, // ATUALIZADO
                         rs.getString("descricao"),
                         rs.getString("data"),
                         itemConsumidoId,
@@ -115,13 +133,15 @@ public class AtividadeSafraDAO {
     /**
      * NOVO: Lista o histórico completo de consumo de insumos (itens de estoque).
      * Junta atividades_safra, estoque e safras.
+     * ATUALIZADO: Usa LEFT JOIN para incluir consumo interno (sem safra).
      */
     public List<ConsumoHistoricoInfo> listConsumoHistorico() throws SQLException {
         List<ConsumoHistoricoInfo> historico = new ArrayList<>();
+        // ATUALIZADO: Usa LEFT JOIN em 'safras'
         String sql = "SELECT a.data, e.item_nome, a.quantidade_consumida, e.unidade, a.descricao, s.cultura, s.ano_inicio "
                    + "FROM atividades_safra a "
                    + "JOIN estoque e ON a.item_consumido_id = e.id "
-                   + "JOIN safras s ON a.safra_id = s.id "
+                   + "LEFT JOIN safras s ON a.safra_id = s.id " // ATUALIZADO
                    + "WHERE a.item_consumido_id IS NOT NULL "
                    + "ORDER BY a.data DESC";
 
@@ -136,8 +156,8 @@ public class AtividadeSafraDAO {
                     rs.getDouble("quantidade_consumida"),
                     rs.getString("unidade"),
                     rs.getString("descricao"),
-                    rs.getString("cultura"),
-                    rs.getString("ano_inicio")
+                    rs.getString("cultura"), // Pode ser nulo
+                    rs.getString("ano_inicio") // Pode ser nulo
                 );
                 historico.add(info);
             }

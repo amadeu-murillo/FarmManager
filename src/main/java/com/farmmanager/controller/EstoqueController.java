@@ -7,6 +7,7 @@ import com.farmmanager.model.Transacao;
 import com.farmmanager.model.Conta; 
 import com.farmmanager.model.ContaDAO; 
 // NOVO: Imports para Histórico
+import com.farmmanager.model.AtividadeSafra; // ATUALIZADO: Import direto
 import com.farmmanager.model.AtividadeSafraDAO;
 import com.farmmanager.model.AtividadeSafraDAO.ConsumoHistoricoInfo;
 import com.farmmanager.util.AlertUtil;
@@ -61,6 +62,7 @@ import java.util.stream.Collectors;
  * - ATUALIZADO (handleVenderItem): Diálogo agora usa ScrollPane e é redimensionável.
  * - ATUALIZADO (handleAdicionarItem): Diálogo agora usa ScrollPane e é redimensionável.
  * - NOVO: Implementada Aba de Histórico de Consumo com filtros e exportação CSV.
+ * - ATUALIZADO (handleConsumirItem): Agora registra o consumo em 'atividades_safra' com safra_id nulo.
  */
 public class EstoqueController {
 
@@ -676,7 +678,7 @@ public class EstoqueController {
         }
         return Double.parseDouble(text.replace(",", "."));
     }
-
+    
     // Helper para formatar double para o campo de texto
     private String formatDouble(double value) {
         return String.format(Locale.US, "%.2f", value);
@@ -1004,12 +1006,26 @@ public class EstoqueController {
         result.ifPresent(pair -> {
             try {
                 double qtdAConsumir = pair.getKey();
-                // String descricaoUso = pair.getValue(); // Não usado mais para despesa
-
-                // Operação de escrita (rápida)
+                String descricaoUso = pair.getValue(); // ATUALIZADO: Descrição é capturada
+                
+                // 1. Consome do estoque
                 estoqueDAO.consumirEstoque(selecionado.getId(), qtdAConsumir);
                 
-                AlertUtil.showInfo("Sucesso", "Estoque atualizado com sucesso.");
+                // 2. Calcula o custo desse consumo
+                double custoConsumo = qtdAConsumir * selecionado.getValorUnitario();
+                
+                // 3. ATUALIZADO: Registra na tabela de atividades com safra_id = null
+                AtividadeSafra atividadeInterna = new AtividadeSafra(
+                    null, // safraId (nulo para uso interno)
+                    "Uso Interno: " + descricaoUso, // Descrição
+                    LocalDate.now().format(dateFormatter), // Data
+                    selecionado.getId(), // itemConsumidoId
+                    qtdAConsumir, // quantidadeConsumida
+                    custoConsumo // custoTotalAtividade
+                );
+                atividadeSafraDAO.addAtividade(atividadeInterna);
+                
+                AlertUtil.showInfo("Sucesso", "Estoque atualizado e consumo registrado no histórico geral.");
                 
                 carregarDadosMestres(); // Recarrega (assíncrono)
 
