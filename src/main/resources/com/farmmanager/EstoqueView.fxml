@@ -32,6 +32,7 @@
   - ATUALIZADO: Adicionadas colunas de Fornecedor e Empresa.
   - ATUALIZADO: Conteúdo principal movido para dentro de um TabPane.
   - NOVO: Adicionada Aba "Histórico de Consumo" com filtros e nova tabela.
+  - ATUALIZADO: Texto da Aba 2 alterado para "Histórico Geral de Consumo".
 -->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.EstoqueController">
    <children>
@@ -114,8 +115,8 @@
                      </content>
                   </Tab>
                   
-                  <!-- ABA 2: HISTÓRICO DE CONSUMO (NOVA) -->
-                  <Tab text="Histórico de Consumo (em Safras)">
+                  <!-- ABA 2: HISTÓRICO DE CONSUMO (ATUALIZADO) -->
+                  <Tab text="Histórico Geral de Consumo">
                      <content>
                         <VBox spacing="10.0">
                            <padding>
@@ -128,6 +129,7 @@
                                  <ColumnConstraints hgrow="NEVER" />
                                  <ColumnConstraints hgrow="NEVER" />
                                  <ColumnConstraints hgrow="NEVER" />
+                                 <ColumnConstraints hgrow="NEVER" /> <!-- <<< CORREÇÃO AQUI: Adicionada a 5ª coluna -->
                               </columnConstraints>
                               <children>
                                  <TextField fx:id="filtroHistoricoNome" promptText="Filtrar por nome do item..." GridPane.columnIndex="0" />

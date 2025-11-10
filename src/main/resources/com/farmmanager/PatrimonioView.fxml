@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<!-- 
+  IMPORTAÇÕES ATUALIZADAS:
+  - Adicionado ScrollPane (para o diálogo)
+-->
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TableColumn?>
@@ -8,10 +12,14 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.geometry.Insets?>
+<?import javafx.scene.control.ScrollPane?>
+
 
 <!-- 
-  NOVO: Tela de Gestão de Patrimônio (Máquinas e Ativos)
+  Tela de Gestão de Patrimônio (Máquinas e Ativos)
   ATUALIZADO: Convertido para SplitPane com painel de detalhes.
+  ATUALIZADO: Botão "Registrar Manutenção" agora terá um diálogo
+  mais complexo que permite consumir itens do estoque.
 -->
 <VBox spacing="15.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.PatrimonioController">
    <children>
@@ -67,4 +75,3 @@
       </SplitPane>
    </children>
 </VBox>
-

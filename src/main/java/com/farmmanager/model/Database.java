@@ -15,6 +15,7 @@ import java.sql.Statement;
  * ATUALIZADO:
  * - Revertido de PostgreSQL (servidor) para SQLite (ficheiro local).
  * - Sintaxe de 'SERIAL PRIMARY KEY' alterada de volta para 'INTEGER PRIMARY KEY AUTOINCREMENT'.
+ * - ATUALIZADO: Tabela 'atividades_safra' agora permite safra_id NULO.
  */
 public class Database {
 
@@ -120,16 +121,18 @@ public class Database {
             + ");";
 
         // NOVO: Definição da tabela de atividades da safra
+        // ATUALIZADO: safra_id pode ser NULO (para consumo interno)
+        // ATUALIZADO: FK usa ON DELETE SET NULL
         String sqlAtividadesSafra = "CREATE TABLE IF NOT EXISTS atividades_safra ("
             + "id INTEGER PRIMARY KEY AUTOINCREMENT," // MUDANÇA AQUI
-            + "safra_id INTEGER NOT NULL,"
+            + "safra_id INTEGER," // ATUALIZADO: Removido NOT NULL
             + "descricao TEXT NOT NULL,"
             + "data TEXT NOT NULL,"
             + "item_consumido_id INTEGER,"
             + "quantidade_consumida REAL,"
             + "custo_total_atividade REAL NOT NULL,"
             + "data_hora_criacao TEXT,"
-            + "FOREIGN KEY (safra_id) REFERENCES safras(id) ON DELETE CASCADE," 
+            + "FOREIGN KEY (safra_id) REFERENCES safras(id) ON DELETE SET NULL," // ATUALIZADO: ON DELETE SET NULL
             + "FOREIGN KEY (item_consumido_id) REFERENCES estoque(id) ON DELETE SET NULL"
             + ");";
 
