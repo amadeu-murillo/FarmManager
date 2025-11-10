@@ -15,6 +15,7 @@ import java.util.List;
  * ATUALIZADO: Adicionados métodos para alertas de dashboard (Vencidas, A Vencer).
  * ATUALIZADO: Adicionados campos de fornecedor.
  * ATUALIZADO: Adicionado listContasPorDescricaoLike para o balanço de safras.
+ * ATUALIZADO: Revertido SQL de data para sintaxe do SQLite.
  */
 public class ContaDAO {
 
@@ -236,13 +237,12 @@ public class ContaDAO {
      */
     public int getContagemContasVencidas() throws SQLException {
         // SQL do SQLite para comparar datas. date('now') é hoje.
-        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-        //              "AND data_vencimento < date('now')"; // ANTIGO SQLITE
-        
-        // NOVO: SQL alterado para PostgreSQL
-        // Converte data_vencimento (que é TEXT) para DATE e compara com a data atual
         String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-                     "AND data_vencimento::date < CURRENT_DATE";
+                     "AND data_vencimento < date('now')"; // REVERTIDO PARA SQLITE
+        
+        // NOVO: SQL alterado para PostgreSQL (AGORA COMENTADO)
+        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+        //              "AND data_vencimento::date < CURRENT_DATE";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -266,20 +266,20 @@ public class ContaDAO {
      */
     public int getContagemContasAVencer(int dias) throws SQLException {
         // SQL do SQLite para comparar datas. date('now') é hoje.
-        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-        //              "AND data_vencimento >= date('now') " +
-        //              "AND data_vencimento <= date('now', '+' || ? || ' days')"; // ANTIGO SQLITE
-        
-        // NOVO: SQL alterado para PostgreSQL
         String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
-                     "AND data_vencimento::date >= CURRENT_DATE " +
-                     "AND data_vencimento::date <= (CURRENT_DATE + ? * INTERVAL '1 day')";
+                     "AND data_vencimento >= date('now') " +
+                     "AND data_vencimento <= date('now', '+' || ? || ' days')"; // REVERTIDO PARA SQLITE
+        
+        // NOVO: SQL alterado para PostgreSQL (AGORA COMENTADO)
+        // String sql = "SELECT COUNT(*) AS total FROM contas WHERE status = 'pendente' " +
+        //              "AND data_vencimento::date >= CURRENT_DATE " +
+        //              "AND data_vencimento::date <= (CURRENT_DATE + ? * INTERVAL '1 day')";
         
         try (Connection conn = Database.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
             
-            // pstmt.setString(1, String.valueOf(dias)); // ANTIGO SQLITE
-            pstmt.setInt(1, dias); // NOVO: PostgreSQL espera um INT para o '?' no INTERVAL
+            pstmt.setString(1, String.valueOf(dias)); // REVERTIDO PARA SQLITE
+            // pstmt.setInt(1, dias); // NOVO: PostgreSQL espera um INT para o '?' no INTERVAL
             
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {

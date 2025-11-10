@@ -61,6 +61,7 @@ import java.util.Locale;
  * - CORREÇÃO (handleExportarCsv): Adicionado BOM UTF-8 para corrigir acentuação no Excel.
  * - ATUALIZAÇÃO (handleSafraSelectionChanged, handleExportarCsv): Agora somam vendas "À Vista" (Financeiro) 
  * e "A Prazo" (Contas a Receber) para calcular a receita total da safra.
+ * - MELHORIA (handleNovoTalhao): Adicionado cálculo automático entre Hectares e Alqueires.
  */
 public class SafrasController {
 
@@ -150,6 +151,11 @@ public class SafrasController {
 
     private final NumberFormat currencyFormatter; 
     private final NumberFormat decimalFormatter; 
+    
+    // NOVO: Constante de conversão (Alqueire Paulista)
+    private static final double FATOR_ALQUEIRE_HECTARE = 2.42;
+    // NOVO: Flag para evitar loops nos listeners de conversão
+    private boolean isUpdatingArea = false;
 
     /**
      * NOVO: Classe interna para agrupar os resultados da Task
@@ -460,6 +466,9 @@ public class SafrasController {
     }
 
 
+    /**
+     * ATUALIZADO: Adiciona conversão automática Hectare/Alqueire.
+     */
     @FXML
     private void handleNovoTalhao() {
         Dialog<Talhao> dialog = new Dialog<>();
@@ -476,13 +485,47 @@ public class SafrasController {
 
         TextField nomeField = new TextField();
         nomeField.setPromptText("Ex: Talhão Sede");
-        TextField areaField = new TextField();
-        areaField.setPromptText("Ex: 120.5");
+        
+        // --- INÍCIO DA ATUALIZAÇÃO (Hectares/Alqueires) ---
+        TextField hectaresField = new TextField();
+        hectaresField.setPromptText("Ex: 100.0");
+        TextField alqueiresField = new TextField();
+        alqueiresField.setPromptText("Ex: 41.32");
 
         grid.add(new Label("Nome:"), 0, 0);
         grid.add(nomeField, 1, 0);
-        grid.add(new Label("Área (ha):"), 0, 1);
-        grid.add(areaField, 1, 1);
+        grid.add(new Label("Área (Hectares):"), 0, 1);
+        grid.add(hectaresField, 1, 1);
+        grid.add(new Label("Área (Alqueires):"), 0, 2);
+        grid.add(alqueiresField, 1, 2);
+
+        // Listeners de conversão automática
+        hectaresField.textProperty().addListener((obs, oldV, newV) -> {
+            if (isUpdatingArea) return;
+            isUpdatingArea = true;
+            try {
+                double hectares = parseDouble(newV);
+                double alqueires = hectares / FATOR_ALQUEIRE_HECTARE;
+                alqueiresField.setText(formatDouble(alqueires));
+            } catch (NumberFormatException e) {
+                alqueiresField.clear();
+            }
+            isUpdatingArea = false;
+        });
+
+        alqueiresField.textProperty().addListener((obs, oldV, newV) -> {
+            if (isUpdatingArea) return;
+            isUpdatingArea = true;
+            try {
+                double alqueires = parseDouble(newV);
+                double hectares = alqueires * FATOR_ALQUEIRE_HECTARE;
+                hectaresField.setText(formatDouble(hectares));
+            } catch (NumberFormatException e) {
+                hectaresField.clear();
+            }
+            isUpdatingArea = false;
+        });
+        // --- FIM DA ATUALIZAÇÃO ---
 
         dialog.getDialogPane().setContent(grid);
         AlertUtil.setDialogIcon(dialog); // NOVO: Adiciona o ícone
@@ -491,9 +534,10 @@ public class SafrasController {
             if (dialogButton == adicionarButtonType) {
                 try {
                     String nome = nomeField.getText();
-                    double area = parseDouble(areaField.getText()); 
+                    // O valor final é sempre salvo em Hectares
+                    double area = parseDouble(hectaresField.getText()); 
                     if (nome.isEmpty() || area <= 0) {
-                        AlertUtil.showError("Erro de Validação", "Nome ou área inválidos.");
+                        AlertUtil.showError("Erro de Validação", "Nome ou área inválidos (área deve ser > 0).");
                         return null;
                     }
                     return new Talhao(nome, area);
@@ -1245,11 +1289,23 @@ public class SafrasController {
         }
     }
 
+    // MÉTODO MOVIDO E CORRIGIDO
     private double parseDouble(String text) throws NumberFormatException {
         if (text == null || text.isEmpty()) {
             return 0.0;
         }
+        // Substitui vírgula por ponto para aceitar ambos os formatos
         return Double.parseDouble(text.replace(",", "."));
+    }
+    
+    // NOVO MÉTODO ADICIONADO
+    /**
+     * NOVO: Helper para formatar double para campos de texto (2 casas decimais).
+     * Usado pelos listeners de conversão de área.
+     */
+    private String formatDouble(double value) {
+        // Usa Locale.US (ponto decimal) para consistência programática
+        return String.format(Locale.US, "%.2f", value);
     }
     
     private void atualizarCustoAtividade(EstoqueItem item, String qtdStr, Label custoLabel) {

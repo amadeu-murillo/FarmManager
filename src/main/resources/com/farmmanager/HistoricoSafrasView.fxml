@@ -4,20 +4,20 @@
   IMPORTAÇÕES ATUALIZADAS:
   - Adicionado StackPane (para sobrepor o loading)
   - Adicionado ProgressIndicator (para o loading)
+  - ATUALIZADO: BarChart removido, PieChart adicionado (revertido)
 -->
 <?import javafx.geometry.Insets?>
-<?import javafx.scene.chart.BarChart?>
+<?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.chart.CategoryAxis?>
 <?import javafx.scene.chart.LineChart?>
 <?import javafx.scene.chart.NumberAxis?>
-<?import javafx.scene.chart.PieChart?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.DatePicker?> 
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
@@ -32,6 +32,9 @@
   - Adicionado filtro de data (início/fim).
   - O ScrollPane principal agora está dentro de um StackPane.
   - Um ProgressIndicator foi adicionado ao StackPane.
+  - ATUALIZADO: Adicionado GridPane de KPIs (Resumo Financeiro).
+  - ATUALIZADO: Gráfico de Barras REVERTIDO para Gráfico de Pizza (Produção).
+  - ATUALIZADO: Tabela agora inclui colunas financeiras (Custo, Receita, Lucro).
 -->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.HistoricoSafrasController">
    <children>
@@ -63,7 +66,6 @@
                         <ComboBox fx:id="filtroCultura" prefWidth="250.0" GridPane.columnIndex="1" GridPane.rowIndex="0" />
                         <Label style="-fx-font-weight: bold;" text="Filtrar por Talhão:" GridPane.columnIndex="2" GridPane.rowIndex="0" />
                         <ComboBox fx:id="filtroTalhao" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="0" />
-                        <Button fx:id="btnAplicarFiltro" mnemonicParsing="false" onAction="#handleAplicarFiltro" styleClass="module-button" text="Aplicar Filtros" GridPane.columnIndex="5" GridPane.rowIndex="0" />
                         
                         <!-- Filtro de Data -->
                         <Label style="-fx-font-weight: bold;" text="Data Colheita (Início):" GridPane.columnIndex="0" GridPane.rowIndex="1" />
@@ -72,8 +74,10 @@
                         <DatePicker fx:id="filtroDataFim" prefWidth="250.0" GridPane.columnIndex="3" GridPane.rowIndex="1" />
                         <Button fx:id="btnLimparFiltro" mnemonicParsing="false" onAction="#handleLimparFiltro" text="Limpar" GridPane.columnIndex="5" GridPane.rowIndex="1" />
                         
-                        <!-- NOVO: Botão Exportar CSV -->
+                        <!-- Botão Exportar CSV -->
                         <Button fx:id="btnExportarCsv" mnemonicParsing="false" onAction="#handleExportarCsv" styleClass="module-button, success" text="Exportar CSV" GridPane.columnIndex="6" GridPane.rowIndex="1" />
+                        
+                        <!-- Botão Aplicar (removido, filtros são automáticos) -->
                         
                      </children>
                      <VBox.margin>
@@ -81,14 +85,66 @@
                      </VBox.margin>
                   </GridPane>
                   
+                  <!-- NOVO: Resumo Financeiro (KPIs) do Período Filtrado -->
+                  <Label text="Resumo do Período (Filtrado)" styleClass="content-subtitle" />
+                  <GridPane styleClass="card" hgap="20.0" vgap="10.0">
+                     <padding>
+                        <Insets top="20" right="20" bottom="20" left="20" />
+                     </padding>
+                     <columnConstraints>
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                     </columnConstraints>
+                     <children>
+                        <VBox spacing="5.0" GridPane.columnIndex="0">
+                           <children>
+                              <Label text="Produção Total" styleClass="summary-label" />
+                              <Label fx:id="lblProdTotalPeriodo" styleClass="summary-value" text="-" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="5.0" GridPane.columnIndex="1">
+                           <children>
+                              <Label text="Produtividade Média" styleClass="summary-label" />
+                              <Label fx:id="lblProdMediaPeriodo" styleClass="summary-value" text="-" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="5.0" GridPane.columnIndex="2">
+                           <children>
+                              <Label text="Receita Total" styleClass="summary-label" />
+                              <Label fx:id="lblReceitaTotalPeriodo" styleClass="summary-value positivo-text" text="R$ 0,00" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="5.0" GridPane.columnIndex="3">
+                           <children>
+                              <Label text="Custo Total" styleClass="summary-label" />
+                              <Label fx:id="lblCustoTotalPeriodo" styleClass="summary-value negativo-text" text="R$ 0,00" />
+                           </children>
+                        </VBox>
+                        <VBox spacing="5.0" GridPane.columnIndex="4">
+                           <children>
+                              <Label text="Lucro Total" styleClass="summary-label" />
+                              <Label fx:id="lblLucroTotalPeriodo" styleClass="summary-value" text="R$ 0,00" />
+                           </children>
+                        </VBox>
+                     </children>
+                     <VBox.margin>
+                        <Insets bottom="10.0" />
+                     </VBox.margin>
+                  </GridPane>
+                  
+                  
                   <!-- Seção de Gráficos -->
+                  <Label text="Análise Gráfica (Filtrada)" styleClass="content-subtitle" />
                   <HBox spacing="20.0" VBox.vgrow="ALWAYS">
                      <children>
                         <!-- Gráfico: Produção Média por Safra (sc/ha) -->
                         <VBox styleClass="card" HBox.hgrow="ALWAYS">
                            <children>
                               <Label styleClass="card-title" text="Produção Média por Safra (sc/ha)" />
-                              <LineChart fx:id="chartProducaoMedia" animated="false" VBox.vgrow="ALWAYS">
+                              <LineChart fx:id="chartProducaoMedia" animated="false" VBox.vgrow="ALWAYS" minHeight="300.0">
                                  <xAxis>
                                     <CategoryAxis label="Safra (Ano)" />
                                  </xAxis>
@@ -98,17 +154,18 @@
                               </LineChart>
                            </children>
                         </VBox>
-                        <!-- Gráfico: Produção Total por Cultura (Sacos) -->
+                        
+                        <!-- ATUALIZADO: Gráfico de Pizza (Revertido) -->
                         <VBox styleClass="card" HBox.hgrow="ALWAYS">
                            <children>
                               <Label styleClass="card-title" text="Produção Total por Cultura (Sacos)" />
-                              <PieChart fx:id="chartProducaoCultura" animated="false" VBox.vgrow="ALWAYS" />
+                              <PieChart fx:id="chartProducaoCultura" animated="false" VBox.vgrow="ALWAYS" minHeight="300.0" />
                            </children>
                         </VBox>
                      </children>
                   </HBox>
                   
-                  <!-- Tabela de Histórico Detalhado -->
+                  <!-- Tabela de Histórico Detalhado (ATUALIZADA) -->
                   <VBox styleClass="card" VBox.vgrow="ALWAYS">
                      <children>
                         <Label styleClass="card-title" text="Histórico Detalhado (Safras Colhidas)" />
@@ -116,12 +173,18 @@
                            <columns>
                               <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
                               <TableColumn fx:id="colSafraAno" prefWidth="100.0" text="Safra (Ano)" />
-                              <TableColumn fx:id="colCultura" prefWidth="150.0" text="Cultura" />
-                              <TableColumn fx:id="colTalhao" prefWidth="150.0" text="Talhão" />
-                              <TableColumn fx:id="colArea" prefWidth="100.0" text="Área (ha)" />
-                              <TableColumn fx:id="colDataColheita" prefWidth="160.0" text="Data Colheita" /> 
-                              <TableColumn fx:id="colProdSacos" prefWidth="150.0" text="Produção Total (Sacos)" />
-                              <TableColumn fx:id="colProdScHa" prefWidth="150.0" text="Produtividade (sc/ha)" />
+                              <TableColumn fx:id="colCultura" prefWidth="130.0" text="Cultura" />
+                              <TableColumn fx:id="colTalhao" prefWidth="130.0" text="Talhão" />
+                              <TableColumn fx:id="colArea" prefWidth="80.0" text="Área (ha)" />
+                              <TableColumn fx:id="colDataColheita" prefWidth="120.0" text="Data Colheita" /> 
+                              <TableColumn fx:id="colProdSacos" prefWidth="120.0" text="Produção (Sacos)" />
+                              <TableColumn fx:id="colProdScHa" prefWidth="120.0" text="Produtiv. (sc/ha)" />
+                              
+                              <!-- NOVAS COLUNAS FINANCEIRAS -->
+                              <TableColumn fx:id="colCustoTotal" prefWidth="130.0" text="Custo Total (R$)" />
+                              <TableColumn fx:id="colReceitaTotal" prefWidth="130.0" text="Receita Total (R$)" />
+                              <TableColumn fx:id="colLucro" prefWidth="130.0" text="Lucro/Prejuízo (R$)" />
+                              
                            </columns>
                            <VBox.margin>
                               <Insets top="10.0" />
@@ -150,4 +213,3 @@
       
    </children>
 </StackPane>
-

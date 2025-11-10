@@ -4,6 +4,7 @@
   IMPORTAÇÕES ATUALIZADAS:
   - Adicionado StackPane (para sobrepor o loading)
   - Adicionado ProgressIndicator (para o loading)
+  - Adicionado ScrollPane (para a tabela de talhões)
 -->
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.ComboBox?>
@@ -19,6 +20,7 @@
 <?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.ScrollPane?>
 
 <!-- 
   Tela de Gestão de Safras e Talhões
@@ -26,6 +28,7 @@
   - Adicionado painel de detalhes (Etapa 3) com custos e resumo financeiro.
   - O VBox principal agora está dentro de um StackPane.
   - Um ProgressIndicator foi adicionado ao StackPane.
+  - MELHORIA: Tabela de Talhões agora está dentro de um ScrollPane para garantir rolagem.
 -->
 <StackPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.farmmanager.controller.SafrasController">
    <children>
@@ -141,13 +144,23 @@
                            </children>
                         </HBox>
                         <Label styleClass="card-title" text="Talhões da Fazenda" />
-                        <TableView fx:id="tabelaTalhoes" VBox.vgrow="ALWAYS">
-                           <columns>
-                              <TableColumn fx:id="colTalhaoId" prefWidth="75.0" text="ID" />
-                              <TableColumn fx:id="colTalhaoNome" prefWidth="200.0" text="Nome" />
-                              <TableColumn fx:id="colTalhaoArea" prefWidth="120.0" text="Área (ha)" />
-                           </columns>
-                        </TableView>
+
+                        <!-- 
+                          MELHORIA: Adicionado ScrollPane para garantir que a tabela 
+                          tenha rolagem caso exceda o espaço vertical.
+                        -->
+                        <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" fitToHeight="true" style="-fx-background-color: transparent; -fx-background-insets: 0;">
+                           <content>
+                              <TableView fx:id="tabelaTalhoes">
+                                 <columns>
+                                    <TableColumn fx:id="colTalhaoId" prefWidth="75.0" text="ID" />
+                                    <TableColumn fx:id="colTalhaoNome" prefWidth="200.0" text="Nome" />
+                                    <TableColumn fx:id="colTalhaoArea" prefWidth="120.0" text="Área (ha)" />
+                                 </columns>
+                              </TableView>
+                           </content>
+                        </ScrollPane>
+
                      </children>
                   </VBox>
                </items>
