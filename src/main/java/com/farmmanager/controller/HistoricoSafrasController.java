@@ -1,16 +1,28 @@
 package com.farmmanager.controller;
 
+// DAOs (ATUALIZADO - Novos DAOs)
 import com.farmmanager.model.SafraDAO;
+import com.farmmanager.model.TalhaoDAO;
+import com.farmmanager.model.AtividadeSafraDAO;
+import com.farmmanager.model.ContaDAO;
+import com.farmmanager.model.EstoqueDAO;
+import com.farmmanager.model.FinanceiroDAO;
+
+// Modelos (ATUALIZADO - Novos Modelos)
 import com.farmmanager.model.SafraInfo;
 import com.farmmanager.model.Talhao;
-import com.farmmanager.model.TalhaoDAO;
+import com.farmmanager.model.Conta;
+import com.farmmanager.model.EstoqueItem;
+import com.farmmanager.model.Transacao;
+
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.concurrent.Task; // NOVO: Import para Task
 import javafx.fxml.FXML;
+// import javafx.scene.chart.BarChart; // ATUALIZADO (REMOVIDO)
 import javafx.scene.chart.LineChart;
-import javafx.scene.chart.PieChart;
+import javafx.scene.chart.PieChart; // ATUALIZADO (RE-ADICIONADO)
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -35,6 +47,7 @@ import java.text.NumberFormat;
 import java.time.LocalDate; 
 import java.time.LocalDateTime; 
 import java.time.format.DateTimeFormatter; 
+import java.util.ArrayList; // NOVO
 import java.util.List;
 import java.util.Locale; 
 import java.util.Map;
@@ -48,29 +61,37 @@ import java.util.stream.Collectors;
  * - MELHORIA CRÍTICA: Carregamento de dados (Safras e Talhões)
  * movido para uma Task em background para não congelar a UI.
  * - ATUALIZADO: Adicionada função de exportar CSV filtrado.
+ * - ATUALIZAÇÃO (MELHORIA): Agora calcula e exibe Custo, Receita e Lucro.
+ * - ATUALIZAÇÃO (MELHORIA): Adiciona KPIs de resumo financeiro.
+ * - ATUALIZAÇÃO (MELHORIA): Gráfico de lucratividade REVERTIDO para produção.
  */
 public class HistoricoSafrasController {
 
-    // DAOs
+    // DAOs (ATUALIZADO - Novos DAOs)
     private final SafraDAO safraDAO;
     private final TalhaoDAO talhaoDAO;
+    private final AtividadeSafraDAO atividadeSafraDAO;
+    private final FinanceiroDAO financeiroDAO;
+    private final ContaDAO contaDAO;
+    private final EstoqueDAO estoqueDAO;
 
-    // Listas de Dados
-    private List<SafraInfo> listaMestraSafrasComInfo; // Lista completa (colhidas e ativas)
-    private final ObservableList<SafraInfo> dadosTabelaHistorico;
+
+    // Listas de Dados (ATUALIZADO - Usando novo DTO)
+    private List<SafraHistoricoInfo> listaMestraSafrasComInfo; // Lista completa (colhidas e ativas)
+    private final ObservableList<SafraHistoricoInfo> dadosTabelaHistorico;
+    // ATUALIZADO: Revertido para PieChart.Data
     private final ObservableList<PieChart.Data> dadosChartCultura;
     private final ObservableList<XYChart.Series<String, Number>> dadosChartProducaoMedia;
     
     private final DateTimeFormatter dbTimestampFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private final NumberFormat decimalFormatter;
+    private final NumberFormat currencyFormatter; // NOVO
 
     // Componentes FXML
     @FXML
     private ComboBox<String> filtroCultura;
     @FXML
     private ComboBox<Talhao> filtroTalhao;
-    @FXML
-    private Button btnAplicarFiltro;
     @FXML
     private Button btnLimparFiltro; 
     @FXML
@@ -80,32 +101,51 @@ public class HistoricoSafrasController {
     @FXML
     private DatePicker filtroDataFim; 
 
+    // KPIs (NOVOS)
+    @FXML
+    private Label lblProdTotalPeriodo;
+    @FXML
+    private Label lblProdMediaPeriodo;
+    @FXML
+    private Label lblCustoTotalPeriodo;
+    @FXML
+    private Label lblReceitaTotalPeriodo;
+    @FXML
+    private Label lblLucroTotalPeriodo;
+
+
     // Gráficos
     @FXML
     private LineChart<String, Number> chartProducaoMedia;
     @FXML
-    private PieChart chartProducaoCultura;
+    private PieChart chartProducaoCultura; // ATUALIZADO (Era BarChart)
 
-    // Tabela
+    // Tabela (ATUALIZADO - Tabela e Colunas)
     @FXML
-    private TableView<SafraInfo> tabelaHistorico;
-    // ... (colunas tabela)
+    private TableView<SafraHistoricoInfo> tabelaHistorico;
     @FXML
-    private TableColumn<SafraInfo, Integer> colId;
+    private TableColumn<SafraHistoricoInfo, Integer> colId;
     @FXML
-    private TableColumn<SafraInfo, String> colSafraAno;
+    private TableColumn<SafraHistoricoInfo, String> colSafraAno;
     @FXML
-    private TableColumn<SafraInfo, String> colCultura;
+    private TableColumn<SafraHistoricoInfo, String> colCultura;
     @FXML
-    private TableColumn<SafraInfo, String> colTalhao;
+    private TableColumn<SafraHistoricoInfo, String> colTalhao;
     @FXML
-    private TableColumn<SafraInfo, Double> colArea;
+    private TableColumn<SafraHistoricoInfo, Double> colArea;
     @FXML
-    private TableColumn<SafraInfo, String> colDataColheita; 
+    private TableColumn<SafraHistoricoInfo, String> colDataColheita; 
     @FXML
-    private TableColumn<SafraInfo, Double> colProdSacos;
+    private TableColumn<SafraHistoricoInfo, Double> colProdSacos;
     @FXML
-    private TableColumn<SafraInfo, Double> colProdScHa;
+    private TableColumn<SafraHistoricoInfo, Double> colProdScHa;
+    // Novas Colunas
+    @FXML
+    private TableColumn<SafraHistoricoInfo, Double> colCustoTotal;
+    @FXML
+    private TableColumn<SafraHistoricoInfo, Double> colReceitaTotal;
+    @FXML
+    private TableColumn<SafraHistoricoInfo, Double> colLucro;
     
     // NOVO: Componentes para controle de carregamento
     @FXML
@@ -115,14 +155,53 @@ public class HistoricoSafrasController {
 
 
     /**
+     * NOVO: Classe interna (DTO) para agrupar todos os dados necessários
+     * para a tabela e gráficos de histórico.
+     */
+    public static class SafraHistoricoInfo {
+        private final SafraInfo safraBase;
+        private final double custoTotal;
+        private final double receitaTotal; // Vendas (à vista + a prazo)
+        private final double valorEmEstoque; // Produto não vendido
+        private final double lucro;
+
+        public SafraHistoricoInfo(SafraInfo safraBase, double custoTotal, double receitaTotal, double valorEmEstoque, double lucro) {
+            this.safraBase = safraBase;
+            this.custoTotal = custoTotal;
+            this.receitaTotal = receitaTotal;
+            this.valorEmEstoque = valorEmEstoque;
+            this.lucro = lucro;
+        }
+
+        // Getters da SafraBase (para colunas existentes)
+        public int getId() { return safraBase.getId(); }
+        public String getAnoInicio() { return safraBase.getAnoInicio(); }
+        public String getCultura() { return safraBase.getCultura(); }
+        public String getTalhaoNome() { return safraBase.getTalhaoNome(); }
+        public double getAreaHectares() { return safraBase.getAreaHectares(); }
+        public String getDataModificacao() { return safraBase.getDataModificacao(); } // Data Colheita
+        public double getProducaoTotalSacos() { return safraBase.getProducaoTotalSacos(); }
+        public double getProducaoSacosPorHectare() { return safraBase.getProducaoSacosPorHectare(); }
+        public String getStatus() { return safraBase.getStatus(); }
+
+        // Getters dos novos dados financeiros
+        public double getCustoTotal() { return custoTotal; }
+        public double getReceitaTotal() { return receitaTotal; }
+        public double getValorEmEstoque() { return valorEmEstoque; }
+        public double getLucro() { return lucro; }
+    }
+
+
+    /**
      * NOVO: Classe interna para agrupar os resultados da Task
+     * ATUALIZADO: Retorna a lista do novo DTO
      */
     private static class HistoricoPageData {
-        final List<SafraInfo> safras;
+        final List<SafraHistoricoInfo> safrasComFinanceiro;
         final List<Talhao> talhoes;
 
-        HistoricoPageData(List<SafraInfo> safras, List<Talhao> talhoes) {
-            this.safras = safras;
+        HistoricoPageData(List<SafraHistoricoInfo> safras, List<Talhao> talhoes) {
+            this.safrasComFinanceiro = safras;
             this.talhoes = talhoes;
         }
     }
@@ -130,18 +209,24 @@ public class HistoricoSafrasController {
     public HistoricoSafrasController() {
         safraDAO = new SafraDAO();
         talhaoDAO = new TalhaoDAO();
+        // NOVOS DAOs
+        atividadeSafraDAO = new AtividadeSafraDAO();
+        financeiroDAO = new FinanceiroDAO();
+        contaDAO = new ContaDAO();
+        estoqueDAO = new EstoqueDAO();
         
         listaMestraSafrasComInfo = FXCollections.observableArrayList();
         dadosTabelaHistorico = FXCollections.observableArrayList();
-        dadosChartCultura = FXCollections.observableArrayList();
+        dadosChartCultura = FXCollections.observableArrayList(); // ATUALIZADO
         dadosChartProducaoMedia = FXCollections.observableArrayList();
         
         decimalFormatter = new DecimalFormat("#,##0.00");
+        currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); // NOVO
     }
 
     @FXML
     public void initialize() {
-        // 1. Configurar Tabela
+        // 1. Configurar Tabela (ATUALIZADO)
         colId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colSafraAno.setCellValueFactory(new PropertyValueFactory<>("anoInicio"));
         colCultura.setCellValueFactory(new PropertyValueFactory<>("cultura"));
@@ -150,25 +235,22 @@ public class HistoricoSafrasController {
         colDataColheita.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); 
         colProdSacos.setCellValueFactory(new PropertyValueFactory<>("producaoTotalSacos"));
         colProdScHa.setCellValueFactory(new PropertyValueFactory<>("producaoSacosPorHectare"));
+        // Novas colunas financeiras
+        colCustoTotal.setCellValueFactory(new PropertyValueFactory<>("custoTotal"));
+        colReceitaTotal.setCellValueFactory(new PropertyValueFactory<>("receitaTotal"));
+        colLucro.setCellValueFactory(new PropertyValueFactory<>("lucro"));
+        
         tabelaHistorico.setItems(dadosTabelaHistorico);
 
-        // Formatação da coluna de produtividade (sc/ha)
-        colProdScHa.setCellFactory(col -> new TableCell<SafraInfo, Double>() {
-            @Override
-            protected void updateItem(Double item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null || item == 0.0) {
-                    setText(null);
-                    setAlignment(Pos.CENTER_RIGHT);
-                } else {
-                    setText(decimalFormatter.format(item));
-                    setAlignment(Pos.CENTER_RIGHT);
-                }
-            }
-        });
+        // Formatação de células
+        formatarColunaDecimal(colProdScHa);
+        formatarColunaCurrency(colCustoTotal, "negativo"); // Custos são negativos
+        formatarColunaCurrency(colReceitaTotal, "positivo"); // Receitas são positivas
+        formatarColunaCurrency(colLucro, "balanco"); // Lucro pode ser pos/neg
 
-        // 2. Configurar Gráficos
-        chartProducaoCultura.setData(dadosChartCultura);
+
+        // 2. Configurar Gráficos (ATUALIZADO)
+        chartProducaoCultura.setData(dadosChartCultura); // ATUALIZADO
         chartProducaoMedia.setData(dadosChartProducaoMedia);
 
         // 3. Carregar Dados (Agora assíncrono)
@@ -192,27 +274,44 @@ public class HistoricoSafrasController {
     }
 
     /**
-     * NOVO: Carrega os dados mestres (Safras e Talhões) em uma Task.
+     * NOVO: Carrega os dados mestres (Safras e Talhões) E CALCULA
+     * OS DADOS FINANCEIROS de cada safra colhida, tudo em uma Task.
      */
     private void carregarDadosPaginaAssincrono() {
         Task<HistoricoPageData> carregarTask = new Task<HistoricoPageData>() {
             @Override
             protected HistoricoPageData call() throws Exception {
                 // Chamadas de banco de dados (demoradas)
-                List<SafraInfo> safras = safraDAO.listSafrasComInfo();
+                List<SafraInfo> safrasBase = safraDAO.listSafrasComInfo();
                 List<Talhao> talhoes = talhaoDAO.listTalhoes();
-                return new HistoricoPageData(safras, talhoes);
+                
+                List<SafraHistoricoInfo> safrasComFinanceiro = new ArrayList<>();
+
+                // Loop para calcular finanças de cada safra colhida (parte lenta)
+                for (SafraInfo safra : safrasBase) {
+                    if (safra.getStatus().equalsIgnoreCase("Colhida")) {
+                        double custo = atividadeSafraDAO.getCustoTotalPorSafra(safra.getId());
+                        double receita = calcularReceitaParaSafra(safra); // Helper
+                        double estoqueValor = calcularValorEstoqueParaSafra(safra); // Helper
+                        double lucro = (receita + estoqueValor) - custo;
+                        
+                        safrasComFinanceiro.add(new SafraHistoricoInfo(safra, custo, receita, estoqueValor, lucro));
+                    }
+                }
+                
+                return new HistoricoPageData(safrasComFinanceiro, talhoes);
             }
         };
 
         carregarTask.setOnSucceeded(e -> {
             HistoricoPageData data = carregarTask.getValue();
 
-            // 1. Popula a lista mestra de safras (colhidas e ativas)
-            listaMestraSafrasComInfo = data.safras;
+            // 1. Popula a lista mestra de safras (apenas colhidas com dados financeiros)
+            listaMestraSafrasComInfo = data.safrasComFinanceiro;
 
             // 2. Popula os ComboBoxes de filtro (rápido, UI)
-            popularFiltros(data.talhoes, data.safras);
+            // (Passa a lista DTO para extrair culturas)
+            popularFiltros(data.talhoes, data.safrasComFinanceiro);
             
             // 3. Aplica os filtros (rápido, em memória)
             handleAplicarFiltro();
@@ -230,14 +329,46 @@ public class HistoricoSafrasController {
         showLoading(true);
         new Thread(carregarTask).start();
     }
+    
+    // --- NOVOS Métodos Helper para cálculos financeiros (usados pela Task) ---
+
+    private double calcularReceitaParaSafra(SafraInfo safra) throws SQLException {
+        double receitaTotalVendas = 0;
+        String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
+        String descVendaQuery = "Venda de " + nomeItemColheita;
+        
+        // 1. Soma vendas À VISTA (do Financeiro)
+        List<Transacao> vendasAVista = financeiroDAO.listTransacoesPorDescricaoLike(descVendaQuery);
+        for (Transacao venda : vendasAVista) {
+            receitaTotalVendas += venda.getValor(); // Valores já são positivos
+        }
+
+        // 2. Soma vendas A PRAZO (de Contas a Receber)
+        List<Conta> vendasAPrazo = contaDAO.listContasPorDescricaoLike(descVendaQuery);
+        for (Conta conta : vendasAPrazo) {
+            if (conta.getTipo().equals("receber")) {
+                receitaTotalVendas += conta.getValor();
+            }
+        }
+        return receitaTotalVendas;
+    }
+    
+    private double calcularValorEstoqueParaSafra(SafraInfo safra) throws SQLException {
+        String nomeItemColheita = safra.getCultura() + " (Colheita " + safra.getAnoInicio() + ")";
+        EstoqueItem itemColheitaEstoque = estoqueDAO.getEstoqueItemPorNome(nomeItemColheita);
+        if (itemColheitaEstoque != null) {
+            return itemColheitaEstoque.getValorTotal();
+        }
+        return 0.0;
+    }
+    
+    // --- Fim dos Métodos Helper ---
 
 
     /**
-     * ATUALIZADO: Renomeado de carregarFiltros().
-     * Agora popula os ComboBoxes usando dados (listas) já carregados,
-     * sem fazer novas chamadas ao DAO.
+     * ATUALIZADO: Popula os ComboBoxes usando a nova lista de DTOs.
      */
-    private void popularFiltros(List<Talhao> talhoes, List<SafraInfo> safras) {
+    private void popularFiltros(List<Talhao> talhoes, List<SafraHistoricoInfo> safras) {
         // Filtro de Talhão
         Talhao todosTalhoes = new Talhao(0, "Todos os Talhões", 0); 
         filtroTalhao.getItems().add(todosTalhoes);
@@ -254,8 +385,10 @@ public class HistoricoSafrasController {
         filtroTalhao.setButtonCell(new ListCell<Talhao>() {
             @Override
             protected void updateItem(Talhao item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(item == null || empty ? "" : item.getNome());
+                // --- CORREÇÃO DO ERRO 1 ---
+                super.updateItem(item, empty); // Chamada correta
+                setText(item == null || empty ? "" : item.getNome()); // Define o texto
+                // --- FIM DA CORREÇÃO ---
             }
         });
         // Adiciona listener
@@ -266,7 +399,7 @@ public class HistoricoSafrasController {
         String todasCulturas = "Todas as Culturas";
         filtroCultura.getItems().add(todasCulturas);
         List<String> culturas = safras.stream() // Usa a lista 'safras' do parâmetro
-                                        .map(SafraInfo::getCultura)
+                                        .map(SafraHistoricoInfo::getCultura)
                                         .distinct()
                                         .sorted()
                                         .collect(Collectors.toList());
@@ -281,8 +414,6 @@ public class HistoricoSafrasController {
      */
     @FXML
     private void handleLimparFiltro() {
-        // Limpar os listeners temporariamente para evitar múltiplas chamadas
-        // (Não é estritamente necessário, mas pode evitar chamadas redundantes)
         filtroCultura.getSelectionModel().select("Todas as Culturas");
         filtroTalhao.getSelectionModel().selectFirst(); // Seleciona o "Todos os Talhões"
         filtroDataInicio.setValue(null);
@@ -292,8 +423,9 @@ public class HistoricoSafrasController {
     }
 
     /**
-     * ATUALIZADO: Agora filtra a listaMestraSafrasComInfo (em memória).
-     * Filtra apenas as "Colhidas" para exibição nesta tela.
+     * ATUALIZADO: Filtra a listaMestraSafrasComInfo (em memória).
+     * Não precisa mais filtrar por "Colhida", pois a lista mestra SÓ TEM colhidas.
+     * ATUALIZADO: Agora também calcula e exibe os KPIs de resumo.
      */
     @FXML
     private void handleAplicarFiltro() {
@@ -303,13 +435,8 @@ public class HistoricoSafrasController {
         LocalDate dataFim = filtroDataFim.getValue(); 
 
         // 1. Filtrar a lista mestra
-        List<SafraInfo> safrasFiltradas = listaMestraSafrasComInfo.stream()
+        List<SafraHistoricoInfo> safrasFiltradas = listaMestraSafrasComInfo.stream()
             .filter(safra -> {
-                // --- FILTRO PRINCIPAL: APENAS SAFRAS COLHIDAS ---
-                if (!safra.getStatus().equalsIgnoreCase("Colhida")) {
-                    return false;
-                }
-                
                 // Filtro de Cultura
                 boolean culturaMatch = (culturaSel == null || culturaSel.equals("Todas as Culturas") || safra.getCultura().equals(culturaSel));
                 // Filtro de Talhão
@@ -345,11 +472,51 @@ public class HistoricoSafrasController {
 
         // 3. Atualizar os Gráficos
         atualizarChartProducaoMedia(safrasFiltradas);
-        atualizarChartProducaoCultura(safrasFiltradas);
+        atualizarChartProducaoCultura(safrasFiltradas); // ATUALIZADO
+        
+        // 4. ATUALIZADO: Calcular e Atualizar KPIs
+        atualizarKPIs(safrasFiltradas);
     }
     
     /**
+     * NOVO: Calcula e exibe os KPIs de resumo para o período filtrado.
+     */
+    private void atualizarKPIs(List<SafraHistoricoInfo> safrasFiltradas) {
+        double prodTotalSacos = 0;
+        double prodMediaScHaSoma = 0;
+        double receitaTotal = 0;
+        double custoTotal = 0;
+        double lucroTotal = 0;
+
+        for (SafraHistoricoInfo safra : safrasFiltradas) {
+            prodTotalSacos += safra.getProducaoTotalSacos();
+            prodMediaScHaSoma += safra.getProducaoSacosPorHectare();
+            receitaTotal += safra.getReceitaTotal(); // Receita de Vendas
+            custoTotal += safra.getCustoTotal();
+            lucroTotal += safra.getLucro(); // Lucro (Receita + Estoque - Custo)
+        }
+        
+        double prodMediaScHa = safrasFiltradas.isEmpty() ? 0 : (prodMediaScHaSoma / safrasFiltradas.size());
+
+        lblProdTotalPeriodo.setText(decimalFormatter.format(prodTotalSacos) + " sc");
+        lblProdMediaPeriodo.setText(decimalFormatter.format(prodMediaScHa) + " sc/ha");
+        lblReceitaTotalPeriodo.setText(currencyFormatter.format(receitaTotal));
+        lblCustoTotalPeriodo.setText(currencyFormatter.format(custoTotal));
+        lblLucroTotalPeriodo.setText(currencyFormatter.format(lucroTotal));
+        
+        // Atualiza cor do Lucro Total
+        lblLucroTotalPeriodo.getStyleClass().removeAll("positivo-text", "negativo-text");
+        if (lucroTotal > 0) {
+            lblLucroTotalPeriodo.getStyleClass().add("positivo-text");
+        } else if (lucroTotal < 0) {
+            lblLucroTotalPeriodo.getStyleClass().add("negativo-text");
+        }
+    }
+
+    
+    /**
      * NOVO: Exporta os dados atualmente visíveis na tabela (filtrados) para um arquivo CSV.
+     * ATUALIZADO: Inclui os novos dados financeiros.
      */
     @FXML
     private void handleExportarCsv() {
@@ -360,7 +527,7 @@ public class HistoricoSafrasController {
 
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Salvar Relatório de Histórico de Safras");
-        fileChooser.setInitialFileName("Relatorio_Historico_Safras.csv");
+        fileChooser.setInitialFileName("Relatorio_Historico_Safras_Financeiro.csv");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
 
         File file = fileChooser.showSaveDialog(tabelaHistorico.getScene().getWindow());
@@ -376,12 +543,13 @@ public class HistoricoSafrasController {
             
             StringBuilder sb = new StringBuilder();
             
-            // Cabeçalho do CSV
-            sb.append("ID;Safra (Ano);Cultura;Talhão;Área (ha);Data Colheita;Produção Total (Sacos);Produtividade (sc/ha)\n");
+            // Cabeçalho do CSV (ATUALIZADO)
+            sb.append("ID;Safra (Ano);Cultura;Talhão;Área (ha);Data Colheita;Produção Total (Sacos);Produtividade (sc/ha);");
+            sb.append("Custo Total (R$);Receita Vendas (R$);Valor Estoque (R$);Lucro/Prejuízo (R$)\n");
 
             // Escreve os dados (usando a lista filtrada 'dadosTabelaHistorico')
-            for (SafraInfo safra : dadosTabelaHistorico) {
-                sb.append(String.format(Locale.US, "%d;%s;\"%s\";\"%s\";%.2f;%s;%.2f;%.2f\n",
+            for (SafraHistoricoInfo safra : dadosTabelaHistorico) {
+                sb.append(String.format(Locale.US, "%d;%s;\"%s\";\"%s\";%.2f;%s;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f\n",
                     safra.getId(),
                     safra.getAnoInicio(),
                     safra.getCultura().replace("\"", "\"\""),
@@ -389,7 +557,11 @@ public class HistoricoSafrasController {
                     safra.getAreaHectares(),
                     safra.getDataModificacao(), // Data da colheita
                     safra.getProducaoTotalSacos(),
-                    safra.getProducaoSacosPorHectare()
+                    safra.getProducaoSacosPorHectare(),
+                    safra.getCustoTotal(),
+                    safra.getReceitaTotal(),
+                    safra.getValorEmEstoque(),
+                    safra.getLucro()
                 ));
             }
 
@@ -406,12 +578,12 @@ public class HistoricoSafrasController {
     /**
      * Atualiza o gráfico de linha (Produção Média por Safra)
      */
-    private void atualizarChartProducaoMedia(List<SafraInfo> safras) {
+    private void atualizarChartProducaoMedia(List<SafraHistoricoInfo> safras) {
         // Agrupa por Ano/Safra e calcula a média de sc/ha
         Map<String, Double> mediaPorSafra = safras.stream()
             .collect(Collectors.groupingBy(
-                SafraInfo::getAnoInicio,
-                Collectors.averagingDouble(SafraInfo::getProducaoSacosPorHectare)
+                SafraHistoricoInfo::getAnoInicio,
+                Collectors.averagingDouble(SafraHistoricoInfo::getProducaoSacosPorHectare)
             ));
 
         XYChart.Series<String, Number> series = new XYChart.Series<>();
@@ -428,23 +600,76 @@ public class HistoricoSafrasController {
     }
 
     /**
-     * Atualiza o gráfico de pizza (Produção Total por Cultura)
+     * ATUALIZADO: Atualiza o gráfico de pizza (Produção Total por Cultura)
      */
-    private void atualizarChartProducaoCultura(List<SafraInfo> safras) {
-        // Agrupa por Cultura e soma a produção total (em sacos)
+    private void atualizarChartProducaoCultura(List<SafraHistoricoInfo> safras) {
+        // --- INÍCIO DA REVERSÃO ---
+        
+        // 1. Agrupa por Cultura e soma a produção total (em sacos)
         Map<String, Double> producaoPorCultura = safras.stream()
             .collect(Collectors.groupingBy(
-                SafraInfo::getCultura,
-                Collectors.summingDouble(SafraInfo::getProducaoTotalSacos)
+                SafraHistoricoInfo::getCultura,
+                Collectors.summingDouble(SafraHistoricoInfo::getProducaoTotalSacos)
             ));
 
+        // 2. Limpa dados antigos
         dadosChartCultura.clear();
+        
+        // 3. Adiciona novos dados
         producaoPorCultura.entrySet().stream()
             .sorted(Map.Entry.comparingByValue()) // Ordena para melhor visualização
             .forEach(entry -> {
                 String nome = String.format("%s (%.0f sc)", entry.getKey(), entry.getValue());
                 dadosChartCultura.add(new PieChart.Data(nome, entry.getValue()));
             });
+        
+        // --- FIM DA REVERSÃO ---
+    }
+    
+    // --- NOVOS Helpers de Formatação de Célula ---
+    
+    private void formatarColunaDecimal(TableColumn<SafraHistoricoInfo, Double> coluna) {
+        coluna.setCellFactory(col -> new TableCell<SafraHistoricoInfo, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null || item == 0.0) {
+                    setText(null);
+                    setAlignment(Pos.CENTER_RIGHT);
+                } else {
+                    setText(decimalFormatter.format(item));
+                    setAlignment(Pos.CENTER_RIGHT);
+                }
+            }
+        });
+    }
+
+    private void formatarColunaCurrency(TableColumn<SafraHistoricoInfo, Double> coluna, String tipo) {
+        coluna.setCellFactory(col -> new TableCell<SafraHistoricoInfo, Double>() {
+            @Override
+            protected void updateItem(Double item, boolean empty) {
+                super.updateItem(item, empty);
+                getStyleClass().removeAll("positivo-text", "negativo-text");
+                
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(currencyFormatter.format(item));
+                    setAlignment(Pos.CENTER_RIGHT);
+                    
+                    if (tipo.equals("balanco")) {
+                        if (item > 0) {
+                            getStyleClass().add("positivo-text");
+                        } else if (item < 0) {
+                            getStyleClass().add("negativo-text");
+                        }
+                    } else if (tipo.equals("positivo")) {
+                         getStyleClass().add("positivo-text");
+                    } else if (tipo.equals("negativo")) {
+                         getStyleClass().add("negativo-text");
+                    }
+                }
+            }
+        });
     }
 }
-

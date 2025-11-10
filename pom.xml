@@ -16,21 +16,21 @@
     </properties>
 
     <dependencies>
-        <!-- DEPENDÊNCIA ANTIGA (SQLite) - AGORA REMOVIDA/COMENTADA -->
-        <!--
+        <!-- DEPENDÊNCIA ANTIGA (SQLite) - AGORA ATIVADA -->
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.46.0.0</version>
         </dependency>
-        -->
         
-        <!-- NOVA DEPENDÊNCIA (PostgreSQL) -->
+        <!-- NOVA DEPENDÊNCIA (PostgreSQL) - AGORA DESATIVADA -->
+        <!--
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.3</version> <!-- Versão estável recente -->
+            <version>42.7.3</version>
         </dependency>
+        -->
 
         <dependency>
             <groupId>org.openjfx</groupId>

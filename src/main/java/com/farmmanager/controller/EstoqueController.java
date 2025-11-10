@@ -6,6 +6,9 @@ import com.farmmanager.model.FinanceiroDAO;
 import com.farmmanager.model.Transacao; 
 import com.farmmanager.model.Conta; 
 import com.farmmanager.model.ContaDAO; 
+// NOVO: Imports para Histórico
+import com.farmmanager.model.AtividadeSafraDAO;
+import com.farmmanager.model.AtividadeSafraDAO.ConsumoHistoricoInfo;
 import com.farmmanager.util.AlertUtil;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -23,6 +26,10 @@ import javafx.geometry.Pos;
 import javafx.util.Pair; 
 // NOVO: Import para ScrollPane
 import javafx.scene.control.ScrollPane; 
+import javafx.stage.FileChooser; // NOVO: Import para FileChooser
+import java.io.File; // NOVO: Import para File
+import java.io.IOException; // NOVO: Import para IOException
+import java.io.PrintWriter; // NOVO: Import para PrintWriter
 
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -53,6 +60,7 @@ import java.util.stream.Collectors;
  * - ATUALIZADO (handleVenderItem): Adicionados campos de Cliente e validação em tempo real.
  * - ATUALIZADO (handleVenderItem): Diálogo agora usa ScrollPane e é redimensionável.
  * - ATUALIZADO (handleAdicionarItem): Diálogo agora usa ScrollPane e é redimensionável.
+ * - NOVO: Implementada Aba de Histórico de Consumo com filtros e exportação CSV.
  */
 public class EstoqueController {
 
@@ -60,11 +68,12 @@ public class EstoqueController {
     private static final double LIMITE_BAIXO_ESTOQUE = 10.0;
 
     // --- Componentes FXML ---
+    
+    // Aba 1: Estoque Atual
     @FXML
     private TableView<EstoqueItem> tabelaEstoque;
     @FXML
     private TableColumn<EstoqueItem, Integer> colItemId;
-    // ... (outras colunas)
     @FXML
     private TableColumn<EstoqueItem, String> colItemNome;
     @FXML
@@ -83,14 +92,38 @@ public class EstoqueController {
     private TableColumn<EstoqueItem, String> colDataCriacao; 
     @FXML
     private TableColumn<EstoqueItem, String> colDataModificacao; 
-
-    // Filtro e Resumo
-    @FXML
-    private Label lblValorTotalEstoque;
     @FXML
     private TextField filtroNome;
+    
+    // Aba 2: Histórico de Consumo (NOVO)
+    @FXML
+    private TableView<ConsumoHistoricoInfo> tabelaHistoricoConsumo;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, String> colHistData;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, String> colHistItem;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, Double> colHistQtd;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, String> colHistUnidade;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, String> colHistDestino;
+    @FXML
+    private TableColumn<ConsumoHistoricoInfo, String> colHistSafra;
+    @FXML
+    private TextField filtroHistoricoNome;
+    @FXML
+    private DatePicker filtroHistoricoDataInicio;
+    @FXML
+    private DatePicker filtroHistoricoDataFim;
+    @FXML
+    private Button btnLimparHistorico;
+    @FXML
+    private Button btnExportarHistoricoCsv;
 
-    // NOVO: Componentes para controle de carregamento
+    // Componentes Gerais
+    @FXML
+    private Label lblValorTotalEstoque;
     @FXML
     private ProgressIndicator loadingIndicator;
     @FXML
@@ -100,8 +133,14 @@ public class EstoqueController {
     private final EstoqueDAO estoqueDAO;
     private final FinanceiroDAO financeiroDAO; 
     private final ContaDAO contaDAO; 
+    private final AtividadeSafraDAO atividadeSafraDAO; // NOVO: Para histórico
+    
     private final ObservableList<EstoqueItem> dadosTabelaFiltrada; 
     private List<EstoqueItem> listaMestraEstoque; 
+    // NOVO: Listas para histórico
+    private final ObservableList<ConsumoHistoricoInfo> dadosTabelaHistorico;
+    private List<ConsumoHistoricoInfo> listaMestraHistorico;
+    
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd"); 
     private final NumberFormat currencyFormatter; 
 
@@ -109,14 +148,17 @@ public class EstoqueController {
 
     /**
      * NOVO: Classe interna para agrupar os resultados da Task
+     * ATUALIZADO: Renomeado para EstoquePageData e adicionado historico
      */
-    private static class EstoqueData {
+    private static class EstoquePageData {
         final List<EstoqueItem> items;
         final double valorTotal;
+        final List<ConsumoHistoricoInfo> historico; // NOVO
 
-        EstoqueData(List<EstoqueItem> items, double valorTotal) {
+        EstoquePageData(List<EstoqueItem> items, double valorTotal, List<ConsumoHistoricoInfo> historico) {
             this.items = items;
             this.valorTotal = valorTotal;
+            this.historico = historico; // NOVO
         }
     }
 
@@ -124,28 +166,32 @@ public class EstoqueController {
         estoqueDAO = new EstoqueDAO();
         financeiroDAO = new FinanceiroDAO(); 
         contaDAO = new ContaDAO(); 
+        atividadeSafraDAO = new AtividadeSafraDAO(); // NOVO
+        
         dadosTabelaFiltrada = FXCollections.observableArrayList(); 
         listaMestraEstoque = new ArrayList<>(); 
+        
+        dadosTabelaHistorico = FXCollections.observableArrayList(); // NOVO
+        listaMestraHistorico = new ArrayList<>(); // NOVO
+        
         currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("pt", "BR")); 
     }
 
     @FXML
     public void initialize() {
+        // --- Aba 1: Estoque Atual ---
         colItemId.setCellValueFactory(new PropertyValueFactory<>("id"));
         colItemNome.setCellValueFactory(new PropertyValueFactory<>("itemNome"));
         colItemQtd.setCellValueFactory(new PropertyValueFactory<>("quantidade"));
         colItemUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
         colItemValorUnit.setCellValueFactory(new PropertyValueFactory<>("valorUnitario")); 
         colItemValorTotal.setCellValueFactory(new PropertyValueFactory<>("valorTotal")); 
-        colItemFornecedorNome.setCellValueFactory(new PropertyValueFactory<>("fornecedorNome")); // NOVO
-        colItemFornecedorEmpresa.setCellValueFactory(new PropertyValueFactory<>("fornecedorEmpresa")); // NOVO
+        colItemFornecedorNome.setCellValueFactory(new PropertyValueFactory<>("fornecedorNome"));
+        colItemFornecedorEmpresa.setCellValueFactory(new PropertyValueFactory<>("fornecedorEmpresa"));
         colDataCriacao.setCellValueFactory(new PropertyValueFactory<>("dataCriacao")); 
         colDataModificacao.setCellValueFactory(new PropertyValueFactory<>("dataModificacao")); 
 
         tabelaEstoque.setItems(dadosTabelaFiltrada); 
-
-        // Adiciona listener para o campo de filtro
-        // ATUALIZADO: Renomeado para aplicarFiltro()
         filtroNome.textProperty().addListener((obs, oldV, newV) -> aplicarFiltro());
 
         // Adiciona RowFactory para destacar baixo estoque
@@ -165,6 +211,21 @@ public class EstoqueController {
             }
         });
 
+        // --- Aba 2: Histórico de Consumo (NOVO) ---
+        colHistData.setCellValueFactory(new PropertyValueFactory<>("data"));
+        colHistItem.setCellValueFactory(new PropertyValueFactory<>("itemNome"));
+        colHistQtd.setCellValueFactory(new PropertyValueFactory<>("quantidadeConsumida"));
+        colHistUnidade.setCellValueFactory(new PropertyValueFactory<>("unidade"));
+        colHistDestino.setCellValueFactory(new PropertyValueFactory<>("descricaoAtividade"));
+        colHistSafra.setCellValueFactory(new PropertyValueFactory<>("safraDestino"));
+        tabelaHistoricoConsumo.setItems(dadosTabelaHistorico);
+
+        // Listeners para filtros do histórico
+        filtroHistoricoNome.textProperty().addListener((o, ov, nv) -> aplicarFiltroHistorico());
+        filtroHistoricoDataInicio.valueProperty().addListener((o, ov, nv) -> aplicarFiltroHistorico());
+        filtroHistoricoDataFim.valueProperty().addListener((o, ov, nv) -> aplicarFiltroHistorico());
+
+        // --- Carregamento Geral ---
         carregarDadosMestres(); 
     }
 
@@ -180,39 +241,47 @@ public class EstoqueController {
     }
 
     /**
-     * ATUALIZADO: Carrega todos os dados do banco (Itens e Valor Total)
+     * ATUALIZADO: Carrega todos os dados do banco (Itens, Valor Total, Histórico)
      * em uma Task de background.
      */
     private void carregarDadosMestres() {
-        Task<EstoqueData> carregarTask = new Task<EstoqueData>() {
+        Task<EstoquePageData> carregarTask = new Task<EstoquePageData>() {
             @Override
-            protected EstoqueData call() throws Exception {
+            protected EstoquePageData call() throws Exception {
                 // Chamadas de banco de dados (demoradas)
                 List<EstoqueItem> items = estoqueDAO.listEstoque();
                 double valorTotal = estoqueDAO.getValorTotalEmEstoque();
-                return new EstoqueData(items, valorTotal);
+                // NOVO: Busca o histórico
+                List<ConsumoHistoricoInfo> historico = atividadeSafraDAO.listConsumoHistorico();
+                
+                return new EstoquePageData(items, valorTotal, historico);
             }
         };
 
         carregarTask.setOnSucceeded(e -> {
-            EstoqueData data = carregarTask.getValue();
+            EstoquePageData data = carregarTask.getValue();
 
-            // 1. Atualiza a lista mestra
+            // 1. Atualiza a lista mestra de estoque
             listaMestraEstoque.clear();
             listaMestraEstoque.addAll(data.items);
 
-            // 2. Atualiza o resumo (que agora vem da task)
+            // 2. Atualiza o resumo
             lblValorTotalEstoque.setText(currencyFormatter.format(data.valorTotal));
 
-            // 3. Aplica o filtro (rápido, em memória)
+            // 3. NOVO: Atualiza a lista mestra de histórico
+            listaMestraHistorico.clear();
+            listaMestraHistorico.addAll(data.historico);
+
+            // 4. Aplica os filtros (rápido, em memória)
             aplicarFiltro();
+            aplicarFiltroHistorico(); // NOVO
             
-            // 4. Esconde o loading
+            // 5. Esconde o loading
             showLoading(false);
         });
 
         carregarTask.setOnFailed(e -> {
-            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar o estoque.");
+            AlertUtil.showError("Erro de Banco de Dados", "Não foi possível carregar o estoque e o histórico.");
             carregarTask.getException().printStackTrace();
             showLoading(false);
         });
@@ -245,14 +314,112 @@ public class EstoqueController {
         // 3. O resumo (lblValorTotalEstoque) NÃO é mais atualizado aqui.
         // Ele é atualizado apenas no carregarDadosMestres().
     }
+    
+    /**
+     * NOVO: Filtra a lista mestra de histórico (em memória).
+     */
+    @FXML
+    private void aplicarFiltroHistorico() {
+        String filtroNome = filtroHistoricoNome.getText().toLowerCase().trim();
+        LocalDate dataInicio = filtroHistoricoDataInicio.getValue();
+        LocalDate dataFim = filtroHistoricoDataFim.getValue();
+
+        List<ConsumoHistoricoInfo> listaFiltrada;
+
+        listaFiltrada = listaMestraHistorico.stream()
+            .filter(item -> {
+                // Filtro por Nome
+                boolean nomeMatch = filtroNome.isEmpty() || 
+                                    item.getItemNome().toLowerCase().contains(filtroNome);
+                
+                // Filtro por Data
+                boolean dataMatch = true;
+                try {
+                    LocalDate dataItem = LocalDate.parse(item.getData(), dateFormatter);
+                    if (dataInicio != null && dataItem.isBefore(dataInicio)) {
+                        dataMatch = false;
+                    }
+                    if (dataFim != null && dataItem.isAfter(dataFim)) {
+                        dataMatch = false;
+                    }
+                } catch (Exception e) {
+                    dataMatch = false; // Ignora se a data for inválida
+                }
+
+                return nomeMatch && dataMatch;
+            })
+            .collect(Collectors.toList());
+
+        dadosTabelaHistorico.setAll(listaFiltrada);
+    }
+    
+    /**
+     * NOVO: Limpa os filtros do histórico.
+     */
+    @FXML
+    private void handleLimparFiltroHistorico() {
+        filtroHistoricoNome.clear();
+        filtroHistoricoDataInicio.setValue(null);
+        filtroHistoricoDataFim.setValue(null);
+        // aplicarFiltroHistorico() é chamado pelos listeners
+    }
+
+    /**
+     * NOVO: Exporta o CSV do histórico filtrado.
+     */
+    @FXML
+    private void handleExportarHistoricoCsv() {
+        if (dadosTabelaHistorico.isEmpty()) {
+            AlertUtil.showInfo("Nada para Exportar", "A tabela de histórico está vazia. Não há dados para exportar.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Salvar Histórico de Consumo");
+        fileChooser.setInitialFileName("Relatorio_Consumo_Insumos.csv");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Arquivos CSV (*.csv)", "*.csv"));
+
+        File file = fileChooser.showSaveDialog(tabelaEstoque.getScene().getWindow());
+
+        if (file == null) {
+            return; // Usuário cancelou
+        }
+
+        // Tenta escrever o arquivo
+        try (PrintWriter writer = new PrintWriter(file, "UTF-8")) {
+            
+            writer.write("\uFEFF"); // Adiciona o BOM do UTF-8 para Excel
+            
+            StringBuilder sb = new StringBuilder();
+            
+            // Cabeçalho do CSV
+            sb.append("Data;Item Consumido;Qtd.;Unidade;Destino (Atividade);Safra\n");
+
+            // Escreve os dados (usando a lista filtrada 'dadosTabelaHistorico')
+            for (ConsumoHistoricoInfo info : dadosTabelaHistorico) {
+                sb.append(String.format(Locale.US, "%s;\"%s\";%.2f;\"%s\";\"%s\";\"%s\"\n",
+                    info.getData(),
+                    info.getItemNome().replace("\"", "\"\""),
+                    info.getQuantidadeConsumida(),
+                    info.getUnidade().replace("\"", "\"\""),
+                    info.getDescricaoAtividade().replace("\"", "\"\""),
+                    info.getSafraDestino().replace("\"", "\"\"")
+                ));
+            }
+
+            writer.write(sb.toString());
+            AlertUtil.showInfo("Sucesso", "Relatório CSV (Filtrado) exportado com sucesso para:\n" + file.getAbsolutePath());
+
+        } catch (IOException e) {
+            AlertUtil.showError("Erro ao Exportar", "Não foi possível gerar o arquivo CSV: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 
     /**
      * ATUALIZADO: Removido. A lógica foi movida para carregarDadosMestres().
      */
-    private void atualizarResumoEstoque() {
-       // Esta lógica foi movida para carregarDadosMestres()
-       // para ser executada na Task de background.
-    }
+    // private void atualizarResumoEstoque() { ... }
 
 
     @FXML
@@ -419,7 +586,7 @@ public class EstoqueController {
                     // Validações (já cobertas pelos listeners, mas mantidas por segurança)
                     if (nome.isEmpty() || unidade.isEmpty() || qtd <= 0) {
                          AlertUtil.showError("Erro de Validação", "Nome, Unidade e Quantidade (> 0) são obrigatórios.");
-                         return null;
+                         return null; // Retorna nulo para não fechar o diálogo
                     }
                     if (deveRegistrar && valorTotal <= 0) {
                          AlertUtil.showError("Erro de Validação", "O Valor Total deve ser positivo ao registrar no financeiro.");
@@ -994,4 +1161,3 @@ public class EstoqueController {
         }
     }
 }
-
